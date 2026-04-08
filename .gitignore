@@ -1,0 +1,45 @@
+# Virtual environment
+.venv/
+venv/
+
+# SQLite databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Environment / secrets
+.env
+.env.*
+*.pem
+credentials.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# HuggingFace model cache
+.cache/
+
+# Data artifacts (raw filings loaded from colleague's repo, not committed)
+data/
+
+# Logs
+*.log
+
+# Byte-compiled
+*.pyc
