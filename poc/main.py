@@ -15,6 +15,20 @@ import logging
 import sys
 from datetime import date
 
+# Load .env BEFORE importing any module that reads env vars at import time
+# (e.g. poc.llm_client reads GROQ_API_KEY when get_llm_client() is called).
+from dotenv import load_dotenv
+
+load_dotenv()
+
+# Default to mock embeddings on networks where huggingface.co is blocked
+# (e.g. Cisco Umbrella). The SentenceTransformer download otherwise wastes
+# ~30s on SSL retries before falling back. Override by setting
+# POC_FORCE_MOCK_EMBEDDINGS=0 in .env if HF is reachable.
+import os as _os
+
+_os.environ.setdefault("POC_FORCE_MOCK_EMBEDDINGS", "1")
+
 import uvicorn
 from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import FastAPI
@@ -96,6 +110,14 @@ def run_demo():
         sys.exit(1)
 
     logger.info(f"Demo tickers: {demo_tickers}")
+
+    # Wipe the SQLite DB so the demo is deterministic: 1 user, len(tickers)
+    # LLM calls. Otherwise repeated `--demo` runs accumulate users and the
+    # batch fans out to N x M LLM calls, hammering Groq's free-tier rate limit.
+    from poc.config import SQLITE_DB_PATH
+    if SQLITE_DB_PATH.exists():
+        SQLITE_DB_PATH.unlink()
+        logger.info(f"Wiped previous demo state at {SQLITE_DB_PATH}")
 
     # Initialize
     db = Database()

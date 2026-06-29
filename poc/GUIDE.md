@@ -7,7 +7,11 @@ End-to-end proof of concept: SEC filings -> chunking -> embeddings -> Qdrant -> 
 ```bash
 cd /Users/jkaczmarski/private/sentimentAI
 
-# Demo (one-shot, wyniki w konsoli):
+# 1. Set up Groq API key (free tier, https://console.groq.com)
+cp .env.example .env
+# edit .env, paste GROQ_API_KEY=...
+
+# 2. Demo (one-shot, wyniki w konsoli):
 .venv/bin/python -m poc.main --demo
 
 # Serwer API (Swagger UI: http://localhost:8000/docs):
@@ -16,6 +20,17 @@ cd /Users/jkaczmarski/private/sentimentAI
 # Serwer bez daily schedulera:
 .venv/bin/python -m poc.main --no-scheduler
 ```
+
+### Backend LLM
+
+POC domyslnie uzywa **Groq** (hosted Llama-3.3-70B, free tier). Wymaga `GROQ_API_KEY` w `.env`.
+
+Bez klucza system **rzuci wyjatek przy starcie batcha** — zamiast cichego fallbacku do mocka. To celowe: nie chcemy zeby zepsuty setup wygladal jak dzialajacy POC.
+
+Zmiana backendu w `poc/config.py`:
+- `LLM_BACKEND = "groq"` — domyslny, hosted Llama
+- `LLM_BACKEND = "mock"` — keyword heuristic, tylko do dev/testow offline (wyniki tagowane `[MOCK]`)
+- `LLM_BACKEND = "cyfronet"` — placeholder, jeszcze niezaimplementowane
 
 ## Przykladowy flow przez API
 
@@ -88,9 +103,9 @@ Mozna tez odpalic recznie: `POST /batch/run`.
 
 ## Co jest zamockowane
 
-**Embeddingi** — `processing.py` probuje zaladowac `BAAI/bge-small-en-v1.5` (SentenceTransformer). Jesli SSL/siec nie dziala, automatycznie przechodzi na deterministyczny mock (hash-based vectors). Gdy model bedzie dostepny, POC przelacza sie sam.
+**Embeddingi** — `processing.py` probuje zaladowac `BAAI/bge-small-en-v1.5` (SentenceTransformer). **W tej sieci huggingface.co jest blokowany przez Cisco Umbrella** (corporate policy), wiec POC dziala na mock embeddingach (deterministic hash-based). Skutek: vector search zwraca losowe chunki. Do naprawienia jeden z: (a) IT exception na huggingface.co, (b) sciagnac model na innej sieci i committnac lokalnie, (c) hosted embeddings API.
 
-**LLM** — `llm_client.py` uzywa keyword heuristic (szuka slow typu "growth", "decline" w chunkach). Interfejs `CyfronetLLMClient` jest przygotowany pod vLLM/OpenAI-compatible API. Zmiana backendu: `LLM_BACKEND` w `config.py`.
+**LLM** — `HostedLLMClient` (Groq, Llama-3.3-70B) to domyslny backend. `MockLLMClient` (keyword heuristic, tylko opt-in via `LLM_BACKEND="mock"`) zostal zachowany do dev/testow offline. `CyfronetLLMClient` to placeholder pod prawdziwy endpoint (vLLM/OpenAI-compatible).
 
 ## Dane
 
@@ -114,9 +129,12 @@ Zainstalowane w `.venv/`:
 - sentence-transformers — embeddingi (z mock fallback)
 - apscheduler — daily batch cron
 - torch — wymagany przez sentence-transformers
+- openai — OpenAI-compatible client (uzywany dla Groq, w przyszlosci tez Cyfronet vLLM)
+- python-dotenv — ladowanie `.env`
 
 Instalacja:
 ```bash
 .venv/bin/pip install --index-url https://pypi.org/simple/ \
-  fastapi uvicorn qdrant-client sentence-transformers apscheduler
+  fastapi uvicorn qdrant-client sentence-transformers apscheduler \
+  openai python-dotenv
 ```

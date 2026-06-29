@@ -43,7 +43,7 @@
 
 - [x] Sentence-based chunking (3 zdania/chunk, abbreviation-aware) — z kodu kolegi
 - [x] Embedding generation z fallback (real SentenceTransformer -> mock hash-based)
-- [ ] Naprawic SSL cert issue i pobrac `BAAI/bge-small-en-v1.5`
+- [ ] **Embeddings BLOCKED**: huggingface.co zablokowane przez Cisco Umbrella (corporate proxy). Zdiagnozowane: nie SSL, tylko DNS/policy block (redirect na `block.sse.cisco.com/swg`). Opcje: (a) IT exception na huggingface.co, (b) sciagnac model na innej sieci i committnac do repo lub trzymac lokalnie, (c) hosted embeddings API (OpenAI/Together — ale tez moze byc blocked, do sprawdzenia)
 - [ ] Rozwazyc lepszy model embeddingowy (np. `bge-m3` dla multilingual)
 
 ## Vector Store
@@ -58,9 +58,13 @@
 
 - [x] RAG flow: query -> vector search -> context assembly -> prompt building
 - [x] Prompt template z profilem inwestora (risk_tolerance, horizon, style)
-- [x] Mock LLM (keyword heuristic — pos/neg signal counting)
+- [x] Mock LLM (keyword heuristic — pos/neg signal counting), tylko opt-in
 - [x] Interfejs `BaseLLMClient` + `CyfronetLLMClient` placeholder
-- [ ] Podlaczyc prawdziwa LLAMA na Cyfronet — wariant A: SLURM batch (kolega ma gotowy skrypt) lub wariant B: vLLM server z OpenAI-compatible API
+- [x] **Hosted Llama via Groq** (`HostedLLMClient`) — domyslny backend POC. Wymaga `GROQ_API_KEY`. OpenAI-compatible interfejs.
+- [x] Robust JSON parsing (raw / fenced / prose-wrapped) + walidacja sentiment ∈ enum, confidence ∈ [0,1]
+- [x] Retry-with-backoff (2 prob, exponential) na transient errors
+- [x] Fail-loud factory: brak klucza API rzuca wyjatek zamiast cichego fallbacku do mocka
+- [ ] Podlaczyc prawdziwa LLAMA na Cyfronet — wariant A: SLURM batch (kolega ma gotowy skrypt) lub wariant B: vLLM server z OpenAI-compatible API. Wariant B = praktycznie zero kodu (zmiana base_url + api_key w `HostedLLMClient`).
 - [ ] 2-step LLM: relevancy assessment (`POST /lama/relevancy`) + sentiment prediction — arch zaklada ze LLM najpierw wybiera relevantne chunki
 - [ ] Prompt engineering — iteracja nad promptem z prawdziwym modelem
 - [ ] Ewaluacja accuracy na testowych danych

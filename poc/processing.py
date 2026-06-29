@@ -134,10 +134,25 @@ def _mock_embed(text: str) -> list[float]:
 
 
 def _init_embedder():
-    """Try loading the real model; fall back to mock if it fails."""
+    """Try loading the real model; fall back to mock if it fails.
+
+    If ``POC_FORCE_MOCK_EMBEDDINGS=1`` is set, skip the network attempt
+    entirely. This avoids ~30s of SSL retries on networks where
+    huggingface.co is blocked (e.g. corporate Cisco Umbrella).
+    """
     global _embedder, _USE_MOCK_EMBEDDINGS
 
     if _embedder is not None:
+        return
+
+    import os
+    if os.environ.get("POC_FORCE_MOCK_EMBEDDINGS") == "1":
+        logger.warning(
+            "POC_FORCE_MOCK_EMBEDDINGS=1 — skipping SentenceTransformer load, "
+            "using deterministic hash-based mock embeddings."
+        )
+        _embedder = "mock"
+        _USE_MOCK_EMBEDDINGS = True
         return
 
     try:

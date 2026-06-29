@@ -10,9 +10,11 @@ POC_DIR = PROJECT_ROOT / "poc"
 DATA_DIR = PROJECT_ROOT / "data"
 SQLITE_DB_PATH = DATA_DIR / "poc.db"
 
-# Colleague's data (raw SEC filings)
-COLLEAGUE_REPO = PROJECT_ROOT.parent / "llm-sentiment-analysis"
-RAW_FILINGS_DIR = COLLEAGUE_REPO / "data" / "raw"
+# Raw SEC filings shipped with the repo as demo fixtures (3 filings each for
+# NVDA/AAPL/MSFT, ~470 KB total). Self-contained so the demo runs without
+# depending on the colleague's separate repo. To use the full corpus, override
+# this path or symlink to ../llm-sentiment-analysis/data/raw.
+RAW_FILINGS_DIR = POC_DIR / "sample_data" / "raw"
 
 # --- Embedding model ---
 EMBEDDING_MODEL = "BAAI/bge-small-en-v1.5"
@@ -31,7 +33,24 @@ BATCH_SCHEDULE_HOUR = 2  # Run batch at 02:00 daily
 BATCH_SCHEDULE_MINUTE = 0
 
 # --- LLM ---
-LLM_BACKEND = "mock"  # "mock" | "cyfronet"
+# "groq" (hosted Llama, default) | "mock" (keyword heuristic, dev only) | "cyfronet" (placeholder)
+LLM_BACKEND = "groq"
+
+# Groq (OpenAI-compatible API, hosts Llama-3.3-70B for free)
+GROQ_BASE_URL = "https://api.groq.com/openai/v1"
+GROQ_MODEL_ID = "llama-3.3-70b-versatile"
+GROQ_API_KEY_ENV = "GROQ_API_KEY"
+
+# Shared LLM call config
+LLM_TIMEOUT_SECONDS = 60
+LLM_MAX_RETRIES = 2
+
+# Min seconds between hosted-LLM calls. Groq free tier: 12k tokens/min for
+# Llama-3.3-70B. With ~2.5k tokens/request, 13s spacing => ~4-5 calls/min,
+# stays under TPM limit with margin. Set to 0 to disable throttling.
+LLM_MIN_INTERVAL_SECONDS = 13.0
+
+# Cyfronet (real LLAMA on AGH cluster) — not yet wired up
 CYFRONET_MODEL_ID = "meta-llama/Llama-3.3-70B-Instruct"
 
 # --- Prompt template (adapted from colleague's prompt_template.md) ---
