@@ -19,6 +19,7 @@ build/
 # Environment / secrets
 .env
 .env.*
+!.env.example
 *.pem
 credentials.json
 
@@ -40,6 +41,15 @@ data/
 
 # Logs
 *.log
+
+# Test, lint, and type-check reports/caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+coverage.xml
+htmlcov/
+.hypothesis/
 
 # Byte-compiled
 *.pyc
