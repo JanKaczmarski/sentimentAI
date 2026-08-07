@@ -209,7 +209,7 @@ features:
 
   - id: FEAT-003
     title: "Define typed ports and deterministic fakes"
-    status: in_review
+    status: complete
     priority: critical
     depends_on:
       - FEAT-001
