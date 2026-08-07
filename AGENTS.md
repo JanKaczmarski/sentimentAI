@@ -20,6 +20,8 @@
 ## Development Rules
 
 - Use `uv sync` to create/update the environment from `pyproject.toml` and `uv.lock`; do not add a separate requirements file.
+- When dependencies change, regenerate the lockfile with
+  `uv lock --no-config --default-index https://pypi.org/simple` to avoid local global-index configuration changing its artifact URLs.
 - Follow TDD: write a failing domain/use-case test, implement the smallest behavior, then add adapter/integration coverage.
 - Keep domain and application code independent of FastAPI, PostgreSQL, Qdrant, Docker, and provider SDKs.
 - Add ports only for replaceable or external boundaries: LLM, embeddings, document sources, market data, vector store, and repositories.
@@ -27,10 +29,17 @@
 - The rebuild uses two stages: investor-independent chunk scoring/aggregation, followed by deterministic Investment Thesis personalization.
 - Real local embeddings are required for research results; mock embeddings are test-only.
 - Never store API keys or other secrets in source code, fixtures, prompts, or experiment artifacts.
+- Before autonomous feature selection, run `uv run python -m scripts.check_required_docs`,
+  `uv run python -m scripts.validate_features`, and `uv run python -m scripts.check_feature_status`.
+- When no feature is `in_progress`, `implemented`, or `in_review`, run
+  `uv run python -m scripts.reconcile_feature_readiness --apply`, validate the registry again,
+  then use `uv run python -m scripts.check_feature_status` to select work.
 
 ## Verification
 
-- Format with `uv run black src tests` and `uv run isort src tests`.
-- Verify with `uv run black --check src tests`, `uv run isort --check-only src tests`, `uv run ruff check src tests`, `uv run mypy`, `uv run pytest`, `uv build`, and `uv run pip-audit`.
-- Current scaffold check: `uv run python -m compileall -q src tests`.
+- Format with `uv run black src tests scripts` and `uv run isort src tests scripts`.
+- Verify with `uv run black --check src tests scripts`, `uv run isort --check-only src tests scripts`, `uv run ruff check src tests scripts`, `uv run mypy`, `uv run pytest`, `uv build`, and `uv run pip-audit`.
+- Validate project governance with `uv run python -m scripts.check_required_docs` and
+  `uv run python -m scripts.validate_features`.
+- Current scaffold check: `uv run python -m compileall -q src tests scripts`.
 - Do not run the legacy demo with `--demo` when preserving its ignored local database matters; it deletes `data/poc.db`.

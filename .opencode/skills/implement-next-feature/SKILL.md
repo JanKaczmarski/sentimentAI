@@ -1,0 +1,219 @@
+---
+name: implement-next-feature
+description: Use when the user asks to implement the next feature, resume an in-progress feature, or autonomously deliver one eligible item from FEATURES.yaml with TDD and all project gates.
+---
+
+# Implement Next Feature
+
+Use this skill only for end-to-end delivery of one approved project feature.
+Do not use it to brainstorm, create a feature specification, implement a
+`proposed` feature, or bypass an unresolved decision.
+
+## Required Context
+
+Read these files before selecting or changing a feature:
+
+1. `AGENTS.md`
+2. `DEVELOPMENT_RULES.md`
+3. `IMPLEMENTATION_WORKFLOW.md`
+4. `ARCHITECTURE.md`
+5. `THESIS_DECISIONS.md`
+6. `FEATURES.yaml`
+7. `templates/feature.md`
+8. Relevant records under `decisions/`, when present
+
+Inspect `git status` and recent changes before editing. Preserve unrelated
+local changes. Do not reset, revert, stage, or modify another person's work.
+
+## Initial Gate
+
+Run these commands from the repository root, in order:
+
+```bash
+uv run python -m scripts.check_required_docs
+uv run python -m scripts.validate_features
+uv run python -m scripts.check_feature_status
+```
+
+Stop and report the failure if either of the first two commands fails. Treat
+the third command as the selection authority, then verify its result against
+the registry and the project documents.
+
+If no feature is `in_progress`, `implemented`, or `in_review`, inspect queued
+work before selecting any `ready` feature:
+
+```bash
+uv run python -m scripts.reconcile_feature_readiness
+```
+
+If that command reports promotable features, apply only those deterministic
+promotions, then validate and select again:
+
+```bash
+uv run python -m scripts.reconcile_feature_readiness --apply
+uv run python -m scripts.validate_features
+uv run python -m scripts.check_feature_status
+```
+
+Do not run the reconciler while a feature is `in_progress`, `implemented`, or
+`in_review`. Its `--apply` mode may promote only fully specified `queued`
+features whose dependencies are `complete`; report every resulting status
+change.
+
+## Select Or Resume
+
+1. If exactly one feature is `in_progress`, resume that feature. Do not select
+   a new feature or change its scope.
+2. If a feature is `implemented`, create or update its pull request, change its
+   status to `in_review`, and continue through the remote CI and merge gates.
+   Do not start another feature.
+3. If a feature is `in_review`, wait for its remote CI or merge result. Do not
+   start another feature.
+4. Otherwise, select the `ready` feature reported by
+   `scripts.check_feature_status`: highest registry priority first, then lowest
+   feature ID.
+5. If no feature is eligible, report the reason and stop. Do not infer a new
+   feature from source code, comments, the legacy POC, or thesis prose.
+6. A user-named feature still requires a valid `ready` status, complete
+   dependencies, concrete acceptance criteria, and no open decision affecting
+   its scope.
+
+Before starting a `ready` feature, verify its scope, non-goals, acceptance
+criteria, architecture layers, ports, research-decision references, required
+test levels, and required checks. If any item is incomplete or ambiguous, set
+the feature to `blocked` with an accurate `blocked_reason`, validate the
+registry, report the blocker, and stop.
+
+Change a valid selected feature from `ready` to `in_progress` before editing
+production code. Keep an already active feature as `in_progress` while
+resuming it.
+
+## Design And TDD
+
+Before implementation, state a concise design that identifies:
+
+- Files expected to change.
+- Domain, application, port, adapter, and bootstrap responsibilities.
+- New or changed contracts and translation boundaries.
+- Unit, contract, and integration test sequence.
+- Data provenance, migrations, configuration, and observability effects.
+- Assumptions, risks, and decisions that need escalation.
+
+For behavior changes:
+
+1. Write a focused failing domain or application test.
+2. Run it and observe the expected failure.
+3. Implement the smallest correct behavior.
+4. Rerun the focused test until it passes.
+5. Add contract tests for changed concrete adapters.
+6. Add integration tests for infrastructure, API composition, or cross-boundary
+   behavior.
+
+For documentation-only or configuration-only work, run a deterministic
+validation command instead of a failing unit test and record that exception in
+the feature evidence.
+
+Respect the dependency direction:
+
+```text
+domain -> application -> ports -> adapters -> bootstrap
+```
+
+Do not put framework, database, vector-store, scheduler, or provider-SDK types
+in domain or application code. Do not add speculative abstractions or unrelated
+refactoring.
+
+## Research Safeguards
+
+For data, scoring, retrieval, prediction, or evaluation work:
+
+- Preserve source IDs, publication dates, raw content, and required provenance.
+- Avoid look-ahead bias and held-out-period tuning.
+- Use real local embeddings for thesis results, not mock embeddings.
+- Do not change corpus scope, splits, benchmarks, model policy, prompt policy,
+  or Investment Thesis methodology without a recorded decision and explicit
+  user approval.
+- Never expose, commit, log, prompt with, or persist secrets.
+
+Stop and ask for direction if the feature requires an unresolved architecture,
+research, security, data, or evaluation decision.
+
+## Verification And Evidence
+
+Run every command listed in the selected feature's
+`verification.required_checks`, then run the standard project gate:
+
+```bash
+uv run black --check src tests scripts
+uv run isort --check-only src tests scripts
+uv run ruff check src tests scripts
+uv run mypy
+uv run pytest
+uv run python -m compileall -q src tests scripts
+uv build
+uv run pip-audit
+docker compose config --quiet
+uv run python -m scripts.check_required_docs
+uv run python -m scripts.validate_features
+uv lock --check
+git diff --check
+```
+
+Run relevant feature-specific checks, including real adapter, migration, API,
+or Compose startup checks where applicable. Inspect `git diff` and `git status`
+before completion. The diff must be limited to the selected feature and its
+necessary test, documentation, configuration, migration, or lockfile changes.
+
+After all local gates pass:
+
+1. Add evidence for every `AC-*` item in `completion_evidence`.
+2. Add material deviations and follow-up work to `implementation_notes`.
+3. Change the feature status to `implemented`.
+4. Run `uv run python -m scripts.validate_features` again.
+
+Do not claim completion if any required check is skipped, fails, or cannot run.
+Fix it within approved scope, or report the evidence gap and stop.
+
+## Pull Request And Automatic Merge
+
+Automatic merge is enabled for a fully verified feature, not for governance,
+research-methodology, architecture-boundary, or security-policy changes.
+
+For an eligible feature:
+
+1. Create or update a focused feature branch and pull request without staging
+   unrelated local changes. If provider access or pull-request creation fails,
+   leave the feature `implemented` and report the exact blocker.
+2. After the provider confirms the pull request exists, change the registry
+   status to `in_review` in that pull request and validate it locally.
+3. Confirm required remote CI passed for the exact pull-request head commit.
+4. Confirm the diff is scoped, every acceptance criterion has evidence, and
+   branch protection permits automatic merging.
+5. Change the registry status to `complete` in the final pull-request commit,
+   validate it locally, and require remote CI for that final commit.
+6. Enable automatic merge or merge through the hosting-provider workflow only
+   after the final commit passes CI.
+7. Verify the `complete` status is present on the default branch after merge.
+
+Do not treat a `complete` value on an unmerged feature branch as authoritative.
+Do not reconcile or select another feature from that branch after writing the
+final status commit; perform those actions from the default branch after merge.
+
+Never bypass branch protection, force-push, disable CI, merge with failed or
+missing checks, or merge unrelated local changes. If provider authentication,
+repository policy, or required CI is unavailable, leave the feature in
+`in_review` and report the exact blocker.
+
+## Final Report And Stop
+
+Report:
+
+- Feature ID, title, and lifecycle status.
+- Acceptance criteria and evidence for each.
+- Files changed.
+- Failing-test evidence and verification results.
+- Pull request, CI, and merge status when applicable.
+- Deviations, blockers, and follow-up work.
+
+Stop after this one feature. Resume the same `in_progress` feature on a later
+invocation; do not automatically start another feature.
