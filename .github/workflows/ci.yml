@@ -32,13 +32,13 @@ jobs:
         run: uv sync --locked
 
       - name: Check formatting with Black
-        run: uv run black --check src tests
+        run: uv run black --check src tests scripts
 
       - name: Check import sorting with isort
-        run: uv run isort --check-only src tests
+        run: uv run isort --check-only src tests scripts
 
       - name: Run Ruff
-        run: uv run ruff check src tests
+        run: uv run ruff check src tests scripts
 
       - name: Run mypy
         run: uv run mypy
@@ -51,6 +51,9 @@ jobs:
 
       - name: Audit dependencies
         run: uv run pip-audit
+
+      - name: Validate project governance
+        run: uv run python -m scripts.check_required_docs && uv run python -m scripts.validate_features
 
       - name: Validate Compose configuration
         run: cp .env.example .env && docker compose config --quiet
