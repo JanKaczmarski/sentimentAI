@@ -22,8 +22,10 @@ cp .env.example .env
 ```
 
 This project uses Python 3.13, pinned by `.python-version`. If the local `uv`
-configuration points to an unavailable private package index, use
-`uv sync --no-config` or configure valid index credentials.
+configuration points to an unavailable private package index, the project
+configuration uses public PyPI and an alternate-index strategy so normal
+`uv sync`, `uv build`, and `uv run` commands can continue without private-index
+credentials.
 
 ## Local Services
 

@@ -1,0 +1,801 @@
+# Authoritative machine-readable feature registry for the thesis implementation.
+# Add feature entries only after their scope and acceptance criteria are known.
+
+schema_version: 1
+project: personalized-financial-sentiment-system
+
+lifecycle:
+  maximum_in_progress: 1
+  selection_status: ready
+  priority_order:
+    - critical
+    - high
+    - medium
+    - low
+  statuses:
+    proposed:
+      selectable: false
+      terminal: false
+      description: Candidate work that has not passed the readiness gate.
+    blocked:
+      selectable: false
+      terminal: false
+      description: Work awaiting an explicit decision, dependency, or external access.
+    queued:
+      selectable: false
+      terminal: false
+      description: Fully specified approved work waiting only for completed dependencies.
+    ready:
+      selectable: true
+      terminal: false
+      description: Fully specified work eligible for autonomous implementation.
+    in_progress:
+      selectable: false
+      terminal: false
+      description: The single feature currently being implemented.
+    implemented:
+      selectable: false
+      terminal: false
+      description: Local implementation and verification are complete; remote review remains.
+    in_review:
+      selectable: false
+      terminal: false
+      description: A pull request or required remote checks are under review.
+    complete:
+      selectable: false
+      terminal: true
+      description: Integrated into the default branch with all required evidence.
+    rejected:
+      selectable: false
+      terminal: true
+      description: Intentionally not implemented, with a recorded rationale.
+
+feature_contract:
+  required_fields:
+    - id
+    - title
+    - status
+    - priority
+    - depends_on
+    - scope
+    - non_goals
+    - acceptance_criteria
+    - architecture
+    - research_decisions
+    - verification
+  completion_evidence_required_for:
+    - implemented
+    - in_review
+    - complete
+  blocked_reason_required_for:
+    - blocked
+  architecture_fields:
+    - layers
+    - ports
+  verification_fields:
+    - required_test_levels
+    - required_checks
+
+selection:
+  order:
+    - priority
+    - id
+  require_completed_dependencies: true
+  require_all_acceptance_criteria: true
+  require_no_open_research_decisions: true
+
+automatic_merge:
+  enabled: true
+  require_local_verification: true
+  require_remote_ci: true
+  require_clean_feature_scope: true
+  require_hosting_policy_compliance: true
+
+verification_profiles:
+  code_checks: &code_checks
+    - "uv run black --check src tests scripts"
+    - "uv run isort --check-only src tests scripts"
+    - "uv run ruff check src tests scripts"
+    - "uv run mypy"
+    - "uv run pytest"
+    - "uv run python -m compileall -q src tests scripts"
+    - "uv build"
+    - "uv run pip-audit"
+    - "docker compose config --quiet"
+    - "uv run python -m scripts.check_required_docs"
+    - "uv run python -m scripts.validate_features"
+    - "uv lock --check"
+    - "git diff --check"
+  decision_checks: &decision_checks
+    - "uv run python -m scripts.check_required_docs"
+    - "uv run python -m scripts.validate_features"
+    - "git diff --check"
+
+features:
+  - id: FEAT-001
+    title: "Model auditable source documents and chunks"
+    status: complete
+    priority: critical
+    depends_on: []
+    scope:
+      - "Add immutable domain entities for normalized source documents and document chunks."
+      - "Preserve source metadata and separate raw and cleaned content."
+    non_goals:
+      - "Implementing cleaning, chunking, persistence, scoring, or HTTP behavior."
+    acceptance_criteria:
+      - id: AC-1
+        description: "Documents reject missing identifiers, company, source, publication date, document type, or raw content."
+      - id: AC-2
+        description: "Raw and cleaned document content are represented separately and remain available to callers."
+      - id: AC-3
+        description: "Chunks retain their document lineage, a stable non-negative ordinal, and non-empty content."
+    architecture:
+      layers:
+        - domain
+      ports: []
+    research_decisions:
+      - "THESIS_DECISIONS.md#data-scope"
+      - "THESIS_DECISIONS.md#runtime-and-architecture"
+    verification:
+      required_test_levels:
+        - unit
+      required_checks: *code_checks
+    blocked_reason: null
+    completion_evidence:
+      - acceptance_criterion: AC-1
+        evidence:
+          - "tests/unit/domain/test_documents.py::test_source_document_rejects_missing_or_invalid_metadata"
+          - "uv run pytest tests/unit/domain/test_documents.py"
+      - acceptance_criterion: AC-2
+        evidence:
+          - "tests/unit/domain/test_documents.py::test_source_document_preserves_distinct_raw_and_cleaned_content"
+          - "uv run pytest tests/unit/domain/test_documents.py"
+      - acceptance_criterion: AC-3
+        evidence:
+          - "tests/unit/domain/test_documents.py::test_document_chunk_preserves_document_lineage_and_ordinal"
+          - "tests/unit/domain/test_documents.py::test_document_chunk_rejects_invalid_lineage_or_content"
+          - "uv run pytest tests/unit/domain/test_documents.py"
+    implementation_notes: []
+
+  - id: FEAT-002
+    title: "Model predictions, evidence, and experiment provenance"
+    status: queued
+    priority: critical
+    depends_on:
+      - FEAT-001
+    scope:
+      - "Add domain contracts for company snapshots, prediction evidence, predictions, and secret-free experiment provenance."
+      - "Complete the structured Investment Thesis domain model without adding persistence or algorithms."
+    non_goals:
+      - "Implementing personalization rules, API schemas, database tables, or provider calls."
+    acceptance_criteria:
+      - id: AC-1
+        description: "Prediction contracts preserve base and personalized sentiment, dates, horizons, confidence, evidence, and run ID."
+      - id: AC-2
+        description: "Only 30, 90, and 365 day company-snapshot windows are accepted."
+      - id: AC-3
+        description: "Provenance values reject secrets and Investment Thesis descriptions remain non-executable."
+    architecture:
+      layers:
+        - domain
+      ports: []
+    research_decisions:
+      - "THESIS_DECISIONS.md#research-model"
+      - "THESIS_DECISIONS.md#runtime-and-architecture"
+    verification:
+      required_test_levels:
+        - unit
+      required_checks: *code_checks
+    blocked_reason: null
+    completion_evidence: []
+    implementation_notes: []
+
+  - id: FEAT-003
+    title: "Define typed ports and deterministic fakes"
+    status: queued
+    priority: critical
+    depends_on:
+      - FEAT-001
+      - FEAT-002
+    scope:
+      - "Define typed ports for repositories, document sources, LLM scoring, embeddings, vector retrieval, and market data."
+      - "Provide deterministic in-memory fakes needed by future unit and integration tests."
+    non_goals:
+      - "Implementing PostgreSQL, Qdrant, provider SDKs, or live source adapters."
+    acceptance_criteria:
+      - id: AC-1
+        description: "Application contracts depend only on typed ports and domain values, not framework or provider types."
+      - id: AC-2
+        description: "Fakes provide deterministic source, repository, retrieval, scoring, and price interactions for tests."
+      - id: AC-3
+        description: "Each fake has contract coverage for the port behavior it implements."
+    architecture:
+      layers:
+        - application
+        - adapters
+      ports:
+        - repositories
+        - document_sources
+        - llm
+        - embeddings
+        - vector_store
+        - market_data
+    research_decisions:
+      - "THESIS_DECISIONS.md#runtime-and-architecture"
+    verification:
+      required_test_levels:
+        - unit
+        - contract
+      required_checks: *code_checks
+    blocked_reason: null
+    completion_evidence: []
+    implementation_notes: []
+
+  - id: FEAT-004
+    title: "Approve processing and scoring experiment configuration"
+    status: blocked
+    priority: critical
+    depends_on: []
+    scope:
+      - "Record the approved initial cleaning, chunking, contextual-RAG, LLM response, token-budget, and provenance configuration."
+      - "Define which settings are fixed before evaluation and which are experimental variants."
+    non_goals:
+      - "Implementing processing code or tuning against held-out results."
+    acceptance_criteria:
+      - id: AC-1
+        description: "A recorded decision defines cleaning and chunking behavior, standard versus contextual-RAG variants, and the 15,000-token budget."
+      - id: AC-2
+        description: "The decision records required prompts, parsed outputs, truncation, model metadata, and real-versus-test embedding policy."
+      - id: AC-3
+        description: "The selected values are explicitly identified as pre-evaluation configuration rather than outcome-driven tuning."
+    architecture:
+      layers:
+        - documentation
+      ports: []
+    research_decisions:
+      - "THESIS_DECISIONS.md#data-scope"
+      - "THESIS_DECISIONS.md#rag-and-scoring"
+      - "THESIS_DECISIONS.md#runtime-and-architecture"
+      - "THESIS_DECISIONS.md#open-decisions"
+    verification:
+      required_test_levels: []
+      required_checks: *decision_checks
+    blocked_reason: "Supervisor or author approval is required for the initial processing and scoring configuration."
+    completion_evidence: []
+    implementation_notes: []
+
+  - id: FEAT-005
+    title: "Approve aggregation and personalization rule version"
+    status: blocked
+    priority: critical
+    depends_on: []
+    scope:
+      - "Record the initial recency function, importance weighting, confidence treatment, risk thresholds, horizon selection, style weighting, and sensitivity plan."
+    non_goals:
+      - "Implementing rule execution or tuning coefficients against final evaluation outcomes."
+    acceptance_criteria:
+      - id: AC-1
+        description: "A versioned equation defines recency and importance weighting for document and company aggregation."
+      - id: AC-2
+        description: "A complete rule table covers every risk, horizon, and investment-style combination without interpreting free text."
+      - id: AC-3
+        description: "The decision defines a sensitivity analysis before held-out evaluation begins."
+    architecture:
+      layers:
+        - documentation
+      ports: []
+    research_decisions:
+      - "THESIS_DECISIONS.md#research-model"
+      - "THESIS_DECISIONS.md#evaluation"
+      - "THESIS_DECISIONS.md#open-decisions"
+    verification:
+      required_test_levels: []
+      required_checks: *decision_checks
+    blocked_reason: "Supervisor or author approval is required for the initial aggregation and personalization coefficients."
+    completion_evidence: []
+    implementation_notes: []
+
+  - id: FEAT-006
+    title: "Approve reproducible corpus, evaluation, API, and storage contract"
+    status: blocked
+    priority: critical
+    depends_on: []
+    scope:
+      - "Record the corpus cache manifest, chronological split, 252-day decision, benchmark mapping, and v0.2 API and database contract."
+    non_goals:
+      - "Downloading data, creating migrations, or implementing HTTP endpoints."
+    acceptance_criteria:
+      - id: AC-1
+        description: "The protocol defines the five-year corpus, two-year holdout, reproducible source cache, and 252-day horizon decision."
+      - id: AC-2
+        description: "The protocol fixes sector-benchmark mapping, S&P 500 fallback, and sensitivity reporting."
+      - id: AC-3
+        description: "The decision records stable v0.2 request, response, and persistence contracts needed by later features."
+    architecture:
+      layers:
+        - documentation
+      ports: []
+    research_decisions:
+      - "THESIS_DECISIONS.md#data-scope"
+      - "THESIS_DECISIONS.md#evaluation"
+      - "THESIS_DECISIONS.md#runtime-and-architecture"
+      - "THESIS_DECISIONS.md#open-decisions"
+    verification:
+      required_test_levels: []
+      required_checks: *decision_checks
+    blocked_reason: "Supervisor or author approval is required for the final corpus, evaluation, API, and storage contract."
+    completion_evidence: []
+    implementation_notes: []
+
+  - id: FEAT-007
+    title: "Ingest fixtures into normalized deterministic chunks"
+    status: queued
+    priority: high
+    depends_on:
+      - FEAT-001
+      - FEAT-002
+      - FEAT-003
+      - FEAT-004
+    scope:
+      - "Ingest fixture-based company communications into preserved raw and cleaned documents with reproducible chunks."
+    non_goals:
+      - "Downloading SEC or investor-relations data, live email, or contextual summaries."
+    acceptance_criteria:
+      - id: AC-1
+        description: "Malformed fixture input fails explicitly and valid input retains source, company, date, and raw-content lineage."
+      - id: AC-2
+        description: "Processing never overwrites raw content and records its configuration version on created chunks."
+      - id: AC-3
+        description: "Repeated processing of the same fixture produces deterministic chunk boundaries and ordinals."
+    architecture:
+      layers:
+        - domain
+        - application
+        - adapters
+      ports:
+        - document_sources
+        - repositories
+    research_decisions:
+      - "THESIS_DECISIONS.md#data-scope"
+      - "THESIS_DECISIONS.md#rag-and-scoring"
+    verification:
+      required_test_levels:
+        - unit
+        - contract
+        - integration
+      required_checks: *code_checks
+    blocked_reason: null
+    completion_evidence: []
+    implementation_notes: []
+
+  - id: FEAT-008
+    title: "Persist auditable research records in PostgreSQL"
+    status: queued
+    priority: high
+    depends_on:
+      - FEAT-001
+      - FEAT-002
+      - FEAT-003
+      - FEAT-006
+    scope:
+      - "Create migrations and repositories for documents, chunks, scores, snapshots, runs, and provenance."
+    non_goals:
+      - "Account and thesis CRUD, prediction endpoints, or Qdrant retrieval."
+    acceptance_criteria:
+      - id: AC-1
+        description: "A fresh PostgreSQL database migrates successfully through the repository-managed schema."
+      - id: AC-2
+        description: "Persistence round trips preserve raw and cleaned text, dates, source IDs, scores, run IDs, and provider artifacts without secrets."
+      - id: AC-3
+        description: "Repository methods preserve historical score and provenance records rather than overwriting audit evidence."
+    architecture:
+      layers:
+        - application
+        - adapters
+        - bootstrap
+      ports:
+        - repositories
+    research_decisions:
+      - "THESIS_DECISIONS.md#runtime-and-architecture"
+      - "THESIS_DECISIONS.md#open-decisions"
+    verification:
+      required_test_levels:
+        - unit
+        - contract
+        - integration
+      required_checks: *code_checks
+    blocked_reason: null
+    completion_evidence: []
+    implementation_notes: []
+
+  - id: FEAT-009
+    title: "Persist accounts and Investment Theses through CRUD API"
+    status: queued
+    priority: high
+    depends_on:
+      - FEAT-002
+      - FEAT-003
+      - FEAT-006
+      - FEAT-008
+    scope:
+      - "Implement account and company or group Investment Thesis create, update, list, and get operations."
+    non_goals:
+      - "Authentication, authorization, prediction generation, or free-text interpretation."
+    acceptance_criteria:
+      - id: AC-1
+        description: "Account and all target strategy endpoints persist and retrieve structured thesis fields."
+      - id: AC-2
+        description: "Thesis descriptions are stored for explanation but never interpreted as executable rules."
+      - id: AC-3
+        description: "Unknown resources and invalid requests return documented API errors."
+    architecture:
+      layers:
+        - domain
+        - application
+        - adapters
+        - bootstrap
+      ports:
+        - repositories
+    research_decisions:
+      - "THESIS_DECISIONS.md#research-model"
+      - "THESIS_DECISIONS.md#runtime-and-architecture"
+    verification:
+      required_test_levels:
+        - unit
+        - contract
+        - integration
+      required_checks: *code_checks
+    blocked_reason: null
+    completion_evidence: []
+    implementation_notes: []
+
+  - id: FEAT-010
+    title: "Index real local embeddings in Qdrant"
+    status: queued
+    priority: high
+    depends_on:
+      - FEAT-001
+      - FEAT-003
+      - FEAT-004
+      - FEAT-007
+      - FEAT-008
+    scope:
+      - "Generate real local semantic embeddings and persist auditable chunk payloads in Qdrant."
+      - "Retrieve chunks with company, date, and soft-exclusion filters."
+    non_goals:
+      - "Mock embeddings for research results or LLM chunk scoring."
+    acceptance_criteria:
+      - id: AC-1
+        description: "Research-mode configuration fails closed when a mock embedding backend is selected."
+      - id: AC-2
+        description: "Indexed payloads retain chunk lineage, publication date, company, and exclusion metadata."
+      - id: AC-3
+        description: "Retrieval honors company, as-of date, and soft-exclusion filters."
+    architecture:
+      layers:
+        - application
+        - adapters
+        - bootstrap
+      ports:
+        - embeddings
+        - vector_store
+    research_decisions:
+      - "THESIS_DECISIONS.md#rag-and-scoring"
+      - "THESIS_DECISIONS.md#runtime-and-architecture"
+    verification:
+      required_test_levels:
+        - unit
+        - contract
+        - integration
+      required_checks: *code_checks
+    blocked_reason: null
+    completion_evidence: []
+    implementation_notes: []
+
+  - id: FEAT-011
+    title: "Score chunks with investor-independent LLM signals"
+    status: queued
+    priority: high
+    depends_on:
+      - FEAT-001
+      - FEAT-002
+      - FEAT-003
+      - FEAT-004
+      - FEAT-007
+      - FEAT-008
+      - FEAT-010
+    scope:
+      - "Score chunk polarity, confidence, and general importance once per corpus batch."
+      - "Record provider, model, prompt, raw output, parsed output, token, truncation, and soft-exclusion provenance."
+    non_goals:
+      - "Per-user LLM calls or Investment Thesis personalization."
+    acceptance_criteria:
+      - id: AC-1
+        description: "Parsed scoring results satisfy normalized sentiment and importance ranges and preserve model confidence separately."
+      - id: AC-2
+        description: "Importance is model-derived and not replaced by embedding similarity."
+      - id: AC-3
+        description: "Chunks remain auditable after three consecutive low-importance scores trigger soft exclusion."
+    architecture:
+      layers:
+        - application
+        - adapters
+        - bootstrap
+      ports:
+        - llm
+        - repositories
+        - vector_store
+    research_decisions:
+      - "THESIS_DECISIONS.md#research-model"
+      - "THESIS_DECISIONS.md#rag-and-scoring"
+      - "THESIS_DECISIONS.md#runtime-and-architecture"
+    verification:
+      required_test_levels:
+        - unit
+        - contract
+        - integration
+      required_checks: *code_checks
+    blocked_reason: null
+    completion_evidence: []
+    implementation_notes: []
+
+  - id: FEAT-012
+    title: "Aggregate document and company sentiment snapshots"
+    status: queued
+    priority: high
+    depends_on:
+      - FEAT-002
+      - FEAT-003
+      - FEAT-005
+      - FEAT-008
+      - FEAT-011
+    scope:
+      - "Create versioned document and 30, 90, and 365 day company snapshots using approved importance and recency rules."
+    non_goals:
+      - "Investment Thesis personalization or market-outcome evaluation."
+    acceptance_criteria:
+      - id: AC-1
+        description: "Known weighted inputs produce deterministic snapshot scores and derived labels."
+      - id: AC-2
+        description: "Snapshots exclude documents published after their as-of date."
+      - id: AC-3
+        description: "Stored snapshots identify contributing chunk evidence and the rule and run configuration used."
+    architecture:
+      layers:
+        - domain
+        - application
+        - adapters
+      ports:
+        - repositories
+    research_decisions:
+      - "THESIS_DECISIONS.md#research-model"
+      - "THESIS_DECISIONS.md#evaluation"
+    verification:
+      required_test_levels:
+        - unit
+        - integration
+      required_checks: *code_checks
+    blocked_reason: null
+    completion_evidence: []
+    implementation_notes: []
+
+  - id: FEAT-013
+    title: "Apply deterministic Investment Thesis personalization"
+    status: queued
+    priority: high
+    depends_on:
+      - FEAT-002
+      - FEAT-003
+      - FEAT-005
+      - FEAT-008
+      - FEAT-011
+      - FEAT-012
+    scope:
+      - "Apply approved horizon, risk tolerance, and investment-style rules to reusable company sentiment snapshots."
+    non_goals:
+      - "LLM calls, free-text thesis interpretation, or coefficient tuning."
+    acceptance_criteria:
+      - id: AC-1
+        description: "Identical snapshots and structured theses produce identical personalized results."
+      - id: AC-2
+        description: "Every structured thesis combination follows the approved rule table."
+      - id: AC-3
+        description: "Results preserve base and personalized values, applicable rule version, and source evidence."
+    architecture:
+      layers:
+        - domain
+        - application
+        - adapters
+      ports:
+        - repositories
+    research_decisions:
+      - "THESIS_DECISIONS.md#research-model"
+      - "THESIS_DECISIONS.md#runtime-and-architecture"
+    verification:
+      required_test_levels:
+        - unit
+        - integration
+      required_checks: *code_checks
+    blocked_reason: null
+    completion_evidence: []
+    implementation_notes: []
+
+  - id: FEAT-014
+    title: "Serve predictions, evidence, history, and fixture ingestion"
+    status: queued
+    priority: high
+    depends_on:
+      - FEAT-002
+      - FEAT-006
+      - FEAT-007
+      - FEAT-008
+      - FEAT-009
+      - FEAT-010
+      - FEAT-011
+      - FEAT-012
+      - FEAT-013
+    scope:
+      - "Persist and serve prediction evidence and user-scoped history through the target API."
+      - "Expose fixture-based company communication ingestion through the target API."
+    non_goals:
+      - "Scheduler operation or public SEC and investor-relations acquisition."
+    acceptance_criteria:
+      - id: AC-1
+        description: "Prediction responses include scores, labels, dates, horizons, confidence, explanation, excerpts or IDs, importance, and run metadata."
+      - id: AC-2
+        description: "Prediction history is scoped to the requested user and preserves stored evidence."
+      - id: AC-3
+        description: "Fixture ingestion through the API retains raw provenance and returns documented errors for invalid input."
+    architecture:
+      layers:
+        - application
+        - adapters
+        - bootstrap
+      ports:
+        - repositories
+    research_decisions:
+      - "THESIS_DECISIONS.md#runtime-and-architecture"
+      - "THESIS_DECISIONS.md#open-decisions"
+    verification:
+      required_test_levels:
+        - unit
+        - integration
+      required_checks: *code_checks
+    blocked_reason: null
+    completion_evidence: []
+    implementation_notes: []
+
+  - id: FEAT-015
+    title: "Acquire reproducible SEC and investor-relations corpus"
+    status: queued
+    priority: high
+    depends_on:
+      - FEAT-001
+      - FEAT-003
+      - FEAT-004
+      - FEAT-006
+      - FEAT-007
+      - FEAT-008
+    scope:
+      - "Acquire and cache supported SEC filings and official investor-relations earnings releases with reproducible manifests."
+    non_goals:
+      - "Private email integration or event-driven ingestion."
+    acceptance_criteria:
+      - id: AC-1
+        description: "Cached records retain source identifiers, publication dates, raw text, cleaned text, and manifest version."
+      - id: AC-2
+        description: "Supported SEC form and investor-relations source filtering is covered by adapter contract tests."
+      - id: AC-3
+        description: "Repeated acquisition is idempotent and does not duplicate historical evidence."
+    architecture:
+      layers:
+        - application
+        - adapters
+        - bootstrap
+      ports:
+        - document_sources
+        - repositories
+    research_decisions:
+      - "THESIS_DECISIONS.md#data-scope"
+      - "THESIS_DECISIONS.md#open-decisions"
+    verification:
+      required_test_levels:
+        - unit
+        - contract
+        - integration
+      required_checks: *code_checks
+    blocked_reason: null
+    completion_evidence: []
+    implementation_notes: []
+
+  - id: FEAT-016
+    title: "Evaluate predictions against leakage-safe market outcomes"
+    status: queued
+    priority: high
+    depends_on:
+      - FEAT-002
+      - FEAT-003
+      - FEAT-006
+      - FEAT-008
+      - FEAT-011
+      - FEAT-012
+      - FEAT-013
+      - FEAT-014
+      - FEAT-015
+    scope:
+      - "Load cached market data and evaluate predictions with leakage-safe trading-day alignment, benchmark-adjusted returns, and required baselines."
+    non_goals:
+      - "Exact-price prediction or LLM judging as market ground truth."
+    acceptance_criteria:
+      - id: AC-1
+        description: "Evaluation excludes future documents and prices from every prediction context."
+      - id: AC-2
+        description: "Reports cover approved horizons, sector benchmark with S&P 500 fallback, and S&P 500 sensitivity."
+      - id: AC-3
+        description: "Reports compare system results with deterministic keyword and no-signal baselines using Spearman correlation and directional hit rate."
+    architecture:
+      layers:
+        - application
+        - adapters
+        - bootstrap
+      ports:
+        - market_data
+        - repositories
+    research_decisions:
+      - "THESIS_DECISIONS.md#evaluation"
+      - "THESIS_DECISIONS.md#open-decisions"
+    verification:
+      required_test_levels:
+        - unit
+        - contract
+        - integration
+      required_checks: *code_checks
+    blocked_reason: null
+    completion_evidence: []
+    implementation_notes: []
+
+  - id: FEAT-017
+    title: "Orchestrate batch runs, scheduling, and observability"
+    status: queued
+    priority: high
+    depends_on:
+      - FEAT-007
+      - FEAT-008
+      - FEAT-009
+      - FEAT-010
+      - FEAT-011
+      - FEAT-012
+      - FEAT-013
+      - FEAT-014
+      - FEAT-015
+      - FEAT-016
+    scope:
+      - "Wire daily and manual batches, run state, Prometheus metrics, Grafana dashboards, and the composition root."
+    non_goals:
+      - "Authentication, production hardening, or Cyfronet deployment."
+    acceptance_criteria:
+      - id: AC-1
+        description: "One investor-independent scoring pass can serve multiple Investment Theses without another LLM call."
+      - id: AC-2
+        description: "Manual and scheduled batches record run outcomes and preserve execution provenance."
+      - id: AC-3
+        description: "Prometheus and provisioned Grafana dashboards expose batch, document, chunk, exclusion, retrieval, LLM, and evaluation metrics."
+    architecture:
+      layers:
+        - application
+        - adapters
+        - bootstrap
+      ports:
+        - repositories
+    research_decisions:
+      - "THESIS_DECISIONS.md#runtime-and-architecture"
+      - "ARCHITECTURE.md#deployment-and-observability"
+    verification:
+      required_test_levels:
+        - unit
+        - contract
+        - integration
+      required_checks: *code_checks
+    blocked_reason: null
+    completion_evidence: []
+    implementation_notes: []
