@@ -114,7 +114,7 @@ verification_profiles:
 features:
   - id: FEAT-001
     title: "Model auditable source documents and chunks"
-    status: implemented
+    status: in_review
     priority: critical
     depends_on: []
     scope:
