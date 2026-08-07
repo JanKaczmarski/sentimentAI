@@ -159,7 +159,7 @@ features:
 
   - id: FEAT-002
     title: "Model predictions, evidence, and experiment provenance"
-    status: in_review
+    status: complete
     priority: critical
     depends_on:
       - FEAT-001
