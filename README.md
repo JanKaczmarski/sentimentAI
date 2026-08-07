@@ -10,6 +10,7 @@ chunk scoring, and deterministic Investment Thesis personalization.
 - Architecture: `ARCHITECTURE.md`
 - Research decisions: `THESIS_DECISIONS.md`
 - Supervisor reference: `Inzynierka_arch.docx`
+- Contributor handoff: `GETTING_STARTED.md`
 
 The new package is scaffolded and the first domain tests are implemented. The
 legacy POC is preserved for comparison and sample data during the rebuild.
