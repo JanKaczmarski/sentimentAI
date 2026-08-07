@@ -209,7 +209,7 @@ features:
 
   - id: FEAT-003
     title: "Define typed ports and deterministic fakes"
-    status: queued
+    status: implemented
     priority: critical
     depends_on:
       - FEAT-001
@@ -245,8 +245,32 @@ features:
         - contract
       required_checks: *code_checks
     blocked_reason: null
-    completion_evidence: []
-    implementation_notes: []
+    completion_evidence:
+      - acceptance_criterion: AC-1
+        evidence:
+          - "src/sentiment_system/application/ports/document_sources.py"
+          - "src/sentiment_system/application/ports/repositories.py"
+          - "src/sentiment_system/application/ports/llm.py"
+          - "src/sentiment_system/application/ports/embeddings.py"
+          - "src/sentiment_system/application/ports/vector_store.py"
+          - "src/sentiment_system/application/ports/market_data.py"
+          - "tests/contract/ports/test_adapters.py::test_port_fakes_are_structurally_typed"
+          - "uv run mypy"
+      - acceptance_criterion: AC-2
+        evidence:
+          - "tests/contract/ports/test_adapters.py::test_fixture_source_filters_and_sorts_documents"
+          - "tests/contract/ports/test_adapters.py::test_repositories_round_trip_domain_values_deterministically"
+          - "tests/contract/ports/test_adapters.py::test_deterministic_scorer_returns_repeatable_results"
+          - "tests/contract/ports/test_adapters.py::test_deterministic_embeddings_return_repeatable_fixed_dimension_vectors"
+          - "tests/contract/ports/test_adapters.py::test_vector_store_filters_and_orders_matches"
+          - "tests/contract/ports/test_adapters.py::test_market_data_filters_and_sorts_prices"
+          - "uv run pytest tests/contract/ports/test_adapters.py"
+      - acceptance_criterion: AC-3
+        evidence:
+          - "tests/contract/ports/test_adapters.py"
+          - "uv run pytest"
+    implementation_notes:
+      - "In-memory repositories intentionally use stable-key replacement; durable audit-preserving persistence remains scoped to FEAT-008."
 
   - id: FEAT-004
     title: "Approve processing and scoring experiment configuration"
