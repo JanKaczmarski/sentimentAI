@@ -38,6 +38,23 @@ docker compose up --build
 The scaffold exposes the API at `http://localhost:8000/health`, Prometheus at
 `http://localhost:9090`, and Grafana at `http://localhost:3000`.
 
+## Make Commands
+
+Common development commands are available through the `Makefile`:
+
+```bash
+make sync
+make test
+make check
+make deploy
+make status
+make logs
+make down
+```
+
+`make deploy` starts the local Docker Compose integration stack in the
+background. It is not a production deployment command.
+
 ## Checks
 
 ```bash
