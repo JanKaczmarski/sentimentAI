@@ -364,7 +364,7 @@ features:
     verification:
       required_test_levels: []
       required_checks: *decision_checks
-    blocked_reason: "Supervisor or author approval is required for the final corpus, evaluation, API, and storage contract."
+    blocked_reason: "The corpus split and sector benchmark protocol are intentionally deferred to later evaluation work."
     completion_evidence: []
     implementation_notes: []
 
@@ -411,13 +411,12 @@ features:
 
   - id: FEAT-008
     title: "Persist auditable research records in PostgreSQL"
-    status: queued
+    status: ready
     priority: high
     depends_on:
       - FEAT-001
       - FEAT-002
       - FEAT-003
-      - FEAT-006
     scope:
       - "Create migrations and repositories for documents, chunks, scores, snapshots, runs, and provenance."
     non_goals:
@@ -456,7 +455,6 @@ features:
     depends_on:
       - FEAT-002
       - FEAT-003
-      - FEAT-006
       - FEAT-008
     scope:
       - "Implement account and company or group Investment Thesis create, update, list, and get operations."
@@ -719,6 +717,7 @@ features:
       - FEAT-008
     scope:
       - "Acquire and cache supported SEC filings and official investor-relations earnings releases with reproducible manifests."
+      - "Provide a source adapter that wraps sec-api.io filing queries for supported quarterly-report forms, pagination, and metadata retrieval behind the document-source port."
     non_goals:
       - "Private email integration or event-driven ingestion."
     acceptance_criteria:
@@ -728,6 +727,8 @@ features:
         description: "Supported SEC form and investor-relations source filtering is covered by adapter contract tests."
       - id: AC-3
         description: "Repeated acquisition is idempotent and does not duplicate historical evidence."
+      - id: AC-4
+        description: "The SEC adapter validates supported form types and query inputs, obtains its API key only from runtime configuration, paginates deterministically, and never exposes sec-api.io representations outside its adapter boundary."
     architecture:
       layers:
         - application
@@ -840,3 +841,84 @@ features:
     blocked_reason: null
     completion_evidence: []
     implementation_notes: []
+
+  - id: FEAT-018
+    title: "Register the approved company universe for ingestion"
+    status: ready
+    priority: high
+    depends_on: []
+    scope:
+      - "Create the canonical immutable company registry for the author-approved active ingestion universe."
+      - "Represent each company with its ticker, display name, market-routing value, and trading currency."
+      - "Make the registry available to future mail-shaped document ingestion and Yahoo Finance market-data adapters without duplicating the approved universe."
+    non_goals:
+      - "Creating a database schema or a database seed."
+      - "Downloading documents or market prices."
+      - "Changing the approved corpus sample, benchmark policy, or evaluation methodology."
+      - "Resolving source-specific identifiers or Yahoo Finance exchange-suffix mappings for non-US instruments."
+      - "Adding inactive or commented-out symbols from the author-provided candidate list."
+    acceptance_criteria:
+      - id: AC-1
+        description: "The seeded registry contains exactly the approved active symbols: AAPL, ADBE, ALGM, ALK, AMAT, AMD, AMZN, ANET, ANF, APH, ARE, AVGO, BLBD, BWXT, CAKE, CMCSA, COST, CRM, CRWD, DDOG, DIS, DUOL, ELF, EPR, EVO, FOUR, FCN, FUBO, GIS, GS, HD, ISRG, KSPI, LULU, MAA, META, MRP, MSFT, NLCP, NOVO B, NU, PINS, PLTR, POOL, PYPL, RBLX, RHM, SILA, SIRI, SOFI, SOUN, SPY, STZ, SYNA, T, TDW, TSN, TTD, UNH, UUUU, V, VICI, WHR, and ZM."
+      - id: AC-2
+        description: "Each active company preserves its approved display name, market-routing value, and currency."
+      - id: AC-3
+        description: "The registry rejects unsupported ticker values and exposes lookup by the approved ticker without adapter-local symbol lists."
+    architecture:
+      layers:
+        - domain
+      ports: []
+    research_decisions:
+      - "THESIS_DECISIONS.md#data-scope"
+    verification:
+      required_test_levels:
+        - unit
+      required_checks: *code_checks
+    blocked_reason: null
+    completion_evidence: []
+    implementation_notes:
+      - "The approved active universe was supplied by the author on 2026-08-12; commented-out candidate symbols are intentionally excluded."
+
+  - id: FEAT-019
+    title: "Provide a disposable SQLite workspace for ingestion development"
+    status: queued
+    priority: high
+    depends_on:
+      - FEAT-018
+    scope:
+      - "Create a local SQLite adapter and idempotent schema setup for interface-development ingestion data."
+      - "Seed the approved company registry and retain fetched-document request metadata, raw payloads, normalized documents, and ingestion cursors for local development."
+      - "Configure the workspace path through runtime configuration and keep it separate from the future PostgreSQL research-record store."
+    non_goals:
+      - "Replacing the approved PostgreSQL audit and provenance persistence planned in FEAT-008."
+      - "Treating SQLite records as thesis corpus, experiment evidence, or evaluation data."
+      - "Implementing LLM scoring, vector indexing, prediction persistence, or API CRUD."
+    acceptance_criteria:
+      - id: AC-1
+        description: "A new local SQLite workspace initializes the development-only schema and seeds every approved company exactly once."
+      - id: AC-2
+        description: "Repeated schema setup and company seeding are idempotent and preserve previously stored development documents and cursors."
+      - id: AC-3
+        description: "The SQLite adapter exposes a narrow ingestion-development interface for company lookup, document recording, and cursor updates without leaking sqlite3 types into domain or application code."
+      - id: AC-4
+        description: "The configured SQLite file is excluded from version control and clearly identified as disposable development state."
+    architecture:
+      layers:
+        - application
+        - adapters
+        - bootstrap
+      ports:
+        - repositories
+    research_decisions:
+      - "THESIS_DECISIONS.md#data-scope"
+      - "THESIS_DECISIONS.md#runtime-and-architecture"
+    verification:
+      required_test_levels:
+        - unit
+        - contract
+        - integration
+      required_checks: *code_checks
+    blocked_reason: null
+    completion_evidence: []
+    implementation_notes:
+      - "This workspace is intentionally mutable and disposable; FEAT-008 remains the authoritative PostgreSQL persistence feature."

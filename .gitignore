@@ -37,7 +37,7 @@ Thumbs.db
 .cache/
 
 # Data artifacts (raw filings loaded from colleague's repo, not committed)
-data/
+# data/
 
 # Logs
 *.log

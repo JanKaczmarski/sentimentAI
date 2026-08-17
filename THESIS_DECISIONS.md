@@ -32,7 +32,9 @@ specification.
 ## Data Scope
 
 - Use five years of historical source data and a two-year held-out evaluation period.
-- Initial company sample: `AAPL`, `MSFT`, `NVDA`, `JPM`, `XOM`, and `JNJ`.
+- The active company universe is the author-approved registry specified in
+  `FEATURES.yaml` under `FEAT-018`; it supersedes the earlier six-company
+  sample.
 - Text sources:
   - SEC EDGAR `10-K`, `10-Q`, and relevant `8-K` filings;
   - official company investor-relations earnings releases.
