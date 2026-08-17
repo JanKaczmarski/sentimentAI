@@ -1,0 +1,487 @@
+{
+  "failures": [],
+  "filings": [
+    {
+      "accession_number": "0000320193-26-000013",
+      "cik": "0000320193",
+      "filed_at": "2026-05-01",
+      "form": "10-Q",
+      "primary_document": "aapl-20260328.htm",
+      "report_date": "2026-03-28",
+      "ticker": "AAPL"
+    },
+    {
+      "accession_number": "0000796343-26-000112",
+      "cik": "0000796343",
+      "filed_at": "2026-06-15",
+      "form": "10-Q",
+      "primary_document": "adbe-20260529.htm",
+      "report_date": "2026-05-29",
+      "ticker": "ADBE"
+    },
+    {
+      "accession_number": "0000766421-26-000021",
+      "cik": "0000766421",
+      "filed_at": "2026-05-07",
+      "form": "10-Q",
+      "primary_document": "alk-20260331.htm",
+      "report_date": "2026-03-31",
+      "ticker": "ALK"
+    },
+    {
+      "accession_number": "0001628280-26-037227",
+      "cik": "0000006951",
+      "filed_at": "2026-05-21",
+      "form": "10-Q",
+      "primary_document": "amat-20260426.htm",
+      "report_date": "2026-04-26",
+      "ticker": "AMAT"
+    },
+    {
+      "accession_number": "0000002488-26-000076",
+      "cik": "0000002488",
+      "filed_at": "2026-05-06",
+      "form": "10-Q",
+      "primary_document": "amd-20260328.htm",
+      "report_date": "2026-03-28",
+      "ticker": "AMD"
+    },
+    {
+      "accession_number": "0001018724-26-000014",
+      "cik": "0001018724",
+      "filed_at": "2026-04-30",
+      "form": "10-Q",
+      "primary_document": "amzn-20260331.htm",
+      "report_date": "2026-03-31",
+      "ticker": "AMZN"
+    },
+    {
+      "accession_number": "0001596532-26-000078",
+      "cik": "0001596532",
+      "filed_at": "2026-05-06",
+      "form": "10-Q",
+      "primary_document": "anet-20260331.htm",
+      "report_date": "2026-03-31",
+      "ticker": "ANET"
+    },
+    {
+      "accession_number": "0001018840-26-000036",
+      "cik": "0001018840",
+      "filed_at": "2026-06-05",
+      "form": "10-Q",
+      "primary_document": "anf-20260502.htm",
+      "report_date": "2026-05-02",
+      "ticker": "ANF"
+    },
+    {
+      "accession_number": "0001104659-26-054128",
+      "cik": "0000820313",
+      "filed_at": "2026-05-01",
+      "form": "10-Q",
+      "primary_document": "aph-20260331x10q.htm",
+      "report_date": "2026-03-31",
+      "ticker": "APH"
+    },
+    {
+      "accession_number": "0001035443-26-000042",
+      "cik": "0001035443",
+      "filed_at": "2026-04-27",
+      "form": "10-Q",
+      "primary_document": "are-20260331.htm",
+      "report_date": "2026-03-31",
+      "ticker": "ARE"
+    },
+    {
+      "accession_number": "0001730168-26-000054",
+      "cik": "0001730168",
+      "filed_at": "2026-06-09",
+      "form": "10-Q",
+      "primary_document": "avgo-20260503.htm",
+      "report_date": "2026-05-03",
+      "ticker": "AVGO"
+    },
+    {
+      "accession_number": "0001589526-26-000030",
+      "cik": "0001589526",
+      "filed_at": "2026-05-06",
+      "form": "10-Q",
+      "primary_document": "blbd-20260328.htm",
+      "report_date": "2026-03-28",
+      "ticker": "BLBD"
+    },
+    {
+      "accession_number": "0001486957-26-000028",
+      "cik": "0001486957",
+      "filed_at": "2026-05-04",
+      "form": "10-Q",
+      "primary_document": "bwxt-20260331.htm",
+      "report_date": "2026-03-31",
+      "ticker": "BWXT"
+    },
+    {
+      "accession_number": "0001104659-26-054987",
+      "cik": "0000887596",
+      "filed_at": "2026-05-04",
+      "form": "10-Q",
+      "primary_document": "cake-20260331x10q.htm",
+      "report_date": "2026-03-31",
+      "ticker": "CAKE"
+    },
+    {
+      "accession_number": "0001628280-26-026805",
+      "cik": "0001166691",
+      "filed_at": "2026-04-23",
+      "form": "10-Q",
+      "primary_document": "cmcsa-20260331.htm",
+      "report_date": "2026-03-31",
+      "ticker": "CMCSA"
+    },
+    {
+      "accession_number": "0000909832-26-000051",
+      "cik": "0000909832",
+      "filed_at": "2026-06-03",
+      "form": "10-Q",
+      "primary_document": "cost-20260510.htm",
+      "report_date": "2026-05-10",
+      "ticker": "COST"
+    },
+    {
+      "accession_number": "0001108524-26-000127",
+      "cik": "0001108524",
+      "filed_at": "2026-05-28",
+      "form": "10-Q",
+      "primary_document": "crm-20260430.htm",
+      "report_date": "2026-04-30",
+      "ticker": "CRM"
+    },
+    {
+      "accession_number": "0001535527-26-000025",
+      "cik": "0001535527",
+      "filed_at": "2026-06-04",
+      "form": "10-Q",
+      "primary_document": "crwd-20260430.htm",
+      "report_date": "2026-04-30",
+      "ticker": "CRWD"
+    },
+    {
+      "accession_number": "0001628280-26-032328",
+      "cik": "0001561550",
+      "filed_at": "2026-05-07",
+      "form": "10-Q",
+      "primary_document": "ddog-20260331.htm",
+      "report_date": "2026-03-31",
+      "ticker": "DDOG"
+    },
+    {
+      "accession_number": "0001744489-26-000037",
+      "cik": "0001744489",
+      "filed_at": "2026-05-06",
+      "form": "10-Q",
+      "primary_document": "dis-20260328.htm",
+      "report_date": "2026-03-28",
+      "ticker": "DIS"
+    },
+    {
+      "accession_number": "0001628280-26-029976",
+      "cik": "0001562088",
+      "filed_at": "2026-05-05",
+      "form": "10-Q",
+      "primary_document": "duol-20260331.htm",
+      "report_date": "2026-03-31",
+      "ticker": "DUOL"
+    },
+    {
+      "accession_number": "0001045450-26-000024",
+      "cik": "0001045450",
+      "filed_at": "2026-05-07",
+      "form": "10-Q",
+      "primary_document": "epr-20260331.htm",
+      "report_date": "2026-03-31",
+      "ticker": "EPR"
+    },
+    {
+      "accession_number": "0001794669-26-000020",
+      "cik": "0001794669",
+      "filed_at": "2026-05-07",
+      "form": "10-Q",
+      "primary_document": "four-20260331.htm",
+      "report_date": "2026-03-31",
+      "ticker": "FOUR"
+    },
+    {
+      "accession_number": "0000887936-26-000054",
+      "cik": "0000887936",
+      "filed_at": "2026-04-30",
+      "form": "10-Q",
+      "primary_document": "fcn-20260331.htm",
+      "report_date": "2026-03-31",
+      "ticker": "FCN"
+    },
+    {
+      "accession_number": "0001628280-26-031265",
+      "cik": "0001484769",
+      "filed_at": "2026-05-06",
+      "form": "10-Q",
+      "primary_document": "fubo-20260331.htm",
+      "report_date": "2026-03-31",
+      "ticker": "FUBO"
+    },
+    {
+      "accession_number": "0000886982-26-000118",
+      "cik": "0000886982",
+      "filed_at": "2026-05-01",
+      "form": "10-Q",
+      "primary_document": "gs-20260331.htm",
+      "report_date": "2026-03-31",
+      "ticker": "GS"
+    },
+    {
+      "accession_number": "0001628280-26-038247",
+      "cik": "0000354950",
+      "filed_at": "2026-05-27",
+      "form": "10-Q",
+      "primary_document": "hd-20260503.htm",
+      "report_date": "2026-05-03",
+      "ticker": "HD"
+    },
+    {
+      "accession_number": "0001035267-26-000032",
+      "cik": "0001035267",
+      "filed_at": "2026-04-22",
+      "form": "10-Q",
+      "primary_document": "isrg-20260331.htm",
+      "report_date": "2026-03-31",
+      "ticker": "ISRG"
+    },
+    {
+      "accession_number": "0001397187-26-000078",
+      "cik": "0001397187",
+      "filed_at": "2026-06-04",
+      "form": "10-Q",
+      "primary_document": "lulu-20260503.htm",
+      "report_date": "2026-05-03",
+      "ticker": "LULU"
+    },
+    {
+      "accession_number": "0001193125-26-197331",
+      "cik": "0000912595",
+      "filed_at": "2026-04-30",
+      "form": "10-Q",
+      "primary_document": "maa-20260331.htm",
+      "report_date": "2026-03-31",
+      "ticker": "MAA"
+    },
+    {
+      "accession_number": "0001628280-26-028526",
+      "cik": "0001326801",
+      "filed_at": "2026-04-30",
+      "form": "10-Q",
+      "primary_document": "meta-20260331.htm",
+      "report_date": "2026-03-31",
+      "ticker": "META"
+    },
+    {
+      "accession_number": "0001193125-26-208995",
+      "cik": "0002017206",
+      "filed_at": "2026-05-06",
+      "form": "10-Q",
+      "primary_document": "ck0002017206-20260331.htm",
+      "report_date": "2026-03-31",
+      "ticker": "MRP"
+    },
+    {
+      "accession_number": "0001193125-26-191507",
+      "cik": "0000789019",
+      "filed_at": "2026-04-29",
+      "form": "10-Q",
+      "primary_document": "msft-20260331.htm",
+      "report_date": "2026-03-31",
+      "ticker": "MSFT"
+    },
+    {
+      "accession_number": "0001854964-26-000017",
+      "cik": "0001854964",
+      "filed_at": "2026-05-08",
+      "form": "10-Q",
+      "primary_document": "nlcp-20260331.htm",
+      "report_date": "2026-03-31",
+      "ticker": "NLCP"
+    },
+    {
+      "accession_number": "0001506293-26-000068",
+      "cik": "0001506293",
+      "filed_at": "2026-05-04",
+      "form": "10-Q",
+      "primary_document": "pins-20260331.htm",
+      "report_date": "2026-03-31",
+      "ticker": "PINS"
+    },
+    {
+      "accession_number": "0001321655-26-000028",
+      "cik": "0001321655",
+      "filed_at": "2026-05-05",
+      "form": "10-Q",
+      "primary_document": "pltr-20260331.htm",
+      "report_date": "2026-03-31",
+      "ticker": "PLTR"
+    },
+    {
+      "accession_number": "0001193125-26-185263",
+      "cik": "0000945841",
+      "filed_at": "2026-04-28",
+      "form": "10-Q",
+      "primary_document": "pool-20260331.htm",
+      "report_date": "2026-03-31",
+      "ticker": "POOL"
+    },
+    {
+      "accession_number": "0001633917-26-000067",
+      "cik": "0001633917",
+      "filed_at": "2026-05-05",
+      "form": "10-Q",
+      "primary_document": "pypl-20260331.htm",
+      "report_date": "2026-03-31",
+      "ticker": "PYPL"
+    },
+    {
+      "accession_number": "0001628280-26-028904",
+      "cik": "0001315098",
+      "filed_at": "2026-04-30",
+      "form": "10-Q",
+      "primary_document": "rblx-20260331.htm",
+      "report_date": "2026-03-31",
+      "ticker": "RBLX"
+    },
+    {
+      "accession_number": "0000908937-26-000011",
+      "cik": "0000908937",
+      "filed_at": "2026-04-30",
+      "form": "10-Q",
+      "primary_document": "siri-20260331.htm",
+      "report_date": "2026-03-31",
+      "ticker": "SIRI"
+    },
+    {
+      "accession_number": "0001818874-26-000037",
+      "cik": "0001818874",
+      "filed_at": "2026-05-07",
+      "form": "10-Q",
+      "primary_document": "sofi-20260331.htm",
+      "report_date": "2026-03-31",
+      "ticker": "SOFI"
+    },
+    {
+      "accession_number": "0001840856-26-000015",
+      "cik": "0001840856",
+      "filed_at": "2026-05-11",
+      "form": "10-Q",
+      "primary_document": "soun-20260331.htm",
+      "report_date": "2026-03-31",
+      "ticker": "SOUN"
+    },
+    {
+      "accession_number": "0000817720-26-000036",
+      "cik": "0000817720",
+      "filed_at": "2026-05-07",
+      "form": "10-Q",
+      "primary_document": "syna-20260328.htm",
+      "report_date": "2026-03-28",
+      "ticker": "SYNA"
+    },
+    {
+      "accession_number": "0000732717-26-000206",
+      "cik": "0000732717",
+      "filed_at": "2026-04-27",
+      "form": "10-Q",
+      "primary_document": "t-20260331.htm",
+      "report_date": "2026-03-31",
+      "ticker": "T"
+    },
+    {
+      "accession_number": "0001437749-26-014662",
+      "cik": "0000098222",
+      "filed_at": "2026-05-04",
+      "form": "10-Q",
+      "primary_document": "tdw20260331_10q.htm",
+      "report_date": "2026-03-31",
+      "ticker": "TDW"
+    },
+    {
+      "accession_number": "0000100493-26-000020",
+      "cik": "0000100493",
+      "filed_at": "2026-05-04",
+      "form": "10-Q",
+      "primary_document": "tsn-20260328.htm",
+      "report_date": "2026-03-28",
+      "ticker": "TSN"
+    },
+    {
+      "accession_number": "0001671933-26-000054",
+      "cik": "0001671933",
+      "filed_at": "2026-05-07",
+      "form": "10-Q",
+      "primary_document": "ttd-20260331.htm",
+      "report_date": "2026-03-31",
+      "ticker": "TTD"
+    },
+    {
+      "accession_number": "0000731766-26-000127",
+      "cik": "0000731766",
+      "filed_at": "2026-05-05",
+      "form": "10-Q",
+      "primary_document": "unh-20260331.htm",
+      "report_date": "2026-03-31",
+      "ticker": "UNH"
+    },
+    {
+      "accession_number": "0001385849-26-000021",
+      "cik": "0001385849",
+      "filed_at": "2026-05-06",
+      "form": "10-Q",
+      "primary_document": "efr-20260331.htm",
+      "report_date": "2026-03-31",
+      "ticker": "UUUU"
+    },
+    {
+      "accession_number": "0001403161-26-000079",
+      "cik": "0001403161",
+      "filed_at": "2026-04-29",
+      "form": "10-Q",
+      "primary_document": "v-20260331.htm",
+      "report_date": "2026-03-31",
+      "ticker": "V"
+    },
+    {
+      "accession_number": "0001705696-26-000069",
+      "cik": "0001705696",
+      "filed_at": "2026-04-29",
+      "form": "10-Q",
+      "primary_document": "vici-20260331.htm",
+      "report_date": "2026-03-31",
+      "ticker": "VICI"
+    },
+    {
+      "accession_number": "0000106640-26-000036",
+      "cik": "0000106640",
+      "filed_at": "2026-05-07",
+      "form": "10-Q",
+      "primary_document": "whr-20260331.htm",
+      "report_date": "2026-03-31",
+      "ticker": "WHR"
+    },
+    {
+      "accession_number": "0001585521-26-000071",
+      "cik": "0001585521",
+      "filed_at": "2026-05-22",
+      "form": "10-Q",
+      "primary_document": "zm-20260430.htm",
+      "report_date": "2026-04-30",
+      "ticker": "ZM"
+    }
+  ],
+  "form": "10-Q",
+  "period": {
+    "end": "2026-06-30",
+    "start": "2026-04-01"
+  }
+}

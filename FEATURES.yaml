@@ -420,7 +420,6 @@ features:
           - "git diff --check"
     implementation_notes:
       - "Documentation-only decision feature; concrete source dates and records are materialized by the later acquisition implementation from the fixed manifest protocol."
-
   - id: FEAT-007
     title: "Ingest fixtures into normalized deterministic chunks"
     status: complete
@@ -488,7 +487,6 @@ features:
       - FEAT-001
       - FEAT-002
       - FEAT-003
-      - FEAT-006
     scope:
       - "Create migrations and repositories for documents, chunks, scores, snapshots, runs, and provenance."
     non_goals:
