@@ -36,10 +36,9 @@ Thumbs.db
 # HuggingFace model cache
 .cache/
 
-# Selected research snapshots are intentionally versioned when explicitly added.
-# Disposable databases and generated local state remain ignored below.
-data/
-cik_map.csv
+
+# Data artifacts (raw filings loaded from colleague's repo, not committed)
+# data/
 
 # Logs
 *.log
