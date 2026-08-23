@@ -1,9 +1,11 @@
 """API integration tests using the application composition root."""
 
+from hashlib import sha256
+
 from fastapi.testclient import TestClient
 
 from sentiment_system.application.use_cases.create_account import CreateAccount
-from sentiment_system.bootstrap.container import ApplicationContainer
+from sentiment_system.bootstrap.container import ApplicationContainer, build_container
 from sentiment_system.bootstrap.main import create_app
 from sentiment_system.domain.accounts import UserAccount
 
@@ -71,7 +73,8 @@ def test_account_endpoint_creates_an_account_and_reports_identity_conflicts() ->
 
 
 def test_default_app_retains_created_accounts_for_its_process_lifetime() -> None:
-    client = TestClient(create_app())
+    container = build_container()
+    client = TestClient(create_app(container=container))
 
     created = client.post(
         "/user/account",
@@ -85,3 +88,11 @@ def test_default_app_retains_created_accounts_for_its_process_lifetime() -> None
     assert created.status_code == 201
     assert duplicate.status_code == 409
     assert duplicate.json() == {"detail": "email in use"}
+    assert container.account_repository is not None
+
+    account = container.account_repository.get_by_api_key_digest(
+        sha256(created.json()["api_key"].encode("utf-8")).hexdigest()
+    )
+
+    assert account is not None
+    assert str(account.user_id) == created.json()["user_id"]

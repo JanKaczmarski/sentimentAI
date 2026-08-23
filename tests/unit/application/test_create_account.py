@@ -52,6 +52,8 @@ def test_create_account_normalizes_identity_and_returns_raw_key_only_in_result()
             api_key_digest=sha256(b"raw-api-key").hexdigest(),
         )
     ]
+    assert not hasattr(repository.accounts[0], "api_key")
+    assert "raw-api-key" not in repr(repository.accounts[0])
 
 
 @pytest.mark.parametrize(
