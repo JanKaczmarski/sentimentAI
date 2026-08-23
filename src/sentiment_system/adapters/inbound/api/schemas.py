@@ -3,7 +3,9 @@
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+from sentiment_system.domain.accounts import normalize_email, normalize_username
 
 
 class ApiSchema(BaseModel):
@@ -17,6 +19,18 @@ class AccountCreateRequest(ApiSchema):
 
     email: str = Field(min_length=1)
     username: str = Field(min_length=1)
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, value: str) -> str:
+        """Validate and canonicalize the account email before the use case."""
+        return normalize_email(value)
+
+    @field_validator("username")
+    @classmethod
+    def validate_username(cls, value: str) -> str:
+        """Validate and canonicalize the account username before the use case."""
+        return normalize_username(value)
 
 
 class AccountCreateResponse(ApiSchema):
