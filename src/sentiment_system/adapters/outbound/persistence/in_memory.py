@@ -1,8 +1,10 @@
-"""Deterministic in-memory repositories for unit and contract tests."""
+"""Deterministic in-memory repositories for local development and tests."""
 
 from collections.abc import Iterable
 from datetime import date
+from uuid import UUID
 
+from sentiment_system.domain.accounts import UserAccount
 from sentiment_system.domain.documents import DocumentChunk, SourceDocument
 from sentiment_system.domain.investment_thesis import InvestmentThesis
 from sentiment_system.domain.predictions import (
@@ -69,6 +71,30 @@ class InMemoryInvestmentThesisRepository:
     def list_for_user(self, user_id: str) -> tuple[InvestmentThesis, ...]:
         theses = (thesis for thesis in self._theses.values() if thesis.user_id == user_id)
         return tuple(sorted(theses, key=lambda item: item.thesis_id))
+
+
+class InMemoryUserAccountRepository:
+    """Store investor accounts by immutable server-generated identifier."""
+
+    def __init__(self, accounts: Iterable[UserAccount] = ()) -> None:
+        self._accounts: dict[UUID, UserAccount] = {}
+        for account in accounts:
+            self.save(account)
+
+    def save(self, account: UserAccount) -> None:
+        self._accounts[account.user_id] = account
+
+    def get_by_email(self, email: str) -> UserAccount | None:
+        return next((account for account in self._accounts.values() if account.email == email), None)
+
+    def get_by_username(self, username: str) -> UserAccount | None:
+        return next((account for account in self._accounts.values() if account.username == username), None)
+
+    def get_by_api_key_digest(self, api_key_digest: str) -> UserAccount | None:
+        return next(
+            (account for account in self._accounts.values() if account.api_key_digest == api_key_digest),
+            None,
+        )
 
 
 class InMemorySnapshotRepository:

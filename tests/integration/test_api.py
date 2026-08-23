@@ -68,3 +68,20 @@ def test_account_endpoint_creates_an_account_and_reports_identity_conflicts() ->
     assert duplicate_username.status_code == 409
     assert duplicate_username.json() == {"detail": "username in use"}
     assert invalid_email.status_code == 422
+
+
+def test_default_app_retains_created_accounts_for_its_process_lifetime() -> None:
+    client = TestClient(create_app())
+
+    created = client.post(
+        "/user/account",
+        json={"email": "investor@example.com", "username": "investor"},
+    )
+    duplicate = client.post(
+        "/user/account",
+        json={"email": "investor@example.com", "username": "different"},
+    )
+
+    assert created.status_code == 201
+    assert duplicate.status_code == 409
+    assert duplicate.json() == {"detail": "email in use"}

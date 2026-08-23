@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 
+from sentiment_system.adapters.outbound.persistence.in_memory import InMemoryUserAccountRepository
 from sentiment_system.application.use_cases.create_account import CreateAccount
 
 
@@ -17,4 +18,4 @@ def build_container() -> ApplicationContainer:
 
     Services are added here as their application use cases are implemented.
     """
-    return ApplicationContainer()
+    return ApplicationContainer(create_account=CreateAccount(InMemoryUserAccountRepository()))
