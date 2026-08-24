@@ -10,8 +10,8 @@ class SourceDocument:
 
     document_id: str
     source_id: str
-    company: str # TODO: I think company should be enum
-    source: str # TODO: same here, enummmmmmmmmmm (overall 3 sources we have)
+    company: str
+    source: str
     published_at: date
     document_type: str
     raw_content: str

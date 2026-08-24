@@ -8,6 +8,12 @@
 - `ARCHITECTURE.md` is the target system design; `THESIS_DECISIONS.md` contains detailed research decisions and open questions.
 - `Inzynierka_arch.docx` is the supervisor-commented architecture reference, not the executable specification.
 
+## Branch Workflow
+
+- `develop` is the protected integration branch for the core API flow and thesis-system backbone.
+- Start related feature branches from `develop` and merge reviewed work back into `develop`, not directly into `main`.
+- Merge `develop` into `main` only as an intentional release or milestone integration.
+
 ## Structure
 
 - `domain/` contains pure entities and business rules.
