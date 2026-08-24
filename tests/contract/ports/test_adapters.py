@@ -1,6 +1,8 @@
 """Contract tests for fake port implementations."""
 
 from datetime import date, datetime, timezone
+from hashlib import sha256
+from uuid import UUID
 
 from sentiment_system.adapters.outbound.embeddings.mock import DeterministicEmbeddings
 from sentiment_system.adapters.outbound.llm.mock import DeterministicLLMScorer
@@ -12,6 +14,7 @@ from sentiment_system.adapters.outbound.persistence.in_memory import (
     InMemoryPredictionRepository,
     InMemoryProvenanceRepository,
     InMemorySnapshotRepository,
+    InMemoryUserAccountRepository,
 )
 from sentiment_system.adapters.outbound.sources.fixtures import FixtureDocumentSource
 from sentiment_system.adapters.outbound.vector.in_memory import InMemoryVectorStore
@@ -26,8 +29,10 @@ from sentiment_system.application.ports.repositories import (
     InvestmentThesisRepository,
     PredictionRepository,
     SnapshotRepository,
+    UserAccountRepository,
 )
 from sentiment_system.application.ports.vector_store import EmbeddedChunk, VectorQuery, VectorStore
+from sentiment_system.domain.accounts import UserAccount
 from sentiment_system.domain.documents import DocumentChunk, SourceDocument
 from sentiment_system.domain.investment_thesis import (
     InvestmentHorizon,
@@ -121,6 +126,20 @@ def _provenance(run_id: str = "run-1") -> ExperimentProvenance:
     )
 
 
+def _account(
+    user_id: UUID = UUID("a66b7cd0-e219-4e17-8729-4c49b0a65624"),
+    email: str = "investor@example.com",
+    username: str = "investor",
+    api_key: str = "api-key",
+) -> UserAccount:
+    return UserAccount(
+        user_id=user_id,
+        email=email,
+        username=username,
+        api_key_digest=sha256(api_key.encode("utf-8")).hexdigest(),
+    )
+
+
 def test_port_fakes_are_structurally_typed() -> None:
     assert isinstance(FixtureDocumentSource(), DocumentSource)
     assert isinstance(InMemoryDocumentRepository(), DocumentRepository)
@@ -129,6 +148,7 @@ def test_port_fakes_are_structurally_typed() -> None:
     assert isinstance(InMemorySnapshotRepository(), SnapshotRepository)
     assert isinstance(InMemoryPredictionRepository(), PredictionRepository)
     assert isinstance(InMemoryProvenanceRepository(), ExperimentProvenanceRepository)
+    assert isinstance(InMemoryUserAccountRepository(), UserAccountRepository)
     assert isinstance(DeterministicLLMScorer(), LLMScorer)
     assert isinstance(DeterministicEmbeddings(), EmbeddingProvider)
     assert isinstance(InMemoryVectorStore(), VectorStore)
@@ -174,6 +194,20 @@ def test_repositories_replace_by_stable_identity_and_filter_history() -> None:
     assert repository.get("document-1") == replacement
     assert repository.list_documents(company="AAPL") == ()
     assert repository.list_documents(company="MSFT") == (replacement,)
+
+
+def test_user_account_repository_replaces_stable_identity_and_looks_up_all_unique_values() -> None:
+    repository = InMemoryUserAccountRepository((_account(),))
+    replacement = _account(email="different@example.com", username="different", api_key="different-key")
+
+    repository.save(replacement)
+
+    assert repository.get_by_email("investor@example.com") is None
+    assert repository.get_by_username("investor") is None
+    assert repository.get_by_api_key_digest(sha256(b"api-key").hexdigest()) is None
+    assert repository.get_by_email("different@example.com") == replacement
+    assert repository.get_by_username("different") == replacement
+    assert repository.get_by_api_key_digest(sha256(b"different-key").hexdigest()) == replacement
 
 
 def test_deterministic_scorer_returns_repeatable_results() -> None:

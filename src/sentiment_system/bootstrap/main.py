@@ -4,14 +4,16 @@ from fastapi import FastAPI
 from prometheus_client import make_asgi_app
 
 from sentiment_system.adapters.inbound.api.routes import router
+from sentiment_system.bootstrap.container import ApplicationContainer, build_container
 
 
-def create_app() -> FastAPI:
+def create_app(*, container: ApplicationContainer | None = None) -> FastAPI:
     """Create the minimal application used by local development and Compose."""
     app = FastAPI(
         title="Personalized Financial Sentiment System",
         version="0.1.0",
     )
+    app.state.container = container if container is not None else build_container()
     app.include_router(router)
     app.mount("/metrics", make_asgi_app())
     return app
