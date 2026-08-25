@@ -7,10 +7,10 @@ chunk scoring, and deterministic Investment Thesis personalization.
 
 - Target implementation: `src/sentiment_system/`
 - Legacy reference POC: `poc/`
-- Architecture: `ARCHITECTURE.md`
-- Research decisions: `THESIS_DECISIONS.md`
-- Supervisor reference: `Inzynierka_arch.docx`
-- Contributor handoff: `GETTING_STARTED.md`
+- Architecture: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
+- Research decisions: [`docs/THESIS_DECISIONS.md`](docs/THESIS_DECISIONS.md)
+- Supervisor reference: [`docs/Inżynierka_arch.docx`](docs/Inżynierka_arch.docx)
+- Contributor handoff: [`docs/GETTING_STARTED.md`](docs/GETTING_STARTED.md)
 
 The new package is scaffolded and the first domain tests are implemented. The
 legacy POC is preserved for comparison and sample data during the rebuild.

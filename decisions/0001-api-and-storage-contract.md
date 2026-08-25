@@ -8,7 +8,7 @@
 
 This record captures decisions needed for `FEAT-006`, `FEAT-008`, and
 `FEAT-009`. It supplements the API drafts in `Inżynierka docs.md` and
-`ARCHITECTURE.md`; it does not approve implementation while material entries
+`docs/ARCHITECTURE.md`; it does not approve implementation while material entries
 remain open. Decision 0006 now fixes the remaining v0.2 request, response, and
 persistence contract.
 
@@ -87,8 +87,8 @@ supplies that ID when updating a thesis remains open below.
 The project mentions company groups in:
 
 - `Inżynierka docs.md`, functional requirements and strategy endpoints;
-- `THESIS_DECISIONS.md`, Investment Thesis section;
-- `ARCHITECTURE.md`, requirements and API surface;
+ - `docs/THESIS_DECISIONS.md`, Investment Thesis section;
+ - `docs/ARCHITECTURE.md`, requirements and API surface;
 - `FEATURES.yaml`, `FEAT-009` scope.
 
 The accepted schema defines a group as one thesis assigned to several approved
