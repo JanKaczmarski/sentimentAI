@@ -884,7 +884,7 @@ features:
 
   - id: FEAT-018
     title: "Define the company universe for ingestion"
-    status: blocked
+    status: in_review
     priority: high
     depends_on: []
     scope:
@@ -910,14 +910,31 @@ features:
       ports: []
     research_decisions:
       - "THESIS_DECISIONS.md#data-scope"
+      - "decisions/0004-company-universe-approval.md"
     verification:
       required_test_levels:
         - unit
       required_checks: *code_checks
-    blocked_reason: "The canonical active ingestion universe has not been formally approved; the separate data repository is a broader local candidate snapshot."
-    completion_evidence: []
+    blocked_reason: null
+    completion_evidence:
+      - acceptance_criterion: AC-1
+        evidence:
+          - "tests/unit/domain/test_companies.py::test_registry_contains_exact_approved_universe"
+          - "src/sentiment_system/domain/companies.py::APPROVED_COMPANIES"
+          - "uv run pytest tests/unit/domain/test_companies.py"
+      - acceptance_criterion: AC-2
+        evidence:
+          - "tests/unit/domain/test_companies.py::test_registry_preserves_metadata_for_non_us_and_etf_entries"
+          - "decisions/0004-company-universe-approval.md#metadata-policy"
+          - "uv run python -m scripts.validate_features"
+      - acceptance_criterion: AC-3
+        evidence:
+          - "tests/unit/domain/test_companies.py::test_registry_lookup_normalizes_tickers_and_rejects_unsupported_values"
+          - "tests/unit/domain/test_companies.py::test_company_metadata_is_immutable_and_validated"
+          - "uv run pytest"
     implementation_notes:
       - "The separate local data repository may contain a broader candidate universe; it does not approve the final thesis or ingestion universe."
+      - "The registry is a domain-owned immutable snapshot; source and market adapters must consume it instead of defining local symbol lists."
 
   - id: FEAT-019
     title: "Provide a disposable SQLite workspace for ingestion development"
