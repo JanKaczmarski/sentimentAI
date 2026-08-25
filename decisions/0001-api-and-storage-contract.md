@@ -11,6 +11,16 @@ This record captures decisions needed for `FEAT-006`, `FEAT-008`, and
 `ARCHITECTURE.md`; it does not approve implementation while material entries
 remain open.
 
+## Scope Boundary
+
+This record approves the account identity, API-key, error, and Investment Thesis
+schema direction needed to prepare account API work. It does not close
+`FEAT-006`: the final corpus split, benchmark protocol, complete v0.2 API
+schemas, and database contract remain open there. The current in-memory account
+implementation is development preparation only; it is not the PostgreSQL
+implementation required by `FEAT-008`, and full account/thesis CRUD remains in
+`FEAT-009`.
+
 ## Confirmed Decisions
 
 ### Account identity

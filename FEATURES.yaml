@@ -411,12 +411,13 @@ features:
 
   - id: FEAT-008
     title: "Persist auditable research records in PostgreSQL"
-    status: ready
+    status: queued
     priority: high
     depends_on:
       - FEAT-001
       - FEAT-002
       - FEAT-003
+      - FEAT-006
     scope:
       - "Create migrations and repositories for documents, chunks, scores, snapshots, runs, and provenance."
     non_goals:
@@ -486,7 +487,8 @@ features:
       required_checks: *code_checks
     blocked_reason: null
     completion_evidence: []
-    implementation_notes: []
+    implementation_notes:
+      - "The current branch contains account-creation preparation with an in-memory repository; it does not satisfy the full CRUD acceptance criteria or replace FEAT-008 PostgreSQL persistence."
 
   - id: FEAT-010
     title: "Index real local embeddings in Qdrant"
@@ -843,12 +845,12 @@ features:
     implementation_notes: []
 
   - id: FEAT-018
-    title: "Register the approved company universe for ingestion"
-    status: ready
+    title: "Define the company universe for ingestion"
+    status: blocked
     priority: high
     depends_on: []
     scope:
-      - "Create the canonical immutable company registry for the author-approved active ingestion universe."
+      - "Create the canonical immutable company registry after the active ingestion universe is formally approved."
       - "Represent each company with its ticker, display name, market-routing value, and trading currency."
       - "Make the registry available to future mail-shaped document ingestion and Yahoo Finance market-data adapters without duplicating the approved universe."
     non_goals:
@@ -874,10 +876,10 @@ features:
       required_test_levels:
         - unit
       required_checks: *code_checks
-    blocked_reason: null
+    blocked_reason: "The canonical active ingestion universe has not been formally approved; checked-in data is a broader local candidate snapshot."
     completion_evidence: []
     implementation_notes:
-      - "The approved active universe was supplied by the author on 2026-08-12; commented-out candidate symbols are intentionally excluded."
+      - "The checked-in market and communication snapshots may contain a broader candidate universe; they do not approve the final thesis or ingestion universe."
 
   - id: FEAT-019
     title: "Provide a disposable SQLite workspace for ingestion development"

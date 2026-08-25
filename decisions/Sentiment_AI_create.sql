@@ -73,58 +73,57 @@ CREATE TABLE users (
 -- Reference: fk_chunks_report (table: chunks)
 ALTER TABLE chunks ADD CONSTRAINT fk_chunks_report
     FOREIGN KEY (report_id)
-    REFERENCES reports (report_id)  
-    NOT DEFERRABLE 
+    REFERENCES reports (report_id)
+    NOT DEFERRABLE
     INITIALLY IMMEDIATE
 ;
 
 -- Reference: fk_past_predictions_user (table: past_predictions)
 ALTER TABLE past_predictions ADD CONSTRAINT fk_past_predictions_user
     FOREIGN KEY (user_id)
-    REFERENCES users (user_id)  
-    NOT DEFERRABLE 
+    REFERENCES users (user_id)
+    NOT DEFERRABLE
     INITIALLY IMMEDIATE
 ;
 
 -- Reference: fk_reports_company (table: reports)
 ALTER TABLE reports ADD CONSTRAINT fk_reports_company
     FOREIGN KEY (company_id)
-    REFERENCES companies (company_id)  
-    NOT DEFERRABLE 
+    REFERENCES companies (company_id)
+    NOT DEFERRABLE
     INITIALLY IMMEDIATE
 ;
 
 -- Reference: fk_stock_pricing_company (table: stock_pricing)
 ALTER TABLE stock_pricing ADD CONSTRAINT fk_stock_pricing_company
     FOREIGN KEY (company_id)
-    REFERENCES companies (company_id)  
-    NOT DEFERRABLE 
+    REFERENCES companies (company_id)
+    NOT DEFERRABLE
     INITIALLY IMMEDIATE
 ;
 
 -- Reference: fk_subscriptions_company (table: subscriptions)
 ALTER TABLE subscriptions ADD CONSTRAINT fk_subscriptions_company
     FOREIGN KEY (company_id)
-    REFERENCES companies (company_id)  
-    NOT DEFERRABLE 
+    REFERENCES companies (company_id)
+    NOT DEFERRABLE
     INITIALLY IMMEDIATE
 ;
 
 -- Reference: fk_subscriptions_strategy (table: subscriptions)
 ALTER TABLE subscriptions ADD CONSTRAINT fk_subscriptions_strategy
     FOREIGN KEY (strategy_name)
-    REFERENCES strategies (strategy_name)  
-    NOT DEFERRABLE 
+    REFERENCES strategies (strategy_name)
+    NOT DEFERRABLE
     INITIALLY IMMEDIATE
 ;
 
 -- Reference: fk_subscriptions_user (table: subscriptions)
 ALTER TABLE subscriptions ADD CONSTRAINT fk_subscriptions_user
     FOREIGN KEY (user_id)
-    REFERENCES users (user_id)  
-    NOT DEFERRABLE 
+    REFERENCES users (user_id)
+    NOT DEFERRABLE
     INITIALLY IMMEDIATE
 ;
 
 -- End of file.
-

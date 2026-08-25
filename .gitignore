@@ -36,8 +36,8 @@ Thumbs.db
 # HuggingFace model cache
 .cache/
 
-# Data artifacts (raw filings loaded from colleague's repo, not committed)
-# data/
+# Selected research snapshots are intentionally versioned when explicitly added.
+# Disposable databases and generated local state remain ignored below.
 
 # Logs
 *.log

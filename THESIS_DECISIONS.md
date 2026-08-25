@@ -32,9 +32,12 @@ specification.
 ## Data Scope
 
 - Use five years of historical source data and a two-year held-out evaluation period.
-- The active company universe is the author-approved registry specified in
-  `FEATURES.yaml` under `FEAT-018`; it supersedes the earlier six-company
-  sample.
+- The initial thesis and evaluation sample remains `AAPL`, `MSFT`, `NVDA`,
+  `JPM`, `XOM`, and `JNJ` until a broader research universe is explicitly
+  approved.
+- Local development snapshots may contain a broader candidate company
+  universe. Their presence does not change the thesis sample or approve a
+  production/ingestion registry.
 - Text sources:
   - SEC EDGAR `10-K`, `10-Q`, and relevant `8-K` filings;
   - official company investor-relations earnings releases.
