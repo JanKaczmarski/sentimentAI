@@ -274,7 +274,7 @@ features:
 
   - id: FEAT-004
     title: "Approve processing and scoring experiment configuration"
-    status: implemented
+    status: in_review
     priority: critical
     depends_on: []
     scope:
