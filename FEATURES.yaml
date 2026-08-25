@@ -390,7 +390,7 @@ features:
 
   - id: FEAT-007
     title: "Ingest fixtures into normalized deterministic chunks"
-    status: queued
+    status: implemented
     priority: high
     depends_on:
       - FEAT-001
@@ -426,8 +426,26 @@ features:
         - integration
       required_checks: *code_checks
     blocked_reason: null
-    completion_evidence: []
-    implementation_notes: []
+    completion_evidence:
+      - acceptance_criterion: AC-1
+        evidence:
+          - "tests/unit/application/test_ingest_documents.py::test_malformed_fixture_input_fails_explicitly"
+          - "tests/contract/ports/test_adapters.py::test_fixture_source_normalizes_mapping_payloads_and_rejects_missing_fields"
+          - "tests/integration/test_ingestion.py::test_fixture_communications_are_ingested_into_auditable_repositories"
+          - "uv run pytest tests/unit/application/test_ingest_documents.py tests/contract/ports/test_adapters.py tests/integration/test_ingestion.py"
+      - acceptance_criterion: AC-2
+        evidence:
+          - "tests/unit/application/test_ingest_documents.py::test_ingestion_preserves_raw_lineage_and_creates_cleaned_deterministic_chunks"
+          - "tests/integration/test_ingestion.py::test_fixture_communications_are_ingested_into_auditable_repositories"
+          - "src/sentiment_system/domain/documents.py::DocumentChunk.processing_config_version"
+      - acceptance_criterion: AC-3
+        evidence:
+          - "tests/unit/application/test_ingest_documents.py::test_reprocessing_same_fixture_is_idempotent_and_deterministic"
+          - "uv run pytest"
+          - "uv run mypy"
+    implementation_notes:
+      - "The tokenizer is injected at the application boundary so the composition root can supply the selected scoring-model tokenizer without coupling ingestion to a provider SDK."
+      - "Contextual summaries, embeddings, and persistent PostgreSQL storage remain in their approved downstream features."
 
   - id: FEAT-008
     title: "Persist auditable research records in PostgreSQL"
