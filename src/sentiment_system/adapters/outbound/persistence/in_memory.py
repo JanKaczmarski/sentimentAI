@@ -10,8 +10,10 @@ from sentiment_system.domain.investment_thesis import InvestmentThesis
 from sentiment_system.domain.predictions import (
     CompanySentimentSnapshot,
     ExperimentProvenance,
+    ExperimentRun,
     Prediction,
 )
+from sentiment_system.domain.scoring import ChunkScoreRecord
 
 
 class InMemoryDocumentRepository:
@@ -52,6 +54,22 @@ class InMemoryChunkRepository:
     def list_for_document(self, document_id: str) -> tuple[DocumentChunk, ...]:
         chunks = (chunk for chunk in self._chunks.values() if chunk.document_id == document_id)
         return tuple(sorted(chunks, key=lambda item: (item.ordinal, item.chunk_id)))
+
+
+class InMemoryChunkScoreRepository:
+    """Store append-only chunk scores by chunk and run identity."""
+
+    def __init__(self, scores: Iterable[ChunkScoreRecord] = ()) -> None:
+        self._scores: dict[tuple[str, str], ChunkScoreRecord] = {}
+        for score in scores:
+            self.save(score)
+
+    def save(self, score: ChunkScoreRecord) -> None:
+        self._scores.setdefault((score.chunk_id, score.run_id), score)
+
+    def list_for_chunk(self, chunk_id: str) -> tuple[ChunkScoreRecord, ...]:
+        scores = (score for score in self._scores.values() if score.chunk_id == chunk_id)
+        return tuple(sorted(scores, key=lambda item: item.run_id))
 
 
 class InMemoryInvestmentThesisRepository:
@@ -183,3 +201,18 @@ class InMemoryProvenanceRepository:
 
     def get(self, run_id: str) -> ExperimentProvenance | None:
         return self._provenance.get(run_id)
+
+
+class InMemoryExperimentRunRepository:
+    """Store experiment runs by stable identifier."""
+
+    def __init__(self, runs: Iterable[ExperimentRun] = ()) -> None:
+        self._runs: dict[str, ExperimentRun] = {}
+        for run in runs:
+            self.save(run)
+
+    def save(self, run: ExperimentRun) -> None:
+        self._runs[run.run_id] = run
+
+    def get(self, run_id: str) -> ExperimentRun | None:
+        return self._runs.get(run_id)

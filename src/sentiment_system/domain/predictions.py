@@ -101,6 +101,32 @@ class Prediction:
 
 
 @dataclass(frozen=True, slots=True)
+class ExperimentRun:
+    """A reproducible execution that owns append-only research records."""
+
+    run_id: str
+    run_type: str
+    status: str
+    started_at: datetime
+    completed_at: datetime | None = None
+    configuration: Mapping[str, object] = MappingProxyType({})
+
+    def __post_init__(self) -> None:
+        _require_non_empty_string("run_id", self.run_id)
+        _require_non_empty_string("run_type", self.run_type)
+        if self.status not in {"started", "completed", "failed"}:
+            raise ValueError("status must be started, completed, or failed")
+        if not isinstance(self.started_at, datetime):
+            raise ValueError("started_at must be a datetime")
+        if self.completed_at is not None:
+            if not isinstance(self.completed_at, datetime):
+                raise ValueError("completed_at must be a datetime")
+            if self.completed_at < self.started_at:
+                raise ValueError("completed_at must not be before started_at")
+        object.__setattr__(self, "configuration", _freeze_secret_free_mapping(self.configuration))
+
+
+@dataclass(frozen=True, slots=True)
 class ExperimentProvenance:
     """Secret-free inputs and outputs needed to reproduce one experiment run."""
 
