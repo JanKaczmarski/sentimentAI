@@ -327,7 +327,7 @@ features:
 
   - id: FEAT-005
     title: "Approve aggregation and personalization rule version"
-    status: blocked
+    status: complete
     priority: critical
     depends_on: []
     scope:
@@ -349,16 +349,31 @@ features:
       - "THESIS_DECISIONS.md#research-model"
       - "THESIS_DECISIONS.md#evaluation"
       - "THESIS_DECISIONS.md#open-decisions"
+      - "decisions/0005-aggregation-and-personalization-rules.md"
     verification:
       required_test_levels: []
       required_checks: *decision_checks
-    blocked_reason: "Supervisor or author approval is required for the initial aggregation and personalization coefficients."
-    completion_evidence: []
-    implementation_notes: []
+    blocked_reason: null
+    completion_evidence:
+      - acceptance_criterion: AC-1
+        evidence:
+          - "decisions/0005-aggregation-and-personalization-rules.md#aggregation"
+          - "uv run python -m scripts.validate_features"
+      - acceptance_criterion: AC-2
+        evidence:
+          - "decisions/0005-aggregation-and-personalization-rules.md#horizon-and-style-rules"
+          - "decisions/0005-aggregation-and-personalization-rules.md#risk-thresholds"
+          - "uv run python -m scripts.validate_features"
+      - acceptance_criterion: AC-3
+        evidence:
+          - "decisions/0005-aggregation-and-personalization-rules.md#sensitivity-plan"
+          - "git diff --check"
+    implementation_notes:
+      - "Documentation-only decision feature; v1 values are fixed before held-out evaluation and are not tuned against it."
 
   - id: FEAT-006
     title: "Approve reproducible corpus, evaluation, API, and storage contract"
-    status: blocked
+    status: complete
     priority: critical
     depends_on: []
     scope:
@@ -381,12 +396,30 @@ features:
       - "THESIS_DECISIONS.md#evaluation"
       - "THESIS_DECISIONS.md#runtime-and-architecture"
       - "THESIS_DECISIONS.md#open-decisions"
+      - "decisions/0002-market-data-and-evaluation-scope.md"
+      - "decisions/0006-reproducible-research-and-runtime-contract.md"
     verification:
       required_test_levels: []
       required_checks: *decision_checks
-    blocked_reason: "The corpus split and sector benchmark protocol are intentionally deferred to later evaluation work."
-    completion_evidence: []
-    implementation_notes: []
+    blocked_reason: null
+    completion_evidence:
+      - acceptance_criterion: AC-1
+        evidence:
+          - "decisions/0006-reproducible-research-and-runtime-contract.md#corpus-and-chronological-split"
+          - "uv run python -m scripts.validate_features"
+      - acceptance_criterion: AC-2
+        evidence:
+          - "decisions/0006-reproducible-research-and-runtime-contract.md#benchmark-protocol"
+          - "decisions/0002-market-data-and-evaluation-scope.md#evaluation-decisions"
+          - "uv run python -m scripts.validate_features"
+      - acceptance_criterion: AC-3
+        evidence:
+          - "decisions/0001-api-and-storage-contract.md#account-and-thesis-http-contract"
+          - "decisions/0006-reproducible-research-and-runtime-contract.md#api-contract"
+          - "decisions/0006-reproducible-research-and-runtime-contract.md#persistence-contract"
+          - "git diff --check"
+    implementation_notes:
+      - "Documentation-only decision feature; concrete source dates and records are materialized by the later acquisition implementation from the fixed manifest protocol."
 
   - id: FEAT-007
     title: "Ingest fixtures into normalized deterministic chunks"
@@ -449,7 +482,7 @@ features:
 
   - id: FEAT-008
     title: "Persist auditable research records in PostgreSQL"
-    status: queued
+    status: ready
     priority: high
     depends_on:
       - FEAT-001
