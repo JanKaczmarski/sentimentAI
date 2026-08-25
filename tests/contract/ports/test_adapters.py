@@ -4,6 +4,8 @@ from datetime import date, datetime, timezone
 from hashlib import sha256
 from uuid import UUID
 
+import pytest
+
 from sentiment_system.adapters.outbound.embeddings.mock import DeterministicEmbeddings
 from sentiment_system.adapters.outbound.llm.mock import DeterministicLLMScorer
 from sentiment_system.adapters.outbound.market_data.fake import InMemoryMarketData
@@ -167,6 +169,27 @@ def test_fixture_source_filters_and_sorts_documents() -> None:
     documents = source.fetch_documents(company="AAPL", published_after=date(2025, 1, 1))
 
     assert [document.document_id for document in documents] == ["document-2"]
+
+
+def test_fixture_source_normalizes_mapping_payloads_and_rejects_missing_fields() -> None:
+    source = FixtureDocumentSource(
+        (
+            {
+                "document_id": "document-1",
+                "source_id": "source-1",
+                "company": "AAPL",
+                "source": "fixture",
+                "published_at": "2025-01-30",
+                "document_type": "company_communication",
+                "raw_content": "Fixture content.",
+            },
+        )
+    )
+
+    assert source.fetch_documents()[0].raw_content == "Fixture content."
+
+    with pytest.raises(ValueError, match="source_id is required"):
+        FixtureDocumentSource(({"document_id": "document-1"},))
 
 
 def test_repositories_round_trip_domain_values_deterministically() -> None:
