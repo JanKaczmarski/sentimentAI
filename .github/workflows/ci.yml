@@ -1,21 +1,36 @@
 name: CI
 
 on:
-  workflow_dispatch:
   pull_request:
-    branches: [main]
-    types: [opened, synchronize, reopened]
+    branches:
+      - main
+      - develop
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
   push:
-    branches: [main]
+    branches:
+      - main
+      - develop
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
 jobs:
-  quality:
+  checks:
+    name: Project checks
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
-      - name: Check out repository
+      - name: Check out source
         uses: actions/checkout@v4
 
       - name: Install uv
@@ -31,20 +46,21 @@ jobs:
       - name: Install locked dependencies
         run: uv sync --locked
 
-      - name: Check formatting with Black
-        run: uv run black --check src tests scripts
+      - name: Check formatting
+        run: |
+          uv run black --check src tests scripts
+          uv run isort --check-only src tests scripts
 
-      - name: Check import sorting with isort
-        run: uv run isort --check-only src tests scripts
-
-      - name: Run Ruff
-        run: uv run ruff check src tests scripts
-
-      - name: Run mypy
-        run: uv run mypy
+      - name: Check lint and types
+        run: |
+          uv run ruff check src tests scripts
+          uv run mypy
 
       - name: Run tests
         run: uv run pytest
+
+      - name: Compile source
+        run: uv run python -m compileall -q src tests scripts
 
       - name: Build package
         run: uv build
@@ -52,8 +68,24 @@ jobs:
       - name: Audit dependencies
         run: uv run pip-audit
 
-      - name: Validate project governance
-        run: uv run python -m scripts.check_required_docs && uv run python -m scripts.validate_features
-
       - name: Validate Compose configuration
         run: cp .env.example .env && docker compose config --quiet
+
+      - name: Validate project governance
+        run: |
+          uv run python -m scripts.check_required_docs
+          uv run python -m scripts.validate_features
+
+      - name: Check lockfile
+        run: uv lock --check
+
+      - name: Check diff
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [ -n "$BASE_SHA" ] && [ -n "$HEAD_SHA" ]; then
+            git diff --check "$BASE_SHA...$HEAD_SHA"
+          else
+            git diff --check
+          fi
