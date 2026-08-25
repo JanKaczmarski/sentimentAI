@@ -938,7 +938,7 @@ features:
 
   - id: FEAT-019
     title: "Provide a disposable SQLite workspace for ingestion development"
-    status: implemented
+    status: in_review
     priority: high
     depends_on:
       - FEAT-018
