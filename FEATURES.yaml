@@ -274,7 +274,7 @@ features:
 
   - id: FEAT-004
     title: "Approve processing and scoring experiment configuration"
-    status: blocked
+    status: in_review
     priority: critical
     depends_on: []
     scope:
@@ -298,12 +298,32 @@ features:
       - "THESIS_DECISIONS.md#rag-and-scoring"
       - "THESIS_DECISIONS.md#runtime-and-architecture"
       - "THESIS_DECISIONS.md#open-decisions"
+      - "decisions/0003-processing-and-scoring-configuration.md"
     verification:
       required_test_levels: []
       required_checks: *decision_checks
-    blocked_reason: "Supervisor or author approval is required for the initial processing and scoring configuration."
-    completion_evidence: []
-    implementation_notes: []
+    blocked_reason: null
+    completion_evidence:
+      - acceptance_criterion: AC-1
+        evidence:
+          - "decisions/0003-processing-and-scoring-configuration.md#cleaning-configuration"
+          - "decisions/0003-processing-and-scoring-configuration.md#chunking-configuration"
+          - "decisions/0003-processing-and-scoring-configuration.md#rag-variants"
+          - "decisions/0003-processing-and-scoring-configuration.md#input-budget-and-truncation"
+          - "uv run python -m scripts.check_required_docs"
+          - "uv run python -m scripts.validate_features"
+      - acceptance_criterion: AC-2
+        evidence:
+          - "decisions/0003-processing-and-scoring-configuration.md#scoring-contract"
+          - "decisions/0003-processing-and-scoring-configuration.md#embedding-policy"
+          - "uv run python -m scripts.validate_features"
+      - acceptance_criterion: AC-3
+        evidence:
+          - "decisions/0003-processing-and-scoring-configuration.md#evaluation-safeguard"
+          - "git diff --check"
+
+    implementation_notes:
+      - "Documentation-only decision feature; deterministic document and registry validation replaced the failing-test step."
 
   - id: FEAT-005
     title: "Approve aggregation and personalization rule version"
