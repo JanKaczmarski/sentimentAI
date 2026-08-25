@@ -42,6 +42,14 @@ The data repository contains raw source snapshots, market-price inputs, CIK
 metadata, and acquisition manifests. Do not commit credentials or private
 documents there.
 
+## Disposable Ingestion Workspace
+
+Fixture-ingestion development state uses a local SQLite file configured by
+`INGESTION_SQLITE_PATH`. The default is `.local/ingestion.sqlite3`. This file
+stores only disposable request metadata, raw payloads, normalized documents,
+and ingestion cursors; it is not the thesis PostgreSQL store or experiment
+evidence. SQLite files and `.local/` state are ignored by Git.
+
 ## Local Services
 
 Start the local integration environment with:

@@ -938,7 +938,7 @@ features:
 
   - id: FEAT-019
     title: "Provide a disposable SQLite workspace for ingestion development"
-    status: queued
+    status: implemented
     priority: high
     depends_on:
       - FEAT-018
@@ -976,6 +976,29 @@ features:
         - integration
       required_checks: *code_checks
     blocked_reason: null
-    completion_evidence: []
+    completion_evidence:
+      - acceptance_criterion: AC-1
+        evidence:
+          - "tests/unit/adapters/outbound/persistence/test_sqlite_workspace.py::test_workspace_initializes_and_seeds_the_approved_registry_idempotently"
+          - "tests/integration/test_sqlite_workspace.py::test_sqlite_workspace_round_trips_raw_normalized_and_cursor_state"
+          - "uv run pytest tests/unit/adapters/outbound/persistence/test_sqlite_workspace.py tests/integration/test_sqlite_workspace.py"
+      - acceptance_criterion: AC-2
+        evidence:
+          - "tests/unit/adapters/outbound/persistence/test_sqlite_workspace.py::test_workspace_initializes_and_seeds_the_approved_registry_idempotently"
+          - "tests/unit/adapters/outbound/persistence/test_sqlite_workspace.py::test_workspace_reopens_from_the_configured_file_and_preserves_state"
+          - "uv run pytest"
+      - acceptance_criterion: AC-3
+        evidence:
+          - "src/sentiment_system/application/ports/ingestion_workspace.py::IngestionWorkspace"
+          - "tests/contract/persistence/test_sqlite_workspace_contract.py::test_sqlite_workspace_implements_the_provider_neutral_port"
+          - "tests/unit/adapters/outbound/persistence/test_sqlite_workspace.py::test_workspace_rejects_documents_for_unsupported_companies"
+      - acceptance_criterion: AC-4
+        evidence:
+          - "src/sentiment_system/bootstrap/config.py::ingestion_workspace_path"
+          - ".env.example::INGESTION_SQLITE_PATH"
+          - ".gitignore::.local/ and SQLite database patterns"
+          - "README.md#disposable-ingestion-workspace"
+          - "tests/unit/bootstrap/test_config.py"
     implementation_notes:
       - "This workspace is intentionally mutable and disposable; FEAT-008 remains the authoritative PostgreSQL persistence feature."
+      - "The adapter opens short-lived SQLite connections per operation and exposes only provider-neutral dataclasses through the application port."
