@@ -938,7 +938,7 @@ features:
 
   - id: FEAT-019
     title: "Provide a disposable SQLite workspace for ingestion development"
-    status: queued
+    status: rejected
     priority: high
     depends_on:
       - FEAT-018
@@ -978,4 +978,5 @@ features:
     blocked_reason: null
     completion_evidence: []
     implementation_notes:
-      - "This workspace is intentionally mutable and disposable; FEAT-008 remains the authoritative PostgreSQL persistence feature."
+      - "Rejected in favor of PostgreSQL-backed integration and end-to-end testing, which matches the production persistence target."
+      - "Simple unit tests remain database-free with fakes or in-memory repositories; FEAT-008 owns the real PostgreSQL persistence path."
