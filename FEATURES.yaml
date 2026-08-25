@@ -482,7 +482,7 @@ features:
 
   - id: FEAT-008
     title: "Persist auditable research records in PostgreSQL"
-    status: ready
+    status: in_progress
     priority: high
     depends_on:
       - FEAT-001
