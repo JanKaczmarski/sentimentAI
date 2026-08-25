@@ -884,7 +884,7 @@ features:
 
   - id: FEAT-018
     title: "Define the company universe for ingestion"
-    status: implemented
+    status: in_review
     priority: high
     depends_on: []
     scope:
