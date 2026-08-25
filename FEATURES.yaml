@@ -482,7 +482,7 @@ features:
 
   - id: FEAT-008
     title: "Persist auditable research records in PostgreSQL"
-    status: ready
+    status: complete
     priority: high
     depends_on:
       - FEAT-001
@@ -517,8 +517,28 @@ features:
         - integration
       required_checks: *code_checks
     blocked_reason: null
-    completion_evidence: []
-    implementation_notes: []
+    completion_evidence:
+      - acceptance_criterion: AC-1
+        evidence:
+          - "src/sentiment_system/adapters/outbound/persistence/migrations/0001_research_records.sql"
+          - "src/sentiment_system/adapters/outbound/persistence/postgres.py::PostgresDatabase.migrate"
+          - "tests/integration/test_postgres_persistence.py::test_postgres_migrates_and_preserves_auditable_research_history"
+          - "POSTGRES_TEST_DSN=postgresql://sentiment:sentiment@localhost:5432/sentiment uv run pytest tests/integration/test_postgres_persistence.py"
+      - acceptance_criterion: AC-2
+        evidence:
+          - "tests/integration/test_postgres_persistence.py::test_postgres_migrates_and_preserves_auditable_research_history"
+          - "src/sentiment_system/adapters/outbound/persistence/postgres.py::PostgresDocumentRepository"
+          - "src/sentiment_system/adapters/outbound/persistence/postgres.py::PostgresProvenanceRepository"
+          - "uv run pytest"
+      - acceptance_criterion: AC-3
+        evidence:
+          - "src/sentiment_system/adapters/outbound/persistence/migrations/0001_research_records.sql::chunk_scores"
+          - "tests/integration/test_postgres_persistence.py::test_postgres_migrates_and_preserves_auditable_research_history"
+          - "tests/contract/ports/test_adapters.py::test_chunk_scores_are_append_only_by_chunk_and_run"
+          - "uv run pytest"
+    implementation_notes:
+      - "PostgreSQL migrations are packaged with the adapter and applied automatically by the composition root when DATABASE_URL is configured."
+      - "The PostgreSQL integration test requires the Compose PostgreSQL service and is run in CI with POSTGRES_TEST_DSN."
 
   - id: FEAT-009
     title: "Persist accounts and Investment Theses through CRUD API"

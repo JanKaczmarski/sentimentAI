@@ -9,8 +9,10 @@ from sentiment_system.domain.investment_thesis import InvestmentThesis
 from sentiment_system.domain.predictions import (
     CompanySentimentSnapshot,
     ExperimentProvenance,
+    ExperimentRun,
     Prediction,
 )
+from sentiment_system.domain.scoring import ChunkScoreRecord
 
 
 @runtime_checkable
@@ -39,6 +41,17 @@ class ChunkRepository(Protocol):
 
     def list_for_document(self, document_id: str) -> tuple[DocumentChunk, ...]:
         """Return chunks in ordinal order."""
+
+
+@runtime_checkable
+class ChunkScoreRepository(Protocol):
+    """Persist append-only investor-independent chunk scores."""
+
+    def save(self, score: ChunkScoreRecord) -> None:
+        """Insert one score for a chunk and experiment run."""
+
+    def list_for_chunk(self, chunk_id: str) -> tuple[ChunkScoreRecord, ...]:
+        """Return all historical scores for a chunk in run order."""
 
 
 @runtime_checkable
@@ -113,3 +126,14 @@ class ExperimentProvenanceRepository(Protocol):
 
     def get(self, run_id: str) -> ExperimentProvenance | None:
         """Return provenance for one run."""
+
+
+@runtime_checkable
+class ExperimentRunRepository(Protocol):
+    """Persist experiment run state and configuration."""
+
+    def save(self, run: ExperimentRun) -> None:
+        """Insert or update the state of one run."""
+
+    def get(self, run_id: str) -> ExperimentRun | None:
+        """Return one run by identifier."""
