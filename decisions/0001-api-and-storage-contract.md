@@ -1,6 +1,6 @@
 # API And Storage Contract Decisions
 
-**Status:** Accepted for account/thesis API and persistence design
+**Status:** Accepted; remaining v0.2 items resolved by decision 0006
 
 **Date:** 2026-08-16
 
@@ -9,7 +9,8 @@
 This record captures decisions needed for `FEAT-006`, `FEAT-008`, and
 `FEAT-009`. It supplements the API drafts in `Inżynierka docs.md` and
 `ARCHITECTURE.md`; it does not approve implementation while material entries
-remain open.
+remain open. Decision 0006 now fixes the remaining v0.2 request, response, and
+persistence contract.
 
 ## Scope Boundary
 
