@@ -1,6 +1,6 @@
 # Market Data And Evaluation Scope Decisions
 
-**Status:** Partially decided
+**Status:** Accepted
 
 **Date:** 2026-08-17
 
@@ -31,8 +31,8 @@
 
 ### Chronological split
 
-- The exact development and held-out evaluation date ranges are deferred until
-  the author has fetched and reviewed the final data.
+- The reproducible derivation of the development and held-out evaluation date
+  ranges is fixed in `decisions/0006-reproducible-research-and-runtime-contract.md`.
 - The local Kaggle snapshot must not be presented as the final research corpus
   or used to tune against a final evaluation period.
 - This deferred decision does not block current company-registry, persistence,
@@ -40,8 +40,8 @@
 
 ### Sector benchmark mapping
 
-- Sector benchmark mapping and the S&P 500 fallback are deferred to the future
-  evaluation implementation.
+- Sector benchmark mapping and the S&P 500 fallback are fixed in
+  `decisions/0006-reproducible-research-and-runtime-contract.md`.
 - No benchmark-adjusted return calculation is part of the current local price
   extraction.
 - This deferred decision does not block current company-registry, persistence,
@@ -49,8 +49,6 @@
 
 ## Remaining Work
 
-The final corpus manifest, exact chronological split, and sector benchmark map
-remain necessary only to complete `FEAT-006` and later evaluation work. They
-are not prerequisites for `FEAT-008` persistence or `FEAT-009` account/thesis
-CRUD. This record captures the approved deferrals and the accepted 252-day
-horizon decision.
+The concrete source records remain an implementation responsibility, but the
+manifest, split, benchmark, and accepted 252-day protocol are no longer open
+research decisions.
