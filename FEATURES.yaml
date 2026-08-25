@@ -390,7 +390,7 @@ features:
 
   - id: FEAT-007
     title: "Ingest fixtures into normalized deterministic chunks"
-    status: implemented
+    status: in_review
     priority: high
     depends_on:
       - FEAT-001
