@@ -28,6 +28,20 @@ configuration uses public PyPI and an alternate-index strategy so normal
 `uv sync`, `uv build`, and `uv run` commands can continue without private-index
 credentials.
 
+## Research Data Repository
+
+Research inputs live in the separate `sentimentAI-data` repository rather than
+in the application repository. Set its local path before running the SEC
+acquisition tools:
+
+```bash
+export SENTIMENT_DATA_ROOT=/path/to/sentimentAI-data
+```
+
+The data repository contains raw source snapshots, market-price inputs, CIK
+metadata, and acquisition manifests. Do not commit credentials or private
+documents there.
+
 ## Local Services
 
 Start the local integration environment with:

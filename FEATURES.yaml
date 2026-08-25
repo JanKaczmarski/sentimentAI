@@ -876,10 +876,10 @@ features:
       required_test_levels:
         - unit
       required_checks: *code_checks
-    blocked_reason: "The canonical active ingestion universe has not been formally approved; checked-in data is a broader local candidate snapshot."
+    blocked_reason: "The canonical active ingestion universe has not been formally approved; the separate data repository is a broader local candidate snapshot."
     completion_evidence: []
     implementation_notes:
-      - "The checked-in market and communication snapshots may contain a broader candidate universe; they do not approve the final thesis or ingestion universe."
+      - "The separate local data repository may contain a broader candidate universe; it does not approve the final thesis or ingestion universe."
 
   - id: FEAT-019
     title: "Provide a disposable SQLite workspace for ingestion development"

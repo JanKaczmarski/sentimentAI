@@ -10,20 +10,24 @@ Usage:
                                                  # ("AAPL", "SMART", "USD") format
     python ticker_to_cik.py                      # uses the TICKERS list below
 
-Output: cik_map.csv  +  a printed list of anything that couldn't be matched.
+Output: ``cik_map.csv`` below ``SENTIMENT_DATA_ROOT`` plus a printed list of
+anything that could not be matched.
 """
 
 import csv
 import json
+import os
 import re
 import sys
 import urllib.request
+from pathlib import Path
 
 # SEC requires a descriptive User-Agent with a contact address on all automated
 # requests, or it returns 403. Put your own email here.
 USER_AGENT = "jj-wk sentimetn.ai@gmail.com"
 
 SEC_TICKER_URL = "https://www.sec.gov/files/company_tickers.json"
+DATA_REPOSITORY_ROOT = Path(os.environ.get("SENTIMENT_DATA_ROOT", ".")).expanduser()
 
 # Fallback list, used when no input file is given.
 TICKERS = [
@@ -139,7 +143,9 @@ def main():
         else:
             missing.append(t)
 
-    with open("cik_map.csv", "w", newline="", encoding="utf-8") as fh:
+    output_path = DATA_REPOSITORY_ROOT / "cik_map.csv"
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with output_path.open("w", newline="", encoding="utf-8") as fh:
         writer = csv.DictWriter(fh, fieldnames=["ticker", "cik", "cik_padded", "company_name"])
         writer.writeheader()
         writer.writerows(rows)
@@ -147,7 +153,7 @@ def main():
     for r in rows:
         print(f"{r['ticker']:<8} {r['cik_padded']}  {r['company_name']}")
 
-    print(f"\nMatched {len(rows)} -> cik_map.csv")
+    print(f"\nMatched {len(rows)} -> {output_path}")
     if missing:
         print(f"No CIK found for: {', '.join(missing)}")
         print(

@@ -16,11 +16,11 @@ import os
 import time
 from dataclasses import asdict, dataclass
 from datetime import date
-from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from download_previous_quarter_10q_indexes import (
+    CIK_MAP_PATH,
     DEFAULT_USER_AGENT,
     OUTPUT_DIRECTORY,
     REQUEST_DELAY_SECONDS,
@@ -107,7 +107,7 @@ def main() -> None:
 
     start, end = previous_calendar_quarter(date.today())
     releases: list[EarningsRelease] = []
-    for ticker, cik in load_companies(Path("cik_map.csv")):
+    for ticker, cik in load_companies(CIK_MAP_PATH):
         submission_path = SUBMISSIONS_DIRECTORY / f"{ticker}_{cik}.json"
         if not submission_path.is_file():
             raise FileNotFoundError(

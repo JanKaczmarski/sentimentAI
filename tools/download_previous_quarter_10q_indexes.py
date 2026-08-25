@@ -4,10 +4,8 @@
 Usage:
     uv run python tools/download_previous_quarter_10q_indexes.py
 
-The script reads ``cik_map.csv``, writes raw SEC submissions JSON files below
-``data/sec/submissions/``, and writes the selected filing metadata to
-``data/sec/manifests/previous_calendar_quarter_10q.json``. All output is local
-and ignored by Git.
+The script reads the CIK map and writes SEC submissions below the configured
+data repository root. Set ``SENTIMENT_DATA_ROOT`` to the separate data repo.
 """
 
 import csv
@@ -20,8 +18,10 @@ from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-CIK_MAP_PATH = Path("cik_map.csv")
-OUTPUT_DIRECTORY = Path("data/sec")
+from data_paths import cik_map_path, sec_directory
+
+CIK_MAP_PATH = cik_map_path()
+OUTPUT_DIRECTORY = sec_directory()
 SEC_SUBMISSIONS_URL = "https://data.sec.gov/submissions/CIK{cik}.json"
 DEFAULT_USER_AGENT = "sentiment-system research contact@example.com"
 REQUEST_DELAY_SECONDS = 0.2
