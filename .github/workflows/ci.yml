@@ -28,6 +28,8 @@ jobs:
     name: Project checks
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      POSTGRES_TEST_DSN: postgresql://sentiment:sentiment@localhost:5432/sentiment
 
     steps:
       - name: Check out source
@@ -57,6 +59,20 @@ jobs:
         run: |
           uv run ruff check src tests scripts
           uv run mypy
+
+      - name: Start PostgreSQL
+        run: docker compose up -d postgres
+
+      - name: Wait for PostgreSQL
+        run: |
+          for attempt in $(seq 1 30); do
+            if docker compose exec -T postgres pg_isready -U sentiment -d sentiment; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker compose logs postgres
+          exit 1
 
       - name: Run tests
         run: uv run pytest
