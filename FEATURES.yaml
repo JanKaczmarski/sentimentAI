@@ -1595,3 +1595,63 @@ features:
     completion_evidence: []
     implementation_notes:
       - "The five-item limit is a presentation concern; the complete evidence collection remains persisted and retrievable for auditability."
+
+  - id: FEAT-028
+    title: "Run a bounded real-data supervisor demonstration"
+    status: proposed
+    priority: high
+    depends_on:
+      - FEAT-008
+      - FEAT-010
+      - FEAT-014
+      - FEAT-025
+      - FEAT-026
+      - FEAT-027
+    scope:
+      - "Run a documented small SEC and investor-relations demonstration corpus through the source-to-prediction workflow using real local embeddings and one configured Llama-compatible LLM provider."
+      - "Implement and wire a local Ollama or equivalent OpenAI-compatible LLM adapter with strict structured-output validation, explicit runtime configuration, and no silent fallback to deterministic mock scoring."
+      - "Run the demonstration with PostgreSQL and Qdrant through Docker Compose while keeping Ollama host-managed and reachable from the application."
+      - "Provide a reproducible supervisor runbook covering setup, account and Investment Thesis creation, manual batch execution, prediction inspection, evidence review, history, and known limitations."
+    non_goals:
+      - "Acquiring the complete five-year thesis corpus, final evaluation manifest, or market-outcome evaluation."
+      - "Implementing contextual RAG, multiple production providers, licensed data providers, daily scheduling, production authentication, or Cyfronet deployment."
+      - "Presenting bounded demonstration output as final thesis evaluation evidence or silently using hash-based mock scoring when the configured provider is unavailable."
+    acceptance_criteria:
+      - id: AC-1
+        description: "A bounded, documented SEC and investor-relations demo manifest identifies the source records, companies, publication dates, cutoff, raw and cleaned content versions, and known limitations without storing the demo corpus in application source control."
+      - id: AC-2
+        description: "A configured Ollama or equivalent OpenAI-compatible LLM provider returns validated investor-independent sentiment and importance results through the existing LLM port, and provider, model, prompt, raw response, parsed output, token usage, and failures are captured without a mock fallback."
+      - id: AC-3
+        description: "A fresh Compose-backed setup using real local embeddings, PostgreSQL, Qdrant, the bounded demo corpus, and the configured LLM can execute the manual batch flow and persist source lineage, scores, snapshots, predictions, evidence, run state, and provenance."
+      - id: AC-4
+        description: "The browser workflow creates an account and Investment Thesis, runs a bounded real-data prediction, displays personalized results and ranked sentiment-aware evidence, and retrieves the resulting prediction history."
+      - id: AC-5
+        description: "The supervisor runbook reproduces the demonstration from a clean setup and explicitly distinguishes functional demonstration output from final thesis evaluation results."
+    architecture:
+      layers:
+        - application
+        - adapters
+        - bootstrap
+      ports:
+        - document_sources
+        - repositories
+        - llm
+        - embeddings
+        - vector_store
+    research_decisions:
+      - "docs/THESIS_DECISIONS.md#research-model"
+      - "docs/THESIS_DECISIONS.md#data-scope"
+      - "docs/THESIS_DECISIONS.md#runtime-and-architecture"
+      - "decisions/0006-reproducible-research-and-runtime-contract.md"
+      - "decisions/0010-poc-corpus-and-thesis-data-separation.md"
+    verification:
+      required_test_levels:
+        - unit
+        - contract
+        - integration
+      required_checks: *code_checks
+    blocked_reason: null
+    completion_evidence: []
+    implementation_notes:
+      - "On macOS with the application in Compose and Ollama on the host, the configured provider URL should use host.docker.internal rather than localhost."
+      - "The bounded demonstration is a functional supervisor milestone; FEAT-015, FEAT-022, FEAT-023, FEAT-016, and FEAT-017 remain necessary for the complete thesis system."
