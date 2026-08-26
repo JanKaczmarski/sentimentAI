@@ -2,6 +2,7 @@
 
 import os
 from datetime import date, datetime, timezone
+from hashlib import sha256
 from uuid import uuid4
 
 import pytest
@@ -12,10 +13,19 @@ from sentiment_system.adapters.outbound.persistence.postgres import (
     PostgresDatabase,
     PostgresDocumentRepository,
     PostgresExperimentRunRepository,
+    PostgresInvestmentThesisRepository,
     PostgresProvenanceRepository,
     PostgresSnapshotRepository,
+    PostgresUserAccountRepository,
 )
+from sentiment_system.domain.accounts import UserAccount
 from sentiment_system.domain.documents import DocumentChunk, SourceDocument
+from sentiment_system.domain.investment_thesis import (
+    InvestmentHorizon,
+    InvestmentStyle,
+    InvestmentThesis,
+    RiskTolerance,
+)
 from sentiment_system.domain.predictions import (
     CompanySentimentSnapshot,
     ExperimentProvenance,
@@ -121,6 +131,21 @@ def test_postgres_migrates_and_preserves_auditable_research_history() -> None:
         ),
         run_id=first_run.run_id,
     )
+    account = UserAccount(
+        user_id=uuid4(),
+        email=f"investor-{suffix}@example.com",
+        username=f"investor-{suffix}",
+        api_key_digest=sha256(f"api-key-{suffix}".encode("utf-8")).hexdigest(),
+    )
+    thesis = InvestmentThesis(
+        thesis_id=str(uuid4()),
+        user_id=str(account.user_id),
+        companies=("AAPL", "MSFT"),
+        risk_tolerance=RiskTolerance.MEDIUM,
+        investment_horizon=InvestmentHorizon.LONG_TERM,
+        investment_style=InvestmentStyle.PASSIVE,
+        description="Stored without interpretation.",
+    )
 
     documents = PostgresDocumentRepository(database)
     chunks = PostgresChunkRepository(database)
@@ -128,6 +153,8 @@ def test_postgres_migrates_and_preserves_auditable_research_history() -> None:
     provenance_repository = PostgresProvenanceRepository(database)
     scores = PostgresChunkScoreRepository(database)
     snapshots = PostgresSnapshotRepository(database)
+    accounts = PostgresUserAccountRepository(database)
+    theses = PostgresInvestmentThesisRepository(database)
 
     documents.save(document)
     chunks.save(chunk)
@@ -137,6 +164,8 @@ def test_postgres_migrates_and_preserves_auditable_research_history() -> None:
     scores.save(score)
     scores.save(historical_score)
     snapshots.save(snapshot)
+    accounts.save(account)
+    theses.save(thesis)
 
     assert documents.get(document.document_id) == document
     assert chunks.list_for_document(document.document_id) == (chunk,)
@@ -144,3 +173,8 @@ def test_postgres_migrates_and_preserves_auditable_research_history() -> None:
     assert provenance_repository.get(first_run.run_id) == provenance
     assert scores.list_for_chunk(chunk.chunk_id) == (score, historical_score)
     assert snapshot in snapshots.list_for_company("AAPL")
+    assert accounts.get_by_email(account.email) == account
+    assert accounts.get_by_username(account.username) == account
+    assert accounts.get_by_api_key_digest(account.api_key_digest) == account
+    assert theses.get(thesis.thesis_id) == thesis
+    assert theses.list_for_user(str(account.user_id)) == (thesis,)
