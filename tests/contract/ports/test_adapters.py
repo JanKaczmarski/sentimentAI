@@ -2,6 +2,7 @@
 
 from datetime import date, datetime, timezone
 from hashlib import sha256
+from pathlib import Path
 from uuid import UUID
 
 import pytest
@@ -21,6 +22,7 @@ from sentiment_system.adapters.outbound.persistence.in_memory import (
     InMemorySnapshotRepository,
     InMemoryUserAccountRepository,
 )
+from sentiment_system.adapters.outbound.sources.cached import CachedCorpusDocumentSource
 from sentiment_system.adapters.outbound.sources.fixtures import FixtureDocumentSource
 from sentiment_system.adapters.outbound.vector.in_memory import InMemoryVectorStore
 from sentiment_system.adapters.outbound.vector.qdrant import QdrantVectorStore
@@ -177,6 +179,7 @@ def _account(
 
 def test_port_fakes_are_structurally_typed() -> None:
     assert isinstance(FixtureDocumentSource(), DocumentSource)
+    assert isinstance(CachedCorpusDocumentSource(Path("/tmp")), DocumentSource)
     assert isinstance(InMemoryDocumentRepository(), DocumentRepository)
     assert isinstance(InMemoryChunkRepository(), ChunkRepository)
     assert isinstance(InMemoryChunkScoreRepository(), ChunkScoreRepository)

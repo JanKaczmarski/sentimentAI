@@ -150,7 +150,7 @@ class InMemoryPredictionRepository:
     """Store predictions by their deterministic prediction key."""
 
     def __init__(self, predictions: Iterable[Prediction] = ()) -> None:
-        self._predictions: dict[tuple[str, date, int, int, str], Prediction] = {}
+        self._predictions: dict[tuple[str, date, int, int, str, str | None], Prediction] = {}
         for prediction in predictions:
             self.save(prediction)
 
@@ -161,6 +161,7 @@ class InMemoryPredictionRepository:
             int(prediction.lookback_days),
             prediction.forecast_horizon_days,
             prediction.run_id,
+            prediction.user_id,
         )
         self._predictions[key] = prediction
 
@@ -184,6 +185,15 @@ class InMemoryPredictionRepository:
                     item.forecast_horizon_days,
                     item.run_id,
                 ),
+            )
+        )
+
+    def list_for_user(self, user_id: str) -> tuple[Prediction, ...]:
+        predictions = (prediction for prediction in self._predictions.values() if prediction.user_id == user_id)
+        return tuple(
+            sorted(
+                predictions,
+                key=lambda item: (item.as_of, item.company, int(item.lookback_days), item.forecast_horizon_days),
             )
         )
 

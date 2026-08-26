@@ -14,6 +14,7 @@ from sentiment_system.adapters.outbound.persistence.postgres import (
     PostgresDocumentRepository,
     PostgresExperimentRunRepository,
     PostgresInvestmentThesisRepository,
+    PostgresPredictionRepository,
     PostgresProvenanceRepository,
     PostgresSnapshotRepository,
     PostgresUserAccountRepository,
@@ -30,11 +31,12 @@ from sentiment_system.domain.predictions import (
     CompanySentimentSnapshot,
     ExperimentProvenance,
     ExperimentRun,
+    Prediction,
     PredictionEvidence,
     SnapshotWindow,
 )
 from sentiment_system.domain.scoring import ChunkScoreRecord
-from sentiment_system.domain.sentiment import SentimentScore
+from sentiment_system.domain.sentiment import PersonalizedSentiment, SentimentScore
 
 
 @pytest.mark.integration
@@ -57,6 +59,7 @@ def test_postgres_migrates_and_preserves_auditable_research_history() -> None:
         document_type="company_communication",
         raw_content="Raw source text.",
         cleaned_content="Cleaned source text.",
+        manifest_version="fixture-v1",
     )
     chunk = DocumentChunk(
         chunk_id=f"chunk-{suffix}",
@@ -155,6 +158,7 @@ def test_postgres_migrates_and_preserves_auditable_research_history() -> None:
     snapshots = PostgresSnapshotRepository(database)
     accounts = PostgresUserAccountRepository(database)
     theses = PostgresInvestmentThesisRepository(database)
+    predictions = PostgresPredictionRepository(database)
 
     documents.save(document)
     chunks.save(chunk)
@@ -166,6 +170,30 @@ def test_postgres_migrates_and_preserves_auditable_research_history() -> None:
     snapshots.save(snapshot)
     accounts.save(account)
     theses.save(thesis)
+    prediction = Prediction(
+        company="AAPL",
+        as_of=date(2025, 2, 1),
+        lookback_days=SnapshotWindow.NINETY_DAYS,
+        forecast_horizon_days=20,
+        base_sentiment=SentimentScore(score=0.6, confidence=0.7),
+        personalized_sentiment=PersonalizedSentiment(
+            score=0.65,
+            confidence=0.75,
+            label=SentimentScore(score=0.65, confidence=0.75).label,
+        ),
+        confidence=0.75,
+        evidence=(
+            PredictionEvidence(
+                chunk_id=chunk.chunk_id,
+                published_at=document.published_at,
+                importance_score=0.9,
+                excerpt=chunk.content,
+            ),
+        ),
+        run_id=first_run.run_id,
+        user_id=str(account.user_id),
+    )
+    predictions.save(prediction)
 
     assert documents.get(document.document_id) == document
     assert chunks.list_for_document(document.document_id) == (chunk,)
@@ -178,3 +206,4 @@ def test_postgres_migrates_and_preserves_auditable_research_history() -> None:
     assert accounts.get_by_api_key_digest(account.api_key_digest) == account
     assert theses.get(thesis.thesis_id) == thesis
     assert theses.list_for_user(str(account.user_id)) == (thesis,)
+    assert predictions.list_for_user(str(account.user_id)) == (prediction,)

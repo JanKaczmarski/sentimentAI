@@ -1,5 +1,6 @@
 """API request and response schemas kept separate from domain entities."""
 
+from datetime import date
 from typing import Literal
 from uuid import UUID
 
@@ -81,3 +82,61 @@ class ThesisListResponse(ApiSchema):
     """All theses visible to the account selected by the API key."""
 
     theses: tuple[InvestmentThesisResponse, ...]
+
+
+class FixtureCommunicationRequest(ApiSchema):
+    """Input for fixture-based company communication ingestion."""
+
+    document_id: str = Field(min_length=1)
+    source_id: str = Field(min_length=1)
+    source: str = Field(min_length=1)
+    published_at: date
+    document_type: str = Field(min_length=1)
+    raw_content: str = Field(min_length=1)
+
+
+class FixtureIngestionResponse(ApiSchema):
+    """Summary of one normalized fixture communication."""
+
+    status: Literal["success"]
+    document_id: str
+    chunk_count: int
+
+
+class SentimentResponse(ApiSchema):
+    """Public sentiment score and derived label."""
+
+    score: float
+    label: str
+    confidence: float
+
+
+class PredictionEvidenceResponse(ApiSchema):
+    """Public source evidence attached to a prediction."""
+
+    chunk_id: str
+    published_at: date
+    importance_score: float
+    excerpt: str
+
+
+class PredictionResponse(ApiSchema):
+    """Public prediction with base, personalized, and audit fields."""
+
+    company: str
+    as_of: date
+    lookback_days: int
+    forecast_horizon_days: int
+    base_sentiment: SentimentResponse
+    personalized_sentiment: SentimentResponse
+    confidence: float
+    reasoning: str | None
+    evidence: tuple[PredictionEvidenceResponse, ...]
+    run_id: str
+    user_id: str | None
+
+
+class PredictionHistoryResponse(ApiSchema):
+    """Prediction history for one authenticated user."""
+
+    predictions: tuple[PredictionResponse, ...]

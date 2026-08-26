@@ -664,7 +664,7 @@ features:
 
   - id: FEAT-011
     title: "Score chunks with investor-independent LLM signals"
-    status: queued
+    status: complete
     priority: high
     depends_on:
       - FEAT-001
@@ -706,12 +706,29 @@ features:
         - integration
       required_checks: *code_checks
     blocked_reason: null
-    completion_evidence: []
-    implementation_notes: []
+    completion_evidence:
+      - acceptance_criterion: AC-1
+        evidence:
+          - "tests/unit/application/test_score_chunks.py::test_score_chunks_persists_normalized_scores_and_provenance"
+          - "src/sentiment_system/application/ports/llm.py::ChunkScoringResult"
+          - "uv run pytest"
+      - acceptance_criterion: AC-2
+        evidence:
+          - "tests/unit/application/test_score_chunks.py::test_score_chunks_persists_normalized_scores_and_provenance"
+          - "src/sentiment_system/application/use_cases/score_chunks.py::ScoreChunks.execute"
+          - "uv run pytest"
+      - acceptance_criterion: AC-3
+        evidence:
+          - "tests/unit/application/test_score_chunks.py::test_score_chunks_soft_excludes_after_three_consecutive_low_scores"
+          - "tests/integration/test_postgres_persistence.py::test_postgres_migrates_and_preserves_auditable_research_history"
+          - "POSTGRES_TEST_DSN=postgresql://sentiment:sentiment@localhost:5432/sentiment uv run pytest tests/integration/test_postgres_persistence.py"
+    implementation_notes:
+      - "The current provider-neutral LLM port exposes provider and model as batch configuration; concrete network LLM adapters remain outside this feature."
+      - "PostgreSQL and Qdrant integration tests pass against local Compose services; the full project suite otherwise retains its existing environment-gated integration coverage."
 
   - id: FEAT-012
     title: "Aggregate document and company sentiment snapshots"
-    status: queued
+    status: complete
     priority: high
     depends_on:
       - FEAT-002
@@ -746,12 +763,30 @@ features:
         - integration
       required_checks: *code_checks
     blocked_reason: null
-    completion_evidence: []
-    implementation_notes: []
+    completion_evidence:
+      - acceptance_criterion: AC-1
+        evidence:
+          - "tests/unit/application/test_aggregate_snapshots.py::test_aggregate_snapshots_uses_importance_confidence_and_recency_weights"
+          - "src/sentiment_system/application/use_cases/aggregate_snapshots.py::_aggregate"
+          - "uv run pytest"
+      - acceptance_criterion: AC-2
+        evidence:
+          - "tests/unit/application/test_aggregate_snapshots.py::test_aggregate_snapshots_excludes_future_and_soft_excluded_chunks"
+          - "src/sentiment_system/application/use_cases/aggregate_snapshots.py::_aggregate"
+          - "uv run pytest"
+      - acceptance_criterion: AC-3
+        evidence:
+          - "tests/unit/application/test_aggregate_snapshots.py::test_aggregate_snapshots_uses_importance_confidence_and_recency_weights"
+          - "tests/integration/test_postgres_persistence.py::test_postgres_migrates_and_preserves_auditable_research_history"
+          - "POSTGRES_TEST_DSN=postgresql://sentiment:sentiment@localhost:5432/sentiment uv run pytest tests/integration/test_postgres_persistence.py"
+
+    implementation_notes:
+      - "Document-level weighted inputs are aggregated into the company snapshots; the existing persistence contract stores auditable chunk evidence and versioned company snapshots."
+      - "Rule version is persisted in a repository migration and linked to each snapshot record."
 
   - id: FEAT-013
     title: "Apply deterministic Investment Thesis personalization"
-    status: queued
+    status: complete
     priority: high
     depends_on:
       - FEAT-002
@@ -787,12 +822,29 @@ features:
         - integration
       required_checks: *code_checks
     blocked_reason: null
-    completion_evidence: []
-    implementation_notes: []
+    completion_evidence:
+      - acceptance_criterion: AC-1
+        evidence:
+          - "tests/unit/application/test_personalize_snapshots.py::test_personalization_applies_horizon_and_style_weights"
+          - "uv run pytest"
+      - acceptance_criterion: AC-2
+        evidence:
+          - "src/sentiment_system/application/use_cases/personalize_snapshots.py::_style_weights"
+          - "src/sentiment_system/application/use_cases/personalize_snapshots.py::_risk_thresholds"
+          - "tests/unit/application/test_personalize_snapshots.py::test_personalization_applies_horizon_and_style_weights"
+          - "tests/unit/application/test_personalize_snapshots.py::test_personalization_applies_risk_thresholds_and_preserves_evidence"
+      - acceptance_criterion: AC-3
+        evidence:
+          - "tests/unit/application/test_personalize_snapshots.py::test_personalization_applies_risk_thresholds_and_preserves_evidence"
+          - "src/sentiment_system/application/use_cases/personalize_snapshots.py::PersonalizationResult"
+          - "uv run pytest"
+    implementation_notes:
+      - "Personalization returns a deterministic application result; prediction persistence and HTTP exposure remain in FEAT-014."
+      - "Risk-specific labels use PersonalizedSentiment so the global base label thresholds remain unchanged."
 
   - id: FEAT-014
     title: "Serve predictions, evidence, history, and fixture ingestion"
-    status: queued
+    status: complete
     priority: high
     depends_on:
       - FEAT-002
@@ -832,12 +884,30 @@ features:
         - integration
       required_checks: *code_checks
     blocked_reason: null
-    completion_evidence: []
-    implementation_notes: []
+    completion_evidence:
+      - acceptance_criterion: AC-1
+        evidence:
+          - "tests/integration/test_api.py::test_prediction_history_and_fixture_ingestion_are_served_through_the_api"
+          - "tests/integration/test_postgres_persistence.py::test_postgres_migrates_and_preserves_auditable_research_history"
+          - "src/sentiment_system/adapters/inbound/api/schemas.py::PredictionResponse"
+          - "uv run pytest"
+      - acceptance_criterion: AC-2
+        evidence:
+          - "tests/integration/test_api.py::test_prediction_history_and_fixture_ingestion_are_served_through_the_api"
+          - "src/sentiment_system/application/use_cases/generate_prediction.py::ListPredictionHistory"
+          - "src/sentiment_system/application/ports/repositories.py::PredictionRepository.list_for_user"
+      - acceptance_criterion: AC-3
+        evidence:
+          - "tests/integration/test_api.py::test_prediction_history_and_fixture_ingestion_are_served_through_the_api"
+          - "src/sentiment_system/application/use_cases/ingest_fixture_communication.py::IngestFixtureCommunication"
+          - "uv run pytest"
+    implementation_notes:
+      - "Prediction persistence uses a repository migration with user ownership and evidence rows; fixture ingestion reuses the approved normalization and chunk lineage pipeline."
+      - "Scheduler operation and public SEC/investor-relations acquisition remain deferred to their dedicated features."
 
   - id: FEAT-015
     title: "Acquire reproducible SEC and investor-relations corpus"
-    status: ready
+    status: implemented
     priority: high
     depends_on:
       - FEAT-001
@@ -848,7 +918,7 @@ features:
       - FEAT-008
     scope:
       - "Acquire and cache supported SEC filings and official investor-relations earnings releases with reproducible manifests."
-      - "Provide a source adapter that wraps sec-api.io filing queries for supported quarterly-report forms, pagination, and metadata retrieval behind the document-source port."
+      - "Provide a source adapter that reads official SEC EDGAR and curated investor-relations cache manifests behind the document-source port."
     non_goals:
       - "Private email integration or event-driven ingestion."
     acceptance_criteria:
@@ -859,7 +929,7 @@ features:
       - id: AC-3
         description: "Repeated acquisition is idempotent and does not duplicate historical evidence."
       - id: AC-4
-        description: "The SEC adapter validates supported form types and query inputs, obtains its API key only from runtime configuration, paginates deterministically, and never exposes sec-api.io representations outside its adapter boundary."
+        description: "The cache adapter validates supported source records and filters, preserves deterministic ordering, and requires no provider credential at runtime."
     architecture:
       layers:
         - application
@@ -870,7 +940,7 @@ features:
         - repositories
     research_decisions:
       - "docs/THESIS_DECISIONS.md#data-scope"
-      - "docs/THESIS_DECISIONS.md#open-decisions"
+      - "decisions/0007-local-cache-acquisition-contract.md"
     verification:
       required_test_levels:
         - unit
@@ -878,8 +948,33 @@ features:
         - integration
       required_checks: *code_checks
     blocked_reason: null
-    completion_evidence: []
-    implementation_notes: []
+    completion_evidence:
+      - acceptance_criterion: AC-1
+        evidence:
+          - "src/sentiment_system/adapters/outbound/sources/cached.py::CachedCorpusDocumentSource"
+          - "src/sentiment_system/domain/documents.py::SourceDocument"
+          - "src/sentiment_system/adapters/outbound/persistence/migrations/0005_document_manifest_version.sql"
+          - "tests/unit/adapters/outbound/test_cached_sources.py::test_cached_source_loads_sec_records_and_filters_deterministically"
+          - "tests/integration/test_postgres_persistence.py::test_postgres_migrates_and_preserves_auditable_research_history"
+      - acceptance_criterion: AC-2
+        evidence:
+          - "tests/unit/adapters/outbound/test_cached_sources.py::test_cached_source_loads_sec_records_and_filters_deterministically"
+          - "tests/unit/adapters/outbound/test_cached_sources.py::test_cached_source_loads_curated_ir_records_and_rejects_hash_mismatch"
+          - "tests/contract/ports/test_adapters.py::test_port_fakes_are_structurally_typed"
+      - acceptance_criterion: AC-3
+        evidence:
+          - "tests/unit/adapters/outbound/test_cached_sources.py::test_cached_source_loads_sec_records_and_filters_deterministically"
+          - "tests/integration/test_cached_sources.py::test_external_research_snapshot_loads_sec_and_ir_documents"
+          - "uv run pytest"
+      - acceptance_criterion: AC-4
+        evidence:
+          - "src/sentiment_system/adapters/outbound/sources/cached.py::CachedCorpusDocumentSource"
+          - "tests/unit/adapters/outbound/test_cached_sources.py::test_cached_source_loads_curated_ir_records_and_rejects_hash_mismatch"
+          - "tests/contract/ports/test_adapters.py::test_port_fakes_are_structurally_typed"
+          - "SENTIMENT_DATA_ROOT=/Users/jan/private/sentimentAI-data uv run python -c '... CachedCorpusDocumentSource ...'"
+    implementation_notes:
+      - "The initial implementation uses official SEC EDGAR endpoints and manually curated official investor-relations downloads through an immutable local cache; sec-api.io and licensed providers are deferred to FEAT-021."
+      - "Encrypted curated PDFs require the direct cryptography runtime dependency; no provider credential is needed by the cache adapter."
 
   - id: FEAT-016
     title: "Evaluate predictions against leakage-safe market outcomes"
@@ -1074,7 +1169,7 @@ features:
 
   - id: FEAT-020
     title: "Provide a local browser UI for API smoke testing"
-    status: in_review
+    status: complete
     priority: medium
     depends_on:
       - FEAT-009
@@ -1133,3 +1228,46 @@ features:
     implementation_notes:
       - "Prediction, history, and fixture-ingestion controls remain deferred to FEAT-014 because their backend contracts are not implemented yet."
       - "The UI stores the existing prototype API key in sessionStorage only; this is local testing support, not production authentication."
+
+  - id: FEAT-021
+    title: "Integrate production-grade licensed financial data providers"
+    status: proposed
+    priority: low
+    depends_on:
+      - FEAT-015
+      - FEAT-016
+      - FEAT-017
+    scope:
+      - "Add optional licensed providers for SEC filings, investor-relations/news coverage, and market data behind the existing source and market-data ports."
+      - "Add runtime credential configuration, provider quotas, retries, observability, entitlement controls, and cache fallback without changing the thesis data contracts."
+    non_goals:
+      - "Replacing the reproducible local cache for thesis experiments."
+      - "Changing the approved corpus, evaluation split, scoring methodology, or prediction rules."
+      - "Persisting provider credentials or licensed source material in application version control."
+    acceptance_criteria:
+      - id: AC-1
+        description: "A configured licensed provider can be selected without changing domain or application contracts, and credentials are read only from runtime secret configuration."
+      - id: AC-2
+        description: "Provider failures, rate limits, and entitlement errors are observable and handled without corrupting the immutable cache or audit manifests."
+      - id: AC-3
+        description: "Provider licensing metadata, retrieval provenance, and deterministic cache fallback are covered by adapter contract and integration tests."
+    architecture:
+      layers:
+        - adapters
+        - bootstrap
+      ports:
+        - document_sources
+        - market_data
+        - repositories
+    research_decisions:
+      - "docs/THESIS_DECISIONS.md#runtime-and-architecture"
+      - "decisions/0007-local-cache-acquisition-contract.md"
+    verification:
+      required_test_levels:
+        - contract
+        - integration
+      required_checks: *code_checks
+    blocked_reason: null
+    completion_evidence: []
+    implementation_notes:
+      - "Product-hardening work intentionally deferred until the thesis pipeline and evaluation are complete."

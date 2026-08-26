@@ -17,6 +17,7 @@ from sentiment_system.application.ports.repositories import (
     ExperimentProvenanceRepository,
     ExperimentRunRepository,
     InvestmentThesisRepository,
+    PredictionRepository,
     SnapshotRepository,
     UserAccountRepository,
 )
@@ -32,11 +33,12 @@ from sentiment_system.domain.predictions import (
     CompanySentimentSnapshot,
     ExperimentProvenance,
     ExperimentRun,
+    Prediction,
     PredictionEvidence,
     SnapshotWindow,
 )
 from sentiment_system.domain.scoring import ChunkScoreRecord
-from sentiment_system.domain.sentiment import SentimentScore
+from sentiment_system.domain.sentiment import PersonalizedSentiment, SentimentLabel, SentimentScore
 
 
 class PostgresDatabase:
@@ -193,8 +195,8 @@ class PostgresDocumentRepository(_PostgresRepository, DocumentRepository):
                 INSERT INTO source_documents (
                     document_id, source_id, company, source, published_at,
                     document_type, raw_content, cleaned_content,
-                    raw_content_sha256, cleaned_content_sha256
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    raw_content_sha256, cleaned_content_sha256, manifest_version
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT (document_id) DO UPDATE SET
                     source_id = EXCLUDED.source_id,
                     company = EXCLUDED.company,
@@ -204,7 +206,8 @@ class PostgresDocumentRepository(_PostgresRepository, DocumentRepository):
                     raw_content = EXCLUDED.raw_content,
                     cleaned_content = EXCLUDED.cleaned_content,
                     raw_content_sha256 = EXCLUDED.raw_content_sha256,
-                    cleaned_content_sha256 = EXCLUDED.cleaned_content_sha256
+                    cleaned_content_sha256 = EXCLUDED.cleaned_content_sha256,
+                    manifest_version = EXCLUDED.manifest_version
                 """,
                 _document_values(document),
             )
@@ -381,8 +384,8 @@ class PostgresSnapshotRepository(_PostgresRepository, SnapshotRepository):
                 """
                 INSERT INTO company_sentiment_snapshots (
                     company, as_of, window_days, sentiment_score,
-                    sentiment_label, confidence, run_id
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    sentiment_label, confidence, run_id, rule_version
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT (company, as_of, window_days, run_id) DO NOTHING
                 """,
                 (
@@ -393,6 +396,7 @@ class PostgresSnapshotRepository(_PostgresRepository, SnapshotRepository):
                     snapshot.sentiment.label.value,
                     snapshot.sentiment.confidence,
                     snapshot.run_id,
+                    snapshot.rule_version,
                 ),
             )
             for rank, evidence in enumerate(snapshot.evidence, start=1):
@@ -446,6 +450,100 @@ class PostgresSnapshotRepository(_PostgresRepository, SnapshotRepository):
         return tuple(snapshots)
 
 
+class PostgresPredictionRepository(_PostgresRepository, PredictionRepository):
+    """Persist predictions and their source evidence."""
+
+    def save(self, prediction: Prediction) -> None:
+        with self._database.connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO predictions (
+                    company, as_of, lookback_days, forecast_horizon_days, user_id,
+                    base_score, base_label, personalized_score, personalized_label,
+                    base_confidence, personalized_confidence, confidence, reasoning, run_id
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (company, as_of, lookback_days, forecast_horizon_days, run_id) DO UPDATE SET
+                    user_id = EXCLUDED.user_id,
+                    base_score = EXCLUDED.base_score,
+                    base_label = EXCLUDED.base_label,
+                    base_confidence = EXCLUDED.base_confidence,
+                    personalized_score = EXCLUDED.personalized_score,
+                    personalized_label = EXCLUDED.personalized_label,
+                    personalized_confidence = EXCLUDED.personalized_confidence,
+                    confidence = EXCLUDED.confidence,
+                    reasoning = EXCLUDED.reasoning
+                """,
+                (
+                    prediction.company,
+                    prediction.as_of,
+                    int(prediction.lookback_days),
+                    prediction.forecast_horizon_days,
+                    prediction.user_id,
+                    prediction.base_sentiment.score,
+                    prediction.base_sentiment.label.value,
+                    prediction.personalized_sentiment.score,
+                    prediction.personalized_sentiment.label.value,
+                    prediction.base_sentiment.confidence,
+                    prediction.personalized_sentiment.confidence,
+                    prediction.confidence,
+                    prediction.reasoning,
+                    prediction.run_id,
+                ),
+            )
+            for rank, evidence in enumerate(prediction.evidence, start=1):
+                connection.execute(
+                    """
+                    INSERT INTO prediction_evidence (
+                        company, as_of, lookback_days, forecast_horizon_days, run_id,
+                        evidence_rank, chunk_id, published_at, importance_score, excerpt
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT DO NOTHING
+                    """,
+                    (
+                        prediction.company,
+                        prediction.as_of,
+                        int(prediction.lookback_days),
+                        prediction.forecast_horizon_days,
+                        prediction.run_id,
+                        rank,
+                        evidence.chunk_id,
+                        evidence.published_at,
+                        evidence.importance_score,
+                        evidence.excerpt,
+                    ),
+                )
+
+    def list_for_company(self, company: str, *, as_of: date | None = None) -> tuple[Prediction, ...]:
+        return self._list("company = %s", (company,), as_of=as_of)
+
+    def list_for_user(self, user_id: str) -> tuple[Prediction, ...]:
+        return self._list("user_id = %s", (user_id,), as_of=None)
+
+    def _list(self, condition: str, values: tuple[object, ...], *, as_of: date | None) -> tuple[Prediction, ...]:
+        query = f"SELECT * FROM predictions WHERE {condition}"
+        parameters = values
+        if as_of is not None:
+            query += " AND as_of <= %s"
+            parameters += (as_of,)
+        query += " ORDER BY as_of, company, lookback_days, forecast_horizon_days, run_id"
+        with self._database.connect() as connection:
+            rows = connection.execute(query, parameters).fetchall()
+            predictions = []
+            for row in rows:
+                evidence_rows = connection.execute(
+                    """
+                    SELECT chunk_id, published_at, importance_score, excerpt
+                    FROM prediction_evidence
+                    WHERE company = %s AND as_of = %s AND lookback_days = %s
+                      AND forecast_horizon_days = %s AND run_id = %s
+                    ORDER BY evidence_rank
+                    """,
+                    (row["company"], row["as_of"], row["lookback_days"], row["forecast_horizon_days"], row["run_id"]),
+                ).fetchall()
+                predictions.append(_prediction_from_row(row, evidence_rows))
+        return tuple(predictions)
+
+
 def _document_values(document: SourceDocument) -> tuple[object, ...]:
     return (
         document.document_id,
@@ -458,6 +556,7 @@ def _document_values(document: SourceDocument) -> tuple[object, ...]:
         document.cleaned_content,
         _content_hash(document.raw_content),
         _content_hash(document.cleaned_content),
+        document.manifest_version,
     )
 
 
@@ -496,6 +595,7 @@ def _document_from_row(row: Mapping[str, Any]) -> SourceDocument:
         document_type=row["document_type"],
         raw_content=row["raw_content"],
         cleaned_content=row["cleaned_content"],
+        manifest_version=row["manifest_version"],
     )
 
 
@@ -566,6 +666,35 @@ def _snapshot_from_row(row: Mapping[str, Any], evidence_rows: list[Mapping[str, 
             for evidence in evidence_rows
         ),
         run_id=row["run_id"],
+        rule_version=row["rule_version"],
+    )
+
+
+def _prediction_from_row(row: Mapping[str, Any], evidence_rows: list[Mapping[str, Any]]) -> Prediction:
+    return Prediction(
+        company=row["company"],
+        as_of=row["as_of"],
+        lookback_days=SnapshotWindow(row["lookback_days"]),
+        forecast_horizon_days=row["forecast_horizon_days"],
+        base_sentiment=SentimentScore(score=float(row["base_score"]), confidence=float(row["base_confidence"])),
+        personalized_sentiment=PersonalizedSentiment(
+            score=float(row["personalized_score"]),
+            confidence=float(row["personalized_confidence"]),
+            label=SentimentLabel(row["personalized_label"]),
+        ),
+        confidence=float(row["confidence"]),
+        evidence=tuple(
+            PredictionEvidence(
+                chunk_id=evidence["chunk_id"],
+                published_at=evidence["published_at"],
+                importance_score=float(evidence["importance_score"]),
+                excerpt=evidence["excerpt"],
+            )
+            for evidence in evidence_rows
+        ),
+        run_id=row["run_id"],
+        reasoning=row["reasoning"],
+        user_id=None if row["user_id"] is None else str(row["user_id"]),
     )
 
 

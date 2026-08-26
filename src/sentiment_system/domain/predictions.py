@@ -8,7 +8,7 @@ from enum import IntEnum
 from math import isfinite
 from types import MappingProxyType
 
-from sentiment_system.domain.sentiment import SentimentScore
+from sentiment_system.domain.sentiment import PersonalizedSentiment, SentimentScore
 
 
 class SnapshotWindow(IntEnum):
@@ -46,6 +46,7 @@ class CompanySentimentSnapshot:
     sentiment: SentimentScore
     evidence: tuple[PredictionEvidence, ...]
     run_id: str
+    rule_version: str = "aggregation-personalization-v1"
 
     def __post_init__(self) -> None:
         _require_non_empty_string("company", self.company)
@@ -56,6 +57,7 @@ class CompanySentimentSnapshot:
             raise ValueError("sentiment must be a SentimentScore")
         _validate_evidence(self.evidence)
         _require_non_empty_string("run_id", self.run_id)
+        _require_non_empty_string("rule_version", self.rule_version)
 
 
 @dataclass(frozen=True, slots=True)
@@ -67,11 +69,12 @@ class Prediction:
     lookback_days: SnapshotWindow
     forecast_horizon_days: int
     base_sentiment: SentimentScore
-    personalized_sentiment: SentimentScore
+    personalized_sentiment: SentimentScore | PersonalizedSentiment
     confidence: float
     evidence: tuple[PredictionEvidence, ...]
     run_id: str
     reasoning: str | None = None
+    user_id: str | None = None
 
     def __post_init__(self) -> None:
         _require_non_empty_string("company", self.company)
@@ -86,13 +89,15 @@ class Prediction:
             raise ValueError("forecast_horizon_days must be a positive integer")
         if not isinstance(self.base_sentiment, SentimentScore):
             raise ValueError("base_sentiment must be a SentimentScore")
-        if not isinstance(self.personalized_sentiment, SentimentScore):
-            raise ValueError("personalized_sentiment must be a SentimentScore")
+        if not isinstance(self.personalized_sentiment, (SentimentScore, PersonalizedSentiment)):
+            raise ValueError("personalized_sentiment must be a supported sentiment value")
         _require_unit_interval("confidence", self.confidence)
         _validate_evidence(self.evidence)
         _require_non_empty_string("run_id", self.run_id)
         if self.reasoning is not None and not isinstance(self.reasoning, str):
             raise ValueError("reasoning must be a string")
+        if self.user_id is not None:
+            _require_non_empty_string("user_id", self.user_id)
 
     @property
     def sources(self) -> tuple[PredictionEvidence, ...]:

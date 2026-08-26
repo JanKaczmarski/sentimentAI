@@ -88,6 +88,5 @@ specification.
 
 ## Open Decisions
 
-- Exact source records and acquisition mechanisms for the reproducible cache.
-- Exact data-download mechanisms, caching format, and reproducibility process for SEC, investor-relations, and Yahoo data.
+- Final source records, final corpus cutoff, and final evaluation manifest contents.
 - Exact model/runtime choice for the optional local Llama backend.

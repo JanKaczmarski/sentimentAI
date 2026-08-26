@@ -4,7 +4,14 @@ import os
 from dataclasses import dataclass
 
 from sentiment_system.adapters.outbound.persistence.in_memory import (
+    InMemoryChunkRepository,
+    InMemoryChunkScoreRepository,
+    InMemoryDocumentRepository,
+    InMemoryExperimentRunRepository,
     InMemoryInvestmentThesisRepository,
+    InMemoryPredictionRepository,
+    InMemoryProvenanceRepository,
+    InMemorySnapshotRepository,
     InMemoryUserAccountRepository,
 )
 from sentiment_system.adapters.outbound.persistence.postgres import (
@@ -14,6 +21,7 @@ from sentiment_system.adapters.outbound.persistence.postgres import (
     PostgresDocumentRepository,
     PostgresExperimentRunRepository,
     PostgresInvestmentThesisRepository,
+    PostgresPredictionRepository,
     PostgresProvenanceRepository,
     PostgresSnapshotRepository,
     PostgresUserAccountRepository,
@@ -27,12 +35,15 @@ from sentiment_system.application.ports.repositories import (
     ExperimentProvenanceRepository,
     ExperimentRunRepository,
     InvestmentThesisRepository,
+    PredictionRepository,
     SnapshotRepository,
     UserAccountRepository,
 )
 from sentiment_system.application.ports.vector_store import VectorStore
 from sentiment_system.application.use_cases.create_account import CreateAccount
+from sentiment_system.application.use_cases.generate_prediction import GeneratePrediction, ListPredictionHistory
 from sentiment_system.application.use_cases.index_chunks import IndexChunks
+from sentiment_system.application.use_cases.ingest_fixture_communication import IngestFixtureCommunication
 from sentiment_system.application.use_cases.manage_investment_theses import ManageInvestmentTheses
 from sentiment_system.bootstrap.config import EmbeddingConfig, build_embedding_provider
 
@@ -55,6 +66,10 @@ class ApplicationContainer:
     snapshot_repository: SnapshotRepository | None = None
     experiment_run_repository: ExperimentRunRepository | None = None
     provenance_repository: ExperimentProvenanceRepository | None = None
+    prediction_repository: PredictionRepository | None = None
+    generate_prediction: GeneratePrediction | None = None
+    list_prediction_history: ListPredictionHistory | None = None
+    ingest_fixture_communication: IngestFixtureCommunication | None = None
 
 
 def build_container() -> ApplicationContainer:
@@ -64,16 +79,17 @@ def build_container() -> ApplicationContainer:
     """
     account_repository: UserAccountRepository = InMemoryUserAccountRepository()
     investment_thesis_repository: InvestmentThesisRepository = InMemoryInvestmentThesisRepository()
+    document_repository: DocumentRepository = InMemoryDocumentRepository()
+    chunk_repository: ChunkRepository = InMemoryChunkRepository()
+    chunk_score_repository: ChunkScoreRepository = InMemoryChunkScoreRepository()
+    snapshot_repository: SnapshotRepository = InMemorySnapshotRepository()
+    experiment_run_repository: ExperimentRunRepository = InMemoryExperimentRunRepository()
+    provenance_repository: ExperimentProvenanceRepository = InMemoryProvenanceRepository()
+    prediction_repository: PredictionRepository = InMemoryPredictionRepository()
     embedding_provider = build_embedding_provider(EmbeddingConfig.from_env())
     database_url = os.getenv("DATABASE_URL")
     qdrant_url = os.getenv("QDRANT_URL")
     research_database = None
-    document_repository = None
-    chunk_repository = None
-    chunk_score_repository = None
-    snapshot_repository = None
-    experiment_run_repository = None
-    provenance_repository = None
     vector_store = None
     index_chunks = None
     if database_url:
@@ -87,6 +103,7 @@ def build_container() -> ApplicationContainer:
         snapshot_repository = PostgresSnapshotRepository(research_database)
         experiment_run_repository = PostgresExperimentRunRepository(research_database)
         provenance_repository = PostgresProvenanceRepository(research_database)
+        prediction_repository = PostgresPredictionRepository(research_database)
     if qdrant_url:
         vector_store = QdrantVectorStore(
             url=qdrant_url,
@@ -109,4 +126,13 @@ def build_container() -> ApplicationContainer:
         snapshot_repository=snapshot_repository,
         experiment_run_repository=experiment_run_repository,
         provenance_repository=provenance_repository,
+        prediction_repository=prediction_repository,
+        generate_prediction=GeneratePrediction(
+            account_repository,
+            investment_thesis_repository,
+            snapshot_repository,
+            prediction_repository,
+        ),
+        list_prediction_history=ListPredictionHistory(account_repository, prediction_repository),
+        ingest_fixture_communication=IngestFixtureCommunication(document_repository, chunk_repository),
     )
