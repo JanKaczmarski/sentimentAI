@@ -728,7 +728,7 @@ features:
 
   - id: FEAT-012
     title: "Aggregate document and company sentiment snapshots"
-    status: in_review
+    status: complete
     priority: high
     depends_on:
       - FEAT-002
