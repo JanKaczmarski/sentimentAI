@@ -132,10 +132,10 @@ If a required check cannot run because an external dependency is unavailable,
 the feature is not eligible for automatic merge. Record the missing evidence
 and request direction instead of claiming completion.
 
-## Change Review And Automatic Merge
+## Change Review And Merge
 
-Automatic merging is permitted for a completed feature only when all of the
-following are true:
+Human approval is required for every pull-request merge. Automatic merging is
+disabled for this repository, even when all of the following are true:
 
 1. The feature was selected from `FEATURES.yaml` and satisfies its acceptance
    criteria.
@@ -147,10 +147,10 @@ following are true:
 5. The repository branch-protection and hosting-provider policies permit the
    merge without a human review.
 
-An agent must not bypass branch protection, force-push, amend published
-history, disable CI, or merge a pull request with failing or missing required
-checks. If the hosting provider requires a review, request one rather than
-bypassing the policy.
+An agent must not bypass branch protection, force-push, amend published history,
+disable CI, or merge a pull request with failing or missing required checks. The
+agent must request human review and wait for explicit approval for the specific
+pull request before merging.
 
 Changes to project scope, research methodology, architectural boundaries, or
 these governance rules require explicit user approval and a decision record

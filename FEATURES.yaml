@@ -537,6 +537,7 @@ features:
     implementation_notes:
       - "PostgreSQL migrations are packaged with the adapter and applied automatically by the composition root when DATABASE_URL is configured."
       - "The PostgreSQL integration test requires the Compose PostgreSQL service and is run in CI with POSTGRES_TEST_DSN."
+      - "Document and chunk upserts remain a known audit-semantic follow-up; append-only score, snapshot, and provenance records are the currently verified portion of this feature."
 
   - id: FEAT-009
     title: "Persist accounts and Investment Theses through CRUD API"
@@ -663,7 +664,7 @@ features:
       - "The Qdrant service image is aligned to qdrant-client 1.19.x to keep the client and server compatibility contract explicit."
 
   - id: FEAT-011
-    title: "Score chunks with investor-independent LLM signals"
+    title: "Provide provider-neutral investor-independent chunk scoring"
     status: complete
     priority: high
     depends_on:
@@ -675,15 +676,15 @@ features:
       - FEAT-008
       - FEAT-010
     scope:
-      - "Score chunk polarity, confidence, and general importance once per corpus batch."
-      - "Record provider, model, prompt, raw output, parsed output, token, truncation, and soft-exclusion provenance."
+      - "Persist normalized investor-independent chunk scoring results returned by the typed LLM port."
+      - "Record provider, model, prompt, raw output, parsed output, token, truncation, and soft-exclusion provenance when supplied by the scorer."
     non_goals:
       - "Per-user LLM calls or Investment Thesis personalization."
     acceptance_criteria:
       - id: AC-1
-        description: "Parsed scoring results satisfy normalized sentiment and importance ranges and preserve model confidence separately."
+        description: "Normalized scoring results satisfy sentiment and importance ranges and preserve model confidence separately."
       - id: AC-2
-        description: "Importance is model-derived and not replaced by embedding similarity."
+        description: "The workflow consumes importance from the scoring port and does not replace it with embedding similarity."
       - id: AC-3
         description: "Chunks remain auditable after three consecutive low-importance scores trigger soft exclusion."
     architecture:
@@ -723,11 +724,11 @@ features:
           - "tests/integration/test_postgres_persistence.py::test_postgres_migrates_and_preserves_auditable_research_history"
           - "POSTGRES_TEST_DSN=postgresql://sentiment:sentiment@localhost:5432/sentiment uv run pytest tests/integration/test_postgres_persistence.py"
     implementation_notes:
-      - "The current provider-neutral LLM port exposes provider and model as batch configuration; concrete network LLM adapters remain outside this feature."
+      - "This feature owns the provider-neutral scoring workflow and deterministic development scorer; production LLM providers, strict response parsing, contextual RAG, and token-budget enforcement are FEAT-023."
       - "PostgreSQL and Qdrant integration tests pass against local Compose services; the full project suite otherwise retains its existing environment-gated integration coverage."
 
   - id: FEAT-012
-    title: "Aggregate document and company sentiment snapshots"
+    title: "Aggregate company sentiment snapshots"
     status: complete
     priority: high
     depends_on:
@@ -737,14 +738,14 @@ features:
       - FEAT-008
       - FEAT-011
     scope:
-      - "Create versioned document and 30, 90, and 365 day company snapshots using approved importance and recency rules."
+      - "Create versioned 30, 90, and 365 day company snapshots from scored chunks using approved importance and recency rules."
     non_goals:
       - "Investment Thesis personalization or market-outcome evaluation."
     acceptance_criteria:
       - id: AC-1
         description: "Known weighted inputs produce deterministic snapshot scores and derived labels."
       - id: AC-2
-        description: "Snapshots exclude documents published after their as-of date."
+        description: "Snapshots exclude documents published after their as-of date; strict publication-before semantics are enforced by the end-to-end pipeline."
       - id: AC-3
         description: "Stored snapshots identify contributing chunk evidence and the rule and run configuration used."
     architecture:
@@ -783,6 +784,7 @@ features:
     implementation_notes:
       - "Document-level weighted inputs are aggregated into the company snapshots; the existing persistence contract stores auditable chunk evidence and versioned company snapshots."
       - "Rule version is persisted in a repository migration and linked to each snapshot record."
+      - "A distinct persisted document-level snapshot is outside this feature; document evidence is represented through contributing scored chunks."
 
   - id: FEAT-013
     title: "Apply deterministic Investment Thesis personalization"
@@ -843,7 +845,7 @@ features:
       - "Risk-specific labels use PersonalizedSentiment so the global base label thresholds remain unchanged."
 
   - id: FEAT-014
-    title: "Serve predictions, evidence, history, and fixture ingestion"
+    title: "Serve stored predictions, evidence, history, and fixture ingestion"
     status: complete
     priority: high
     depends_on:
@@ -857,10 +859,10 @@ features:
       - FEAT-012
       - FEAT-013
     scope:
-      - "Persist and serve prediction evidence and user-scoped history through the target API."
+      - "Persist and serve predictions generated from already-computed snapshots, prediction evidence, and user-scoped history through the target API."
       - "Expose fixture-based company communication ingestion through the target API."
     non_goals:
-      - "Scheduler operation or public SEC and investor-relations acquisition."
+      - "Generating snapshots from newly ingested documents, scheduler operation, or public SEC and investor-relations acquisition."
     acceptance_criteria:
       - id: AC-1
         description: "Prediction responses include scores, labels, dates, horizons, confidence, explanation, excerpts or IDs, importance, and run metadata."
@@ -904,10 +906,11 @@ features:
     implementation_notes:
       - "Prediction persistence uses a repository migration with user ownership and evidence rows; fixture ingestion reuses the approved normalization and chunk lineage pipeline."
       - "Scheduler operation and public SEC/investor-relations acquisition remain deferred to their dedicated features."
+      - "End-to-end snapshot generation and complete API metadata wiring are owned by FEAT-022; this feature provides the stored-prediction/API boundary."
 
   - id: FEAT-015
     title: "Acquire reproducible SEC and investor-relations corpus"
-    status: complete
+    status: blocked
     priority: high
     depends_on:
       - FEAT-001
@@ -916,6 +919,7 @@ features:
       - FEAT-006
       - FEAT-007
       - FEAT-008
+      - FEAT-018
     scope:
       - "Acquire and cache supported SEC filings and official investor-relations earnings releases with reproducible manifests."
       - "Provide a source adapter that reads official SEC EDGAR and curated investor-relations cache manifests behind the document-source port."
@@ -940,41 +944,20 @@ features:
         - repositories
     research_decisions:
       - "docs/THESIS_DECISIONS.md#data-scope"
-      - "decisions/0007-local-cache-acquisition-contract.md"
+      - "decisions/0008-local-cache-acquisition-contract.md"
+      - "decisions/0009-ingestion-and-evaluation-universe.md"
     verification:
       required_test_levels:
         - unit
         - contract
         - integration
       required_checks: *code_checks
-    blocked_reason: null
-    completion_evidence:
-      - acceptance_criterion: AC-1
-        evidence:
-          - "src/sentiment_system/adapters/outbound/sources/cached.py::CachedCorpusDocumentSource"
-          - "src/sentiment_system/domain/documents.py::SourceDocument"
-          - "src/sentiment_system/adapters/outbound/persistence/migrations/0005_document_manifest_version.sql"
-          - "tests/unit/adapters/outbound/test_cached_sources.py::test_cached_source_loads_sec_records_and_filters_deterministically"
-          - "tests/integration/test_postgres_persistence.py::test_postgres_migrates_and_preserves_auditable_research_history"
-      - acceptance_criterion: AC-2
-        evidence:
-          - "tests/unit/adapters/outbound/test_cached_sources.py::test_cached_source_loads_sec_records_and_filters_deterministically"
-          - "tests/unit/adapters/outbound/test_cached_sources.py::test_cached_source_loads_curated_ir_records_and_rejects_hash_mismatch"
-          - "tests/contract/ports/test_adapters.py::test_port_fakes_are_structurally_typed"
-      - acceptance_criterion: AC-3
-        evidence:
-          - "tests/unit/adapters/outbound/test_cached_sources.py::test_cached_source_loads_sec_records_and_filters_deterministically"
-          - "tests/integration/test_cached_sources.py::test_external_research_snapshot_loads_sec_and_ir_documents"
-          - "uv run pytest"
-      - acceptance_criterion: AC-4
-        evidence:
-          - "src/sentiment_system/adapters/outbound/sources/cached.py::CachedCorpusDocumentSource"
-          - "tests/unit/adapters/outbound/test_cached_sources.py::test_cached_source_loads_curated_ir_records_and_rejects_hash_mismatch"
-          - "tests/contract/ports/test_adapters.py::test_port_fakes_are_structurally_typed"
-          - "SENTIMENT_DATA_ROOT=/Users/jan/private/sentimentAI-data uv run python -c '... CachedCorpusDocumentSource ...'"
+    blocked_reason: "The current cache reader is only a partial previous-quarter implementation. The final five-year manifest, approved evaluation-universe membership, complete SEC/IR source coverage, publication-date handling, and acquisition/idempotency contract are not yet materialized."
+    completion_evidence: []
     implementation_notes:
+      - "Existing cache-reader tests and encrypted-PDF support remain useful groundwork but do not prove the complete acquisition feature."
       - "The initial implementation uses official SEC EDGAR endpoints and manually curated official investor-relations downloads through an immutable local cache; sec-api.io and licensed providers are deferred to FEAT-021."
-      - "Encrypted curated PDFs require the direct cryptography runtime dependency; no provider credential is needed by the cache adapter."
+      - "The final manifest must distinguish the FEAT-018 ingestion universe from the six-company v1 evaluation universe under decisions/0009-ingestion-and-evaluation-universe.md."
 
   - id: FEAT-016
     title: "Evaluate predictions against leakage-safe market outcomes"
@@ -990,6 +973,7 @@ features:
       - FEAT-013
       - FEAT-014
       - FEAT-015
+      - FEAT-022
     scope:
       - "Load cached market data and evaluate predictions with leakage-safe trading-day alignment, benchmark-adjusted returns, and required baselines."
     non_goals:
@@ -1012,18 +996,19 @@ features:
     research_decisions:
       - "docs/THESIS_DECISIONS.md#evaluation"
       - "docs/THESIS_DECISIONS.md#open-decisions"
+      - "decisions/0009-ingestion-and-evaluation-universe.md"
     verification:
       required_test_levels:
         - unit
         - contract
         - integration
       required_checks: *code_checks
-    blocked_reason: "The evaluation implementation requires the unresolved chronological development/held-out split and sector benchmark mapping documented in docs/THESIS_DECISIONS.md#open-decisions. These choices affect the evaluation contract and cannot be inferred safely."
+    blocked_reason: "The evaluation implementation awaits FEAT-015's final immutable corpus and market-data manifest, including its cutoff and explicit six-company v1 evaluation membership. The split derivation and benchmark mapping are decided, but cannot be applied until those records exist."
     completion_evidence: []
     implementation_notes: []
 
   - id: FEAT-017
-    title: "Orchestrate batch runs, scheduling, and observability"
+    title: "Schedule batch runs and expose observability"
     status: queued
     priority: high
     depends_on:
@@ -1037,16 +1022,15 @@ features:
       - FEAT-014
       - FEAT-015
       - FEAT-016
+      - FEAT-022
     scope:
-      - "Wire daily and manual batches, run state, Prometheus metrics, Grafana dashboards, and the composition root."
+      - "Wire daily scheduling, run state, Prometheus metrics, Grafana dashboards, and the composition root around the complete pipeline."
     non_goals:
       - "Authentication, production hardening, or Cyfronet deployment."
     acceptance_criteria:
       - id: AC-1
-        description: "One investor-independent scoring pass can serve multiple Investment Theses without another LLM call."
+        description: "Scheduled batches record run outcomes and preserve execution provenance without duplicating investor-independent scoring."
       - id: AC-2
-        description: "Manual and scheduled batches record run outcomes and preserve execution provenance."
-      - id: AC-3
         description: "Prometheus and provisioned Grafana dashboards expose batch, document, chunk, exclusion, retrieval, LLM, and evaluation metrics."
     architecture:
       layers:
@@ -1055,6 +1039,12 @@ features:
         - bootstrap
       ports:
         - repositories
+        - document_sources
+        - llm
+        - embeddings
+        - vector_store
+        - market_data
+        - observability
     research_decisions:
       - "docs/THESIS_DECISIONS.md#runtime-and-architecture"
       - "docs/ARCHITECTURE.md#deployment-and-observability"
@@ -1085,7 +1075,7 @@ features:
       - "Adding inactive or commented-out symbols from the author-provided candidate list."
     acceptance_criteria:
       - id: AC-1
-        description: "The seeded registry contains exactly the approved active symbols: AAPL, ADBE, ALGM, ALK, AMAT, AMD, AMZN, ANET, ANF, APH, ARE, AVGO, BLBD, BWXT, CAKE, CMCSA, COST, CRM, CRWD, DDOG, DIS, DUOL, ELF, EPR, EVO, FOUR, FCN, FUBO, GIS, GS, HD, ISRG, KSPI, LULU, MAA, META, MRP, MSFT, NLCP, NOVO B, NU, PINS, PLTR, POOL, PYPL, RBLX, RHM, SILA, SIRI, SOFI, SOUN, SPY, STZ, SYNA, T, TDW, TSN, TTD, UNH, UUUU, V, VICI, WHR, and ZM."
+        description: "The static registry contains exactly the approved active ingestion symbols: AAPL, ADBE, ALGM, ALK, AMAT, AMD, AMZN, ANET, ANF, APH, ARE, AVGO, BLBD, BWXT, CAKE, CMCSA, COST, CRM, CRWD, DDOG, DIS, DUOL, ELF, EPR, EVO, FOUR, FCN, FUBO, GIS, GS, HD, ISRG, KSPI, LULU, MAA, META, MRP, MSFT, NLCP, NOVO B, NU, PINS, PLTR, POOL, PYPL, RBLX, RHM, SILA, SIRI, SOFI, SOUN, SPY, STZ, SYNA, T, TDW, TSN, TTD, UNH, UUUU, V, VICI, WHR, and ZM."
       - id: AC-2
         description: "Each active company preserves its approved display name, market-routing value, and currency."
       - id: AC-3
@@ -1097,6 +1087,7 @@ features:
     research_decisions:
       - "docs/THESIS_DECISIONS.md#data-scope"
       - "decisions/0004-company-universe-approval.md"
+      - "decisions/0009-ingestion-and-evaluation-universe.md"
     verification:
       required_test_levels:
         - unit
@@ -1226,7 +1217,7 @@ features:
           - "tests/integration/test_web_ui.py::test_ui_serves_page_and_same_origin_assets"
           - "node --check web/app.js"
     implementation_notes:
-      - "Prediction, history, and fixture-ingestion controls remain deferred to FEAT-014 because their backend contracts are not implemented yet."
+      - "Prediction, history, and fixture-ingestion controls remain outside this intentionally limited CRUD smoke-testing UI; the backend contracts exist but their UI integration is future work."
       - "The UI stores the existing prototype API key in sessionStorage only; this is local testing support, not production authentication."
 
   - id: FEAT-021
@@ -1261,7 +1252,7 @@ features:
         - repositories
     research_decisions:
       - "docs/THESIS_DECISIONS.md#runtime-and-architecture"
-      - "decisions/0007-local-cache-acquisition-contract.md"
+      - "decisions/0008-local-cache-acquisition-contract.md"
     verification:
       required_test_levels:
         - contract
@@ -1271,3 +1262,100 @@ features:
     completion_evidence: []
     implementation_notes:
       - "Product-hardening work intentionally deferred until the thesis pipeline and evaluation are complete."
+
+  - id: FEAT-022
+    title: "Run the complete source-to-prediction pipeline"
+    status: queued
+    priority: critical
+    depends_on:
+      - FEAT-007
+      - FEAT-008
+      - FEAT-009
+      - FEAT-010
+      - FEAT-011
+      - FEAT-012
+      - FEAT-013
+      - FEAT-014
+      - FEAT-015
+      - FEAT-018
+    scope:
+      - "Compose cached source loading, ingestion, indexing, provider-neutral scoring, aggregation, personalization, and persistence into one repeatable application workflow."
+      - "Expose a manual batch trigger that can run the pipeline in deterministic development mode for local and CI end-to-end verification."
+    non_goals:
+      - "Daily scheduling, production LLM provider integration, market-outcome evaluation, licensed providers, or production authentication."
+    acceptance_criteria:
+      - id: AC-1
+        description: "A fresh local development setup can ingest one approved source document, index and score its chunks, create company snapshots, and serve a prediction through the API."
+      - id: AC-2
+        description: "One investor-independent scoring run serves multiple Investment Theses without another scoring call."
+      - id: AC-3
+        description: "Manual pipeline runs record run state, provenance, source lineage, and deterministic configuration, including failures."
+    architecture:
+      layers:
+        - application
+        - adapters
+        - bootstrap
+      ports:
+        - document_sources
+        - repositories
+        - llm
+        - embeddings
+        - vector_store
+    research_decisions:
+      - "docs/THESIS_DECISIONS.md#research-model"
+      - "docs/THESIS_DECISIONS.md#runtime-and-architecture"
+      - "decisions/0006-reproducible-research-and-runtime-contract.md"
+      - "decisions/0009-ingestion-and-evaluation-universe.md"
+    verification:
+      required_test_levels:
+        - unit
+        - contract
+        - integration
+      required_checks: *code_checks
+    blocked_reason: null
+    completion_evidence: []
+    implementation_notes:
+      - "Deterministic scoring is the development and CI path; thesis-result generation must use real local embeddings and a production scoring provider covered by FEAT-023."
+
+  - id: FEAT-023
+    title: "Implement production LLM scoring and contextual RAG"
+    status: proposed
+    priority: high
+    depends_on:
+      - FEAT-004
+      - FEAT-011
+      - FEAT-022
+    scope:
+      - "Implement the approved Groq and optional local Llama scoring adapters behind the LLM port."
+      - "Implement strict structured-response parsing, contextual-RAG variants, token budgets, truncation tracking, provider metadata, and failure provenance."
+    non_goals:
+      - "Per-user scoring, Investment Thesis personalization, licensed financial-data providers, or changing the approved scoring methodology."
+    acceptance_criteria:
+      - id: AC-1
+        description: "Production scoring adapters return validated investor-independent polarity, confidence, and importance results through the existing port without exposing provider types to application code."
+      - id: AC-2
+        description: "Standard and contextual-RAG requests enforce the approved 15,000-token input budget and record truncation, prompt, model, provider, and raw-response provenance."
+      - id: AC-3
+        description: "Provider failures, malformed responses, and unavailable credentials produce explicit run outcomes without corrupting prior audit records."
+    architecture:
+      layers:
+        - application
+        - adapters
+        - bootstrap
+      ports:
+        - llm
+        - repositories
+    research_decisions:
+      - "docs/THESIS_DECISIONS.md#rag-and-scoring"
+      - "docs/THESIS_DECISIONS.md#runtime-and-architecture"
+      - "decisions/0003-processing-and-scoring-configuration.md"
+    verification:
+      required_test_levels:
+        - unit
+        - contract
+        - integration
+      required_checks: *code_checks
+    blocked_reason: null
+    completion_evidence: []
+    implementation_notes:
+      - "Provider credentials remain runtime-only and production calls are not required for deterministic CI tests."
