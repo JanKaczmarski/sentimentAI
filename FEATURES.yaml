@@ -664,7 +664,7 @@ features:
 
   - id: FEAT-011
     title: "Score chunks with investor-independent LLM signals"
-    status: queued
+    status: implemented
     priority: high
     depends_on:
       - FEAT-001
@@ -706,8 +706,25 @@ features:
         - integration
       required_checks: *code_checks
     blocked_reason: null
-    completion_evidence: []
-    implementation_notes: []
+    completion_evidence:
+      - acceptance_criterion: AC-1
+        evidence:
+          - "tests/unit/application/test_score_chunks.py::test_score_chunks_persists_normalized_scores_and_provenance"
+          - "src/sentiment_system/application/ports/llm.py::ChunkScoringResult"
+          - "uv run pytest"
+      - acceptance_criterion: AC-2
+        evidence:
+          - "tests/unit/application/test_score_chunks.py::test_score_chunks_persists_normalized_scores_and_provenance"
+          - "src/sentiment_system/application/use_cases/score_chunks.py::ScoreChunks.execute"
+          - "uv run pytest"
+      - acceptance_criterion: AC-3
+        evidence:
+          - "tests/unit/application/test_score_chunks.py::test_score_chunks_soft_excludes_after_three_consecutive_low_scores"
+          - "tests/integration/test_postgres_persistence.py::test_postgres_migrates_and_preserves_auditable_research_history"
+          - "POSTGRES_TEST_DSN=postgresql://sentiment:sentiment@localhost:5432/sentiment uv run pytest tests/integration/test_postgres_persistence.py"
+    implementation_notes:
+      - "The current provider-neutral LLM port exposes provider and model as batch configuration; concrete network LLM adapters remain outside this feature."
+      - "PostgreSQL and Qdrant integration tests pass against local Compose services; the full project suite otherwise retains its existing environment-gated integration coverage."
 
   - id: FEAT-012
     title: "Aggregate document and company sentiment snapshots"
