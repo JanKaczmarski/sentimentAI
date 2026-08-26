@@ -1640,7 +1640,7 @@ features:
 
   - id: FEAT-028
     title: "Run a bounded real-data supervisor demonstration"
-    status: in_review
+    status: complete
     priority: high
     depends_on:
       - FEAT-008
