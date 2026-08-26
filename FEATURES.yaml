@@ -1567,7 +1567,7 @@ features:
 
   - id: FEAT-027
     title: "Rank and progressively disclose prediction evidence"
-    status: in_review
+    status: complete
     priority: medium
     depends_on:
       - FEAT-002
@@ -1640,7 +1640,7 @@ features:
 
   - id: FEAT-028
     title: "Run a bounded real-data supervisor demonstration"
-    status: proposed
+    status: ready
     priority: high
     depends_on:
       - FEAT-008
