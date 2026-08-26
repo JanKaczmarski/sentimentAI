@@ -33,6 +33,10 @@ def test_ui_serves_page_and_same_origin_assets() -> None:
     assert "/batch/run" in script.text
     assert "/companies/" in script.text
     assert "renderPrediction" in script.text
+    assert "Show more" in script.text
+    assert "Show less" in script.text
+    assert "slice(0, 5)" in script.text
+    assert "sentiment.label" in script.text
     assert 'classList.toggle("ready"' in script.text
     assert stylesheet.status_code == 200
     assert "--ink" in stylesheet.text

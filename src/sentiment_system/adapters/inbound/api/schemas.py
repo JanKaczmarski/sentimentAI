@@ -142,6 +142,7 @@ class PredictionEvidenceResponse(ApiSchema):
 
     chunk_id: str
     published_at: date
+    sentiment: SentimentResponse
     importance_score: float
     excerpt: str
 

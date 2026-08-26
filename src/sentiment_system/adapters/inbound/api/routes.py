@@ -320,6 +320,11 @@ def _prediction_response(prediction: Prediction) -> PredictionResponse:
             PredictionEvidenceResponse(
                 chunk_id=item.chunk_id,
                 published_at=item.published_at,
+                sentiment=SentimentResponse(
+                    score=item.sentiment.score,
+                    label=item.sentiment.label.value,
+                    confidence=item.sentiment.confidence,
+                ),
                 importance_score=item.importance_score,
                 excerpt=item.excerpt,
             )

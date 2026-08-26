@@ -52,7 +52,7 @@ def test_personalization_applies_risk_thresholds_and_preserves_evidence() -> Non
 
     assert result.personalized_sentiment.label is SentimentLabel.NEUTRAL
     assert result.base_sentiment.score == pytest.approx(0.5)
-    assert [item.chunk_id for item in result.evidence] == ["chunk-90", "chunk-365"]
+    assert [item.chunk_id for item in result.evidence] == ["chunk-365", "chunk-90"]
 
 
 def _personalizer() -> PersonalizeSnapshots:
@@ -78,6 +78,7 @@ def _snapshot(window: SnapshotWindow, score: float, chunk_id: str) -> CompanySen
             PredictionEvidence(
                 chunk_id=chunk_id,
                 published_at=date(2025, 1, 1),
+                sentiment=SentimentScore(score=score, confidence=0.8),
                 importance_score=0.9,
                 excerpt=chunk_id,
             ),

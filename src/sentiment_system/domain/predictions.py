@@ -25,6 +25,7 @@ class PredictionEvidence:
 
     chunk_id: str
     published_at: date
+    sentiment: SentimentScore
     importance_score: float
     excerpt: str
 
@@ -32,8 +33,20 @@ class PredictionEvidence:
         _require_non_empty_string("chunk_id", self.chunk_id)
         if not isinstance(self.published_at, date):
             raise ValueError("published_at must be a date")
+        if not isinstance(self.sentiment, SentimentScore):
+            raise ValueError("sentiment must be a SentimentScore")
         _require_unit_interval("importance_score", self.importance_score)
         _require_non_empty_string("excerpt", self.excerpt)
+
+
+def sort_evidence(evidence: Sequence[PredictionEvidence]) -> tuple[PredictionEvidence, ...]:
+    """Return evidence ordered by importance, recency, and stable chunk identity."""
+    return tuple(
+        sorted(
+            evidence,
+            key=lambda item: (-item.importance_score, -item.published_at.toordinal(), item.chunk_id),
+        )
+    )
 
 
 @dataclass(frozen=True, slots=True)

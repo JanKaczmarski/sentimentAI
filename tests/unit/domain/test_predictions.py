@@ -10,6 +10,7 @@ from sentiment_system.domain.predictions import (
     Prediction,
     PredictionEvidence,
     SnapshotWindow,
+    sort_evidence,
 )
 from sentiment_system.domain.sentiment import SentimentScore
 
@@ -18,6 +19,7 @@ def _evidence() -> PredictionEvidence:
     return PredictionEvidence(
         chunk_id="chunk-1",
         published_at=date(2025, 1, 30),
+        sentiment=_score(0.72),
         importance_score=0.9,
         excerpt="Revenue increased during the reporting period.",
     )
@@ -42,6 +44,34 @@ def test_company_snapshot_preserves_window_sentiment_evidence_and_run() -> None:
     assert snapshot.sentiment.score == 0.72
     assert snapshot.evidence == (evidence,)
     assert snapshot.run_id == "run-1"
+
+
+def test_evidence_sorting_uses_importance_then_recency_then_chunk_id() -> None:
+    evidence = (
+        PredictionEvidence(
+            chunk_id="chunk-b",
+            published_at=date(2025, 1, 31),
+            sentiment=_score(0.7),
+            importance_score=0.8,
+            excerpt="B",
+        ),
+        PredictionEvidence(
+            chunk_id="chunk-a",
+            published_at=date(2025, 1, 31),
+            sentiment=_score(0.3),
+            importance_score=0.8,
+            excerpt="A",
+        ),
+        PredictionEvidence(
+            chunk_id="chunk-c",
+            published_at=date(2025, 1, 30),
+            sentiment=_score(0.5),
+            importance_score=0.8,
+            excerpt="C",
+        ),
+    )
+
+    assert [item.chunk_id for item in sort_evidence(evidence)] == ["chunk-a", "chunk-b", "chunk-c"]
 
 
 @pytest.mark.parametrize("window", [SnapshotWindow.THIRTY_DAYS, SnapshotWindow.NINETY_DAYS, SnapshotWindow.YEAR])
