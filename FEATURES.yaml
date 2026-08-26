@@ -540,7 +540,7 @@ features:
 
   - id: FEAT-009
     title: "Persist accounts and Investment Theses through CRUD API"
-    status: in_progress
+    status: complete
     priority: high
     depends_on:
       - FEAT-002
@@ -575,9 +575,27 @@ features:
         - integration
       required_checks: *code_checks
     blocked_reason: null
-    completion_evidence: []
+    completion_evidence:
+      - acceptance_criterion: AC-1
+        evidence:
+          - "tests/integration/test_api.py::test_strategy_endpoints_scope_crud_to_the_account_selected_by_api_key"
+          - "tests/integration/test_api.py::test_postgres_container_wires_account_and_thesis_api"
+          - "tests/integration/test_postgres_persistence.py::test_postgres_migrates_and_preserves_auditable_research_history"
+          - "POSTGRES_TEST_DSN=postgresql://sentiment:sentiment@localhost:5432/sentiment uv run pytest tests/integration/test_api.py tests/integration/test_postgres_persistence.py"
+      - acceptance_criterion: AC-2
+        evidence:
+          - "tests/unit/domain/test_investment_thesis.py::test_description_is_preserved_as_explanatory_text"
+          - "tests/integration/test_api.py::test_postgres_container_wires_account_and_thesis_api"
+          - "src/sentiment_system/application/use_cases/manage_investment_theses.py::ManageInvestmentTheses._new_thesis"
+          - "uv run pytest"
+      - acceptance_criterion: AC-3
+        evidence:
+          - "tests/integration/test_api.py::test_strategy_endpoints_scope_crud_to_the_account_selected_by_api_key"
+          - "tests/unit/application/test_manage_investment_theses.py::test_manage_theses_rejects_unknown_accounts_companies_and_theses"
+          - "uv run pytest"
     implementation_notes:
-      - "The current branch contains account-creation preparation with an in-memory repository; it does not satisfy the full CRUD acceptance criteria or replace FEAT-008 PostgreSQL persistence."
+      - "The composition root uses PostgreSQL repositories when DATABASE_URL is configured and deterministic in-memory repositories otherwise."
+      - "The unauthenticated API returns the raw API key only during account creation; persistence stores only its SHA-256 digest."
 
   - id: FEAT-010
     title: "Index real local embeddings in Qdrant"
