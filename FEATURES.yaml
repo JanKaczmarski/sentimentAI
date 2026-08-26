@@ -1437,7 +1437,7 @@ features:
 
   - id: FEAT-025
     title: "Extend the local UI for POC predictions"
-    status: in_review
+    status: complete
     priority: high
     depends_on:
       - FEAT-020
@@ -1494,3 +1494,104 @@ features:
       - "This extends the no-build same-origin smoke-testing console; the backend batch and prediction contracts are provided by FEAT-024."
       - "The UI presents deterministic POC output for local validation and does not imply thesis-quality evaluation evidence."
       - "The browser uses the existing fixed 20-trading-day prediction request; market evaluation and configurable forecast horizons remain outside this POC feature."
+
+  - id: FEAT-026
+    title: "Parse and quality-gate source documents before chunking"
+    status: proposed
+    priority: high
+    depends_on:
+      - FEAT-001
+      - FEAT-007
+      - FEAT-008
+      - FEAT-018
+    scope:
+      - "Parse supported SEC submissions and investor-relations documents into readable plain text before derived content is chunked and persisted."
+      - "Preserve raw source content, provenance, source identifiers, publication dates, and content hashes while versioning the parsing and cleaning configuration."
+      - "Reject or quarantine malformed, binary-looking, or otherwise unusable content through deterministic quality gates before scoring."
+    non_goals:
+      - "Acquiring the complete thesis corpus, adding licensed providers, or changing the approved company universe."
+      - "Deleting raw source content required for auditability or replacing semantic scoring with parser heuristics."
+      - "Determining production-quality relevance or importance from the deterministic POC scorer."
+    acceptance_criteria:
+      - id: AC-1
+        description: "Supported SEC submission formats and investor-relations document formats are parsed into readable plain text with HTML or SGML wrappers removed while meaningful communication content and source metadata are preserved."
+      - id: AC-2
+        description: "The quality gate rejects or quarantines content with insufficient readable text or known malformed and encoded garbage patterns before chunks are indexed or scored, without modifying raw content."
+      - id: AC-3
+        description: "Repeated processing produces deterministic cleaned content and chunk boundaries, records a parsing configuration version, and preserves raw and cleaned content hashes and source lineage."
+    architecture:
+      layers:
+        - application
+        - adapters
+        - bootstrap
+      ports:
+        - document_sources
+        - repositories
+    research_decisions:
+      - "docs/THESIS_DECISIONS.md#data-scope"
+      - "docs/THESIS_DECISIONS.md#rag-and-scoring"
+      - "decisions/0006-reproducible-research-and-runtime-contract.md"
+      - "decisions/0008-local-cache-acquisition-contract.md"
+      - "decisions/0010-poc-corpus-and-thesis-data-separation.md"
+    verification:
+      required_test_levels:
+        - unit
+        - contract
+        - integration
+      required_checks: *code_checks
+    blocked_reason: null
+    completion_evidence: []
+    implementation_notes:
+      - "Raw source content remains the audit record; parsing applies to the derived cleaned representation and chunks."
+      - "The current deterministic scorer derives importance from a hash byte, so a high importance value is not evidence of semantic relevance; this feature prevents unusable input from entering that workflow."
+
+  - id: FEAT-027
+    title: "Rank and progressively disclose prediction evidence"
+    status: proposed
+    priority: medium
+    depends_on:
+      - FEAT-002
+      - FEAT-008
+      - FEAT-012
+      - FEAT-014
+      - FEAT-020
+      - FEAT-025
+      - FEAT-026
+    scope:
+      - "Expose each prediction evidence item's sentiment score and sentiment label through the domain, persistence, API, and local UI contracts."
+      - "Return evidence in deterministic descending importance order with stable tie-breaking."
+      - "Initially show the five highest-importance evidence items in the local UI and provide a show-more or show-less control for the remaining items."
+      - "Present positive, neutral, and negative evidence with accessible semantic visual treatments and visible labels."
+    non_goals:
+      - "Changing the approved sentiment aggregation or Investment Thesis personalization rules."
+      - "Discarding persisted evidence or limiting audit records to the five items initially shown in the UI."
+      - "Replacing deterministic POC scoring with production LLM scoring or contextual RAG."
+    acceptance_criteria:
+      - id: AC-1
+        description: "Prediction evidence is sorted by descending importance with deterministic tie-breaking, and the ordering is preserved through persistence, retrieval, and the API response."
+      - id: AC-2
+        description: "Every prediction evidence item exposes its sentiment score and derived sentiment label through the domain model, database schema, repository mapping, API schema, and response payload."
+      - id: AC-3
+        description: "The local UI initially displays at most five evidence items, expands and collapses remaining persisted evidence without another scoring run, and uses accessible positive, neutral, and negative labels and styles."
+    architecture:
+      layers:
+        - domain
+        - application
+        - adapters
+        - bootstrap
+      ports:
+        - repositories
+    research_decisions:
+      - "docs/THESIS_DECISIONS.md#research-model"
+      - "docs/THESIS_DECISIONS.md#runtime-and-architecture"
+      - "decisions/0010-poc-corpus-and-thesis-data-separation.md"
+    verification:
+      required_test_levels:
+        - unit
+        - contract
+        - integration
+      required_checks: *code_checks
+    blocked_reason: null
+    completion_evidence: []
+    implementation_notes:
+      - "The five-item limit is a presentation concern; the complete evidence collection remains persisted and retrievable for auditability."
