@@ -7,10 +7,10 @@ chunk scoring, and deterministic Investment Thesis personalization.
 
 - Target implementation: `src/sentiment_system/`
 - Legacy reference POC: `poc/`
-- Architecture: `ARCHITECTURE.md`
-- Research decisions: `THESIS_DECISIONS.md`
-- Supervisor reference: `Inzynierka_arch.docx`
-- Contributor handoff: `GETTING_STARTED.md`
+- Architecture: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
+- Research decisions: [`docs/THESIS_DECISIONS.md`](docs/THESIS_DECISIONS.md)
+- Supervisor reference: [`docs/Inżynierka_arch.docx`](docs/Inżynierka_arch.docx)
+- Contributor handoff: [`docs/GETTING_STARTED.md`](docs/GETTING_STARTED.md)
 
 The new package is scaffolded and the first domain tests are implemented. The
 legacy POC is preserved for comparison and sample data during the rebuild.
@@ -27,6 +27,23 @@ configuration points to an unavailable private package index, the project
 configuration uses public PyPI and an alternate-index strategy so normal
 `uv sync`, `uv build`, and `uv run` commands can continue without private-index
 credentials.
+
+## Research Data Repository
+
+Research inputs live in the separate `sentimentAI-data` repository rather than
+in the application repository. `SENTIMENT_DATA_ROOT` is required before running
+the SEC acquisition tools:
+
+```bash
+export SENTIMENT_DATA_ROOT=/path/to/sentimentAI-data
+```
+
+The acquisition tools fail fast when this variable is not set, preventing
+research data from being written into the application repository by accident.
+
+The data repository contains raw source snapshots, market-price inputs, CIK
+metadata, and acquisition manifests. Do not commit credentials or private
+documents there.
 
 ## Local Services
 

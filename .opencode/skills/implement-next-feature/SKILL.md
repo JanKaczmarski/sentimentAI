@@ -14,10 +14,10 @@ Do not use it to brainstorm, create a feature specification, implement a
 Read these files before selecting or changing a feature:
 
 1. `AGENTS.md`
-2. `DEVELOPMENT_RULES.md`
-3. `IMPLEMENTATION_WORKFLOW.md`
-4. `ARCHITECTURE.md`
-5. `THESIS_DECISIONS.md`
+2. `docs/DEVELOPMENT_RULES.md`
+3. `docs/IMPLEMENTATION_WORKFLOW.md`
+4. `docs/ARCHITECTURE.md`
+5. `docs/THESIS_DECISIONS.md`
 6. `FEATURES.yaml`
 7. `templates/feature.md`
 8. Relevant records under `decisions/`, when present
@@ -174,12 +174,13 @@ After all local gates pass:
 Do not claim completion if any required check is skipped, fails, or cannot run.
 Fix it within approved scope, or report the evidence gap and stop.
 
-## Pull Request And Automatic Merge
+## Pull Request And Human Approval
 
-Automatic merge is enabled for a fully verified feature, not for governance,
-research-methodology, architecture-boundary, or security-policy changes.
+Human approval is mandatory for every pull-request merge. Never enable automatic
+merge and never merge a pull request manually on the agent's own authority,
+even when all local and remote checks pass.
 
-For an eligible feature:
+For every feature:
 
 1. Create or update a focused feature branch and pull request without staging
    unrelated local changes. If provider access or pull-request creation fails,
@@ -187,22 +188,26 @@ For an eligible feature:
 2. After the provider confirms the pull request exists, change the registry
    status to `in_review` in that pull request and validate it locally.
 3. Confirm required remote CI passed for the exact pull-request head commit.
-4. Confirm the diff is scoped, every acceptance criterion has evidence, and
-   branch protection permits automatic merging.
-5. Change the registry status to `complete` in the final pull-request commit,
-   validate it locally, and require remote CI for that final commit.
-6. Enable automatic merge or merge through the hosting-provider workflow only
-   after the final commit passes CI.
-7. Verify the `complete` status is present on the default branch after merge.
+4. Confirm the diff is scoped and every acceptance criterion has evidence.
+5. Report the pull request, checks, acceptance evidence, and proposed merge,
+   then stop and wait for explicit human approval for that specific PR.
+6. Do not interpret `proceed`, `continue`, `go on`, or a general request for
+   more work as merge approval. Approval must clearly authorize merging the
+   identified pull request, for example: `approve merge PR #123`.
+7. Only after that explicit approval may the agent change the registry status
+   to `complete`, validate it, push the final status commit, wait for remote CI
+   on that exact commit, and merge the approved pull request.
+8. Verify the `complete` status is present on the default branch after merge.
 
 Do not treat a `complete` value on an unmerged feature branch as authoritative.
 Do not reconcile or select another feature from that branch after writing the
 final status commit; perform those actions from the default branch after merge.
 
-Never bypass branch protection, force-push, disable CI, merge with failed or
-missing checks, or merge unrelated local changes. If provider authentication,
-repository policy, or required CI is unavailable, leave the feature in
-`in_review` and report the exact blocker.
+Never bypass branch protection, force-push, disable CI, merge without explicit
+human approval, merge with failed or missing checks, or merge unrelated local
+changes. If provider authentication, repository policy, required CI, or human
+approval is unavailable, leave the feature in `in_review` and report the exact
+blocker.
 
 ## Final Report And Stop
 

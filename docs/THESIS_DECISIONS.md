@@ -17,6 +17,9 @@ specification.
 - Calculate sentiment at `chunk -> document -> company/time-window` granularity.
 - Aggregate scores with an importance- and recency-weighted mean.
 - Use company sentiment lookback windows of 30, 90, and 365 days.
+- Use `aggregation-personalization-v1` from
+  `decisions/0005-aggregation-and-personalization-rules.md` as the initial
+  deterministic rule version.
 
 ## Investment Thesis
 
@@ -32,7 +35,9 @@ specification.
 ## Data Scope
 
 - Use five years of historical source data and a two-year held-out evaluation period.
-- Initial company sample: `AAPL`, `MSFT`, `NVDA`, `JPM`, `XOM`, and `JNJ`.
+- The active company universe is the author-approved registry specified in
+  `FEATURES.yaml` under `FEAT-018`; it supersedes the earlier six-company
+  sample.
 - Text sources:
   - SEC EDGAR `10-K`, `10-Q`, and relevant `8-K` filings;
   - official company investor-relations earnings releases.
@@ -59,6 +64,8 @@ specification.
 - Measure market usefulness with forward excess return against a sector benchmark, using the S&P 500 as fallback.
 - Report sensitivity against the S&P 500 benchmark.
 - Use rank/Spearman correlation as the primary market metric and directional hit rate as a secondary metric.
+- Use the reproducible corpus, split, benchmark, and runtime contracts in
+  `decisions/0006-reproducible-research-and-runtime-contract.md`.
 - Use the existing deterministic keyword heuristic as the text baseline.
 - Use a no-signal/market benchmark for return evaluation.
 - Use a small manual review as a secondary sanity check, not as unquestionable financial ground truth.
@@ -80,9 +87,6 @@ specification.
 
 ## Open Decisions
 
-- Exact chronological development/test split inside the five-year corpus.
-- Exact recency-decay function and initial rule-table coefficients.
-- Whether the 252-trading-day horizon is included in the final evaluation.
+- Exact source records and acquisition mechanisms for the reproducible cache.
 - Exact data-download mechanisms, caching format, and reproducibility process for SEC, investor-relations, and Yahoo data.
 - Exact model/runtime choice for the optional local Llama backend.
-- Final v0.2 API schemas and database tables.

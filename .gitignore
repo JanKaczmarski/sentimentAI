@@ -36,8 +36,10 @@ Thumbs.db
 # HuggingFace model cache
 .cache/
 
-# Data artifacts (raw filings loaded from colleague's repo, not committed)
-data/
+
+# Data artifacts (stored in the separate sentimentAI-data repository)
+/data/
+/cik_map.csv
 
 # Logs
 *.log

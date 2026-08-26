@@ -134,8 +134,8 @@ features:
         - domain
       ports: []
     research_decisions:
-      - "THESIS_DECISIONS.md#data-scope"
-      - "THESIS_DECISIONS.md#runtime-and-architecture"
+      - "docs/THESIS_DECISIONS.md#data-scope"
+      - "docs/THESIS_DECISIONS.md#runtime-and-architecture"
     verification:
       required_test_levels:
         - unit
@@ -180,8 +180,8 @@ features:
         - domain
       ports: []
     research_decisions:
-      - "THESIS_DECISIONS.md#research-model"
-      - "THESIS_DECISIONS.md#runtime-and-architecture"
+      - "docs/THESIS_DECISIONS.md#research-model"
+      - "docs/THESIS_DECISIONS.md#runtime-and-architecture"
     verification:
       required_test_levels:
         - unit
@@ -238,7 +238,7 @@ features:
         - vector_store
         - market_data
     research_decisions:
-      - "THESIS_DECISIONS.md#runtime-and-architecture"
+      - "docs/THESIS_DECISIONS.md#runtime-and-architecture"
     verification:
       required_test_levels:
         - unit
@@ -274,7 +274,7 @@ features:
 
   - id: FEAT-004
     title: "Approve processing and scoring experiment configuration"
-    status: blocked
+    status: complete
     priority: critical
     depends_on: []
     scope:
@@ -294,20 +294,40 @@ features:
         - documentation
       ports: []
     research_decisions:
-      - "THESIS_DECISIONS.md#data-scope"
-      - "THESIS_DECISIONS.md#rag-and-scoring"
-      - "THESIS_DECISIONS.md#runtime-and-architecture"
-      - "THESIS_DECISIONS.md#open-decisions"
+      - "docs/THESIS_DECISIONS.md#data-scope"
+      - "docs/THESIS_DECISIONS.md#rag-and-scoring"
+      - "docs/THESIS_DECISIONS.md#runtime-and-architecture"
+      - "docs/THESIS_DECISIONS.md#open-decisions"
+      - "decisions/0003-processing-and-scoring-configuration.md"
     verification:
       required_test_levels: []
       required_checks: *decision_checks
-    blocked_reason: "Supervisor or author approval is required for the initial processing and scoring configuration."
-    completion_evidence: []
-    implementation_notes: []
+    blocked_reason: null
+    completion_evidence:
+      - acceptance_criterion: AC-1
+        evidence:
+          - "decisions/0003-processing-and-scoring-configuration.md#cleaning-configuration"
+          - "decisions/0003-processing-and-scoring-configuration.md#chunking-configuration"
+          - "decisions/0003-processing-and-scoring-configuration.md#rag-variants"
+          - "decisions/0003-processing-and-scoring-configuration.md#input-budget-and-truncation"
+          - "uv run python -m scripts.check_required_docs"
+          - "uv run python -m scripts.validate_features"
+      - acceptance_criterion: AC-2
+        evidence:
+          - "decisions/0003-processing-and-scoring-configuration.md#scoring-contract"
+          - "decisions/0003-processing-and-scoring-configuration.md#embedding-policy"
+          - "uv run python -m scripts.validate_features"
+      - acceptance_criterion: AC-3
+        evidence:
+          - "decisions/0003-processing-and-scoring-configuration.md#evaluation-safeguard"
+          - "git diff --check"
+
+    implementation_notes:
+      - "Documentation-only decision feature; deterministic document and registry validation replaced the failing-test step."
 
   - id: FEAT-005
     title: "Approve aggregation and personalization rule version"
-    status: blocked
+    status: complete
     priority: critical
     depends_on: []
     scope:
@@ -326,19 +346,34 @@ features:
         - documentation
       ports: []
     research_decisions:
-      - "THESIS_DECISIONS.md#research-model"
-      - "THESIS_DECISIONS.md#evaluation"
-      - "THESIS_DECISIONS.md#open-decisions"
+      - "docs/THESIS_DECISIONS.md#research-model"
+      - "docs/THESIS_DECISIONS.md#evaluation"
+      - "docs/THESIS_DECISIONS.md#open-decisions"
+      - "decisions/0005-aggregation-and-personalization-rules.md"
     verification:
       required_test_levels: []
       required_checks: *decision_checks
-    blocked_reason: "Supervisor or author approval is required for the initial aggregation and personalization coefficients."
-    completion_evidence: []
-    implementation_notes: []
+    blocked_reason: null
+    completion_evidence:
+      - acceptance_criterion: AC-1
+        evidence:
+          - "decisions/0005-aggregation-and-personalization-rules.md#aggregation"
+          - "uv run python -m scripts.validate_features"
+      - acceptance_criterion: AC-2
+        evidence:
+          - "decisions/0005-aggregation-and-personalization-rules.md#horizon-and-style-rules"
+          - "decisions/0005-aggregation-and-personalization-rules.md#risk-thresholds"
+          - "uv run python -m scripts.validate_features"
+      - acceptance_criterion: AC-3
+        evidence:
+          - "decisions/0005-aggregation-and-personalization-rules.md#sensitivity-plan"
+          - "git diff --check"
+    implementation_notes:
+      - "Documentation-only decision feature; v1 values are fixed before held-out evaluation and are not tuned against it."
 
   - id: FEAT-006
     title: "Approve reproducible corpus, evaluation, API, and storage contract"
-    status: blocked
+    status: complete
     priority: critical
     depends_on: []
     scope:
@@ -357,20 +392,37 @@ features:
         - documentation
       ports: []
     research_decisions:
-      - "THESIS_DECISIONS.md#data-scope"
-      - "THESIS_DECISIONS.md#evaluation"
-      - "THESIS_DECISIONS.md#runtime-and-architecture"
-      - "THESIS_DECISIONS.md#open-decisions"
+      - "docs/THESIS_DECISIONS.md#data-scope"
+      - "docs/THESIS_DECISIONS.md#evaluation"
+      - "docs/THESIS_DECISIONS.md#runtime-and-architecture"
+      - "docs/THESIS_DECISIONS.md#open-decisions"
+      - "decisions/0002-market-data-and-evaluation-scope.md"
+      - "decisions/0006-reproducible-research-and-runtime-contract.md"
     verification:
       required_test_levels: []
       required_checks: *decision_checks
-    blocked_reason: "Supervisor or author approval is required for the final corpus, evaluation, API, and storage contract."
-    completion_evidence: []
-    implementation_notes: []
-
+    blocked_reason: null
+    completion_evidence:
+      - acceptance_criterion: AC-1
+        evidence:
+          - "decisions/0006-reproducible-research-and-runtime-contract.md#corpus-and-chronological-split"
+          - "uv run python -m scripts.validate_features"
+      - acceptance_criterion: AC-2
+        evidence:
+          - "decisions/0006-reproducible-research-and-runtime-contract.md#benchmark-protocol"
+          - "decisions/0002-market-data-and-evaluation-scope.md#evaluation-decisions"
+          - "uv run python -m scripts.validate_features"
+      - acceptance_criterion: AC-3
+        evidence:
+          - "decisions/0001-api-and-storage-contract.md#account-and-thesis-http-contract"
+          - "decisions/0006-reproducible-research-and-runtime-contract.md#api-contract"
+          - "decisions/0006-reproducible-research-and-runtime-contract.md#persistence-contract"
+          - "git diff --check"
+    implementation_notes:
+      - "Documentation-only decision feature; concrete source dates and records are materialized by the later acquisition implementation from the fixed manifest protocol."
   - id: FEAT-007
     title: "Ingest fixtures into normalized deterministic chunks"
-    status: queued
+    status: complete
     priority: high
     depends_on:
       - FEAT-001
@@ -397,8 +449,8 @@ features:
         - document_sources
         - repositories
     research_decisions:
-      - "THESIS_DECISIONS.md#data-scope"
-      - "THESIS_DECISIONS.md#rag-and-scoring"
+      - "docs/THESIS_DECISIONS.md#data-scope"
+      - "docs/THESIS_DECISIONS.md#rag-and-scoring"
     verification:
       required_test_levels:
         - unit
@@ -406,18 +458,35 @@ features:
         - integration
       required_checks: *code_checks
     blocked_reason: null
-    completion_evidence: []
-    implementation_notes: []
+    completion_evidence:
+      - acceptance_criterion: AC-1
+        evidence:
+          - "tests/unit/application/test_ingest_documents.py::test_malformed_fixture_input_fails_explicitly"
+          - "tests/contract/ports/test_adapters.py::test_fixture_source_normalizes_mapping_payloads_and_rejects_missing_fields"
+          - "tests/integration/test_ingestion.py::test_fixture_communications_are_ingested_into_auditable_repositories"
+          - "uv run pytest tests/unit/application/test_ingest_documents.py tests/contract/ports/test_adapters.py tests/integration/test_ingestion.py"
+      - acceptance_criterion: AC-2
+        evidence:
+          - "tests/unit/application/test_ingest_documents.py::test_ingestion_preserves_raw_lineage_and_creates_cleaned_deterministic_chunks"
+          - "tests/integration/test_ingestion.py::test_fixture_communications_are_ingested_into_auditable_repositories"
+          - "src/sentiment_system/domain/documents.py::DocumentChunk.processing_config_version"
+      - acceptance_criterion: AC-3
+        evidence:
+          - "tests/unit/application/test_ingest_documents.py::test_reprocessing_same_fixture_is_idempotent_and_deterministic"
+          - "uv run pytest"
+          - "uv run mypy"
+    implementation_notes:
+      - "The tokenizer is injected at the application boundary so the composition root can supply the selected scoring-model tokenizer without coupling ingestion to a provider SDK."
+      - "Contextual summaries, embeddings, and persistent PostgreSQL storage remain in their approved downstream features."
 
   - id: FEAT-008
     title: "Persist auditable research records in PostgreSQL"
-    status: queued
+    status: complete
     priority: high
     depends_on:
       - FEAT-001
       - FEAT-002
       - FEAT-003
-      - FEAT-006
     scope:
       - "Create migrations and repositories for documents, chunks, scores, snapshots, runs, and provenance."
     non_goals:
@@ -437,8 +506,8 @@ features:
       ports:
         - repositories
     research_decisions:
-      - "THESIS_DECISIONS.md#runtime-and-architecture"
-      - "THESIS_DECISIONS.md#open-decisions"
+      - "docs/THESIS_DECISIONS.md#runtime-and-architecture"
+      - "docs/THESIS_DECISIONS.md#open-decisions"
     verification:
       required_test_levels:
         - unit
@@ -446,17 +515,36 @@ features:
         - integration
       required_checks: *code_checks
     blocked_reason: null
-    completion_evidence: []
-    implementation_notes: []
+    completion_evidence:
+      - acceptance_criterion: AC-1
+        evidence:
+          - "src/sentiment_system/adapters/outbound/persistence/migrations/0001_research_records.sql"
+          - "src/sentiment_system/adapters/outbound/persistence/postgres.py::PostgresDatabase.migrate"
+          - "tests/integration/test_postgres_persistence.py::test_postgres_migrates_and_preserves_auditable_research_history"
+          - "POSTGRES_TEST_DSN=postgresql://sentiment:sentiment@localhost:5432/sentiment uv run pytest tests/integration/test_postgres_persistence.py"
+      - acceptance_criterion: AC-2
+        evidence:
+          - "tests/integration/test_postgres_persistence.py::test_postgres_migrates_and_preserves_auditable_research_history"
+          - "src/sentiment_system/adapters/outbound/persistence/postgres.py::PostgresDocumentRepository"
+          - "src/sentiment_system/adapters/outbound/persistence/postgres.py::PostgresProvenanceRepository"
+          - "uv run pytest"
+      - acceptance_criterion: AC-3
+        evidence:
+          - "src/sentiment_system/adapters/outbound/persistence/migrations/0001_research_records.sql::chunk_scores"
+          - "tests/integration/test_postgres_persistence.py::test_postgres_migrates_and_preserves_auditable_research_history"
+          - "tests/contract/ports/test_adapters.py::test_chunk_scores_are_append_only_by_chunk_and_run"
+          - "uv run pytest"
+    implementation_notes:
+      - "PostgreSQL migrations are packaged with the adapter and applied automatically by the composition root when DATABASE_URL is configured."
+      - "The PostgreSQL integration test requires the Compose PostgreSQL service and is run in CI with POSTGRES_TEST_DSN."
 
   - id: FEAT-009
     title: "Persist accounts and Investment Theses through CRUD API"
-    status: queued
+    status: complete
     priority: high
     depends_on:
       - FEAT-002
       - FEAT-003
-      - FEAT-006
       - FEAT-008
     scope:
       - "Implement account and company or group Investment Thesis create, update, list, and get operations."
@@ -478,8 +566,8 @@ features:
       ports:
         - repositories
     research_decisions:
-      - "THESIS_DECISIONS.md#research-model"
-      - "THESIS_DECISIONS.md#runtime-and-architecture"
+      - "docs/THESIS_DECISIONS.md#research-model"
+      - "docs/THESIS_DECISIONS.md#runtime-and-architecture"
     verification:
       required_test_levels:
         - unit
@@ -487,12 +575,31 @@ features:
         - integration
       required_checks: *code_checks
     blocked_reason: null
-    completion_evidence: []
-    implementation_notes: []
+    completion_evidence:
+      - acceptance_criterion: AC-1
+        evidence:
+          - "tests/integration/test_api.py::test_strategy_endpoints_scope_crud_to_the_account_selected_by_api_key"
+          - "tests/integration/test_api.py::test_postgres_container_wires_account_and_thesis_api"
+          - "tests/integration/test_postgres_persistence.py::test_postgres_migrates_and_preserves_auditable_research_history"
+          - "POSTGRES_TEST_DSN=postgresql://sentiment:sentiment@localhost:5432/sentiment uv run pytest tests/integration/test_api.py tests/integration/test_postgres_persistence.py"
+      - acceptance_criterion: AC-2
+        evidence:
+          - "tests/unit/domain/test_investment_thesis.py::test_description_is_preserved_as_explanatory_text"
+          - "tests/integration/test_api.py::test_postgres_container_wires_account_and_thesis_api"
+          - "src/sentiment_system/application/use_cases/manage_investment_theses.py::ManageInvestmentTheses._new_thesis"
+          - "uv run pytest"
+      - acceptance_criterion: AC-3
+        evidence:
+          - "tests/integration/test_api.py::test_strategy_endpoints_scope_crud_to_the_account_selected_by_api_key"
+          - "tests/unit/application/test_manage_investment_theses.py::test_manage_theses_rejects_unknown_accounts_companies_and_theses"
+          - "uv run pytest"
+    implementation_notes:
+      - "The composition root uses PostgreSQL repositories when DATABASE_URL is configured and deterministic in-memory repositories otherwise."
+      - "The unauthenticated API returns the raw API key only during account creation; persistence stores only its SHA-256 digest."
 
   - id: FEAT-010
     title: "Index real local embeddings in Qdrant"
-    status: queued
+    status: complete
     priority: high
     depends_on:
       - FEAT-001
@@ -521,8 +628,8 @@ features:
         - embeddings
         - vector_store
     research_decisions:
-      - "THESIS_DECISIONS.md#rag-and-scoring"
-      - "THESIS_DECISIONS.md#runtime-and-architecture"
+      - "docs/THESIS_DECISIONS.md#rag-and-scoring"
+      - "docs/THESIS_DECISIONS.md#runtime-and-architecture"
     verification:
       required_test_levels:
         - unit
@@ -530,8 +637,30 @@ features:
         - integration
       required_checks: *code_checks
     blocked_reason: null
-    completion_evidence: []
-    implementation_notes: []
+    completion_evidence:
+      - acceptance_criterion: AC-1
+        evidence:
+          - "tests/unit/bootstrap/test_config.py::test_research_configuration_rejects_mock_embeddings"
+          - "tests/unit/bootstrap/test_config.py::test_development_configuration_can_explicitly_use_deterministic_embeddings"
+          - "tests/unit/adapters/outbound/embeddings/test_local.py::test_local_embeddings_use_sentence_transformer_and_expose_immutable_vectors"
+          - "src/sentiment_system/bootstrap/config.py::build_embedding_provider"
+          - "uv run pytest tests/unit/bootstrap/test_config.py tests/unit/adapters/outbound/embeddings/test_local.py"
+      - acceptance_criterion: AC-2
+        evidence:
+          - "tests/unit/application/test_index_chunks.py::test_index_chunks_embeds_cleaned_content_and_preserves_document_metadata"
+          - "tests/contract/ports/test_adapters.py::test_qdrant_store_round_trips_payloads_and_applies_leakage_filters"
+          - "tests/integration/test_qdrant.py::test_qdrant_indexing_preserves_lineage_and_applies_filters"
+          - "src/sentiment_system/adapters/outbound/vector/qdrant.py::_payload"
+          - "uv run pytest tests/contract/ports/test_adapters.py tests/integration/test_qdrant.py"
+      - acceptance_criterion: AC-3
+        evidence:
+          - "tests/contract/ports/test_adapters.py::test_qdrant_store_round_trips_payloads_and_applies_leakage_filters"
+          - "tests/integration/test_qdrant.py::test_qdrant_indexing_preserves_lineage_and_applies_filters"
+          - "src/sentiment_system/adapters/outbound/vector/qdrant.py::_query_filter"
+          - "uv run pytest tests/contract/ports/test_adapters.py tests/integration/test_qdrant.py"
+    implementation_notes:
+      - "The local SentenceTransformer adapter loads the configured model lazily and never falls back to mock embeddings."
+      - "The Qdrant service image is aligned to qdrant-client 1.19.x to keep the client and server compatibility contract explicit."
 
   - id: FEAT-011
     title: "Score chunks with investor-independent LLM signals"
@@ -567,9 +696,9 @@ features:
         - repositories
         - vector_store
     research_decisions:
-      - "THESIS_DECISIONS.md#research-model"
-      - "THESIS_DECISIONS.md#rag-and-scoring"
-      - "THESIS_DECISIONS.md#runtime-and-architecture"
+      - "docs/THESIS_DECISIONS.md#research-model"
+      - "docs/THESIS_DECISIONS.md#rag-and-scoring"
+      - "docs/THESIS_DECISIONS.md#runtime-and-architecture"
     verification:
       required_test_levels:
         - unit
@@ -609,8 +738,8 @@ features:
       ports:
         - repositories
     research_decisions:
-      - "THESIS_DECISIONS.md#research-model"
-      - "THESIS_DECISIONS.md#evaluation"
+      - "docs/THESIS_DECISIONS.md#research-model"
+      - "docs/THESIS_DECISIONS.md#evaluation"
     verification:
       required_test_levels:
         - unit
@@ -650,8 +779,8 @@ features:
       ports:
         - repositories
     research_decisions:
-      - "THESIS_DECISIONS.md#research-model"
-      - "THESIS_DECISIONS.md#runtime-and-architecture"
+      - "docs/THESIS_DECISIONS.md#research-model"
+      - "docs/THESIS_DECISIONS.md#runtime-and-architecture"
     verification:
       required_test_levels:
         - unit
@@ -695,8 +824,8 @@ features:
       ports:
         - repositories
     research_decisions:
-      - "THESIS_DECISIONS.md#runtime-and-architecture"
-      - "THESIS_DECISIONS.md#open-decisions"
+      - "docs/THESIS_DECISIONS.md#runtime-and-architecture"
+      - "docs/THESIS_DECISIONS.md#open-decisions"
     verification:
       required_test_levels:
         - unit
@@ -708,7 +837,7 @@ features:
 
   - id: FEAT-015
     title: "Acquire reproducible SEC and investor-relations corpus"
-    status: queued
+    status: ready
     priority: high
     depends_on:
       - FEAT-001
@@ -719,6 +848,7 @@ features:
       - FEAT-008
     scope:
       - "Acquire and cache supported SEC filings and official investor-relations earnings releases with reproducible manifests."
+      - "Provide a source adapter that wraps sec-api.io filing queries for supported quarterly-report forms, pagination, and metadata retrieval behind the document-source port."
     non_goals:
       - "Private email integration or event-driven ingestion."
     acceptance_criteria:
@@ -728,6 +858,8 @@ features:
         description: "Supported SEC form and investor-relations source filtering is covered by adapter contract tests."
       - id: AC-3
         description: "Repeated acquisition is idempotent and does not duplicate historical evidence."
+      - id: AC-4
+        description: "The SEC adapter validates supported form types and query inputs, obtains its API key only from runtime configuration, paginates deterministically, and never exposes sec-api.io representations outside its adapter boundary."
     architecture:
       layers:
         - application
@@ -737,8 +869,8 @@ features:
         - document_sources
         - repositories
     research_decisions:
-      - "THESIS_DECISIONS.md#data-scope"
-      - "THESIS_DECISIONS.md#open-decisions"
+      - "docs/THESIS_DECISIONS.md#data-scope"
+      - "docs/THESIS_DECISIONS.md#open-decisions"
     verification:
       required_test_levels:
         - unit
@@ -783,8 +915,8 @@ features:
         - market_data
         - repositories
     research_decisions:
-      - "THESIS_DECISIONS.md#evaluation"
-      - "THESIS_DECISIONS.md#open-decisions"
+      - "docs/THESIS_DECISIONS.md#evaluation"
+      - "docs/THESIS_DECISIONS.md#open-decisions"
     verification:
       required_test_levels:
         - unit
@@ -829,8 +961,8 @@ features:
       ports:
         - repositories
     research_decisions:
-      - "THESIS_DECISIONS.md#runtime-and-architecture"
-      - "ARCHITECTURE.md#deployment-and-observability"
+      - "docs/THESIS_DECISIONS.md#runtime-and-architecture"
+      - "docs/ARCHITECTURE.md#deployment-and-observability"
     verification:
       required_test_levels:
         - unit
@@ -840,3 +972,102 @@ features:
     blocked_reason: null
     completion_evidence: []
     implementation_notes: []
+
+  - id: FEAT-018
+    title: "Define the company universe for ingestion"
+    status: complete
+    priority: high
+    depends_on: []
+    scope:
+      - "Create the canonical immutable company registry after the active ingestion universe is formally approved."
+      - "Represent each company with its ticker, display name, market-routing value, and trading currency."
+      - "Make the registry available to future mail-shaped document ingestion and Yahoo Finance market-data adapters without duplicating the approved universe."
+    non_goals:
+      - "Creating a database schema or a database seed."
+      - "Downloading documents or market prices."
+      - "Changing the approved corpus sample, benchmark policy, or evaluation methodology."
+      - "Resolving source-specific identifiers or Yahoo Finance exchange-suffix mappings for non-US instruments."
+      - "Adding inactive or commented-out symbols from the author-provided candidate list."
+    acceptance_criteria:
+      - id: AC-1
+        description: "The seeded registry contains exactly the approved active symbols: AAPL, ADBE, ALGM, ALK, AMAT, AMD, AMZN, ANET, ANF, APH, ARE, AVGO, BLBD, BWXT, CAKE, CMCSA, COST, CRM, CRWD, DDOG, DIS, DUOL, ELF, EPR, EVO, FOUR, FCN, FUBO, GIS, GS, HD, ISRG, KSPI, LULU, MAA, META, MRP, MSFT, NLCP, NOVO B, NU, PINS, PLTR, POOL, PYPL, RBLX, RHM, SILA, SIRI, SOFI, SOUN, SPY, STZ, SYNA, T, TDW, TSN, TTD, UNH, UUUU, V, VICI, WHR, and ZM."
+      - id: AC-2
+        description: "Each active company preserves its approved display name, market-routing value, and currency."
+      - id: AC-3
+        description: "The registry rejects unsupported ticker values and exposes lookup by the approved ticker without adapter-local symbol lists."
+    architecture:
+      layers:
+        - domain
+      ports: []
+    research_decisions:
+      - "docs/THESIS_DECISIONS.md#data-scope"
+      - "decisions/0004-company-universe-approval.md"
+    verification:
+      required_test_levels:
+        - unit
+      required_checks: *code_checks
+    blocked_reason: null
+    completion_evidence:
+      - acceptance_criterion: AC-1
+        evidence:
+          - "tests/unit/domain/test_companies.py::test_registry_contains_exact_approved_universe"
+          - "src/sentiment_system/domain/companies.py::APPROVED_COMPANIES"
+          - "uv run pytest tests/unit/domain/test_companies.py"
+      - acceptance_criterion: AC-2
+        evidence:
+          - "tests/unit/domain/test_companies.py::test_registry_preserves_metadata_for_non_us_and_etf_entries"
+          - "decisions/0004-company-universe-approval.md#metadata-policy"
+          - "uv run python -m scripts.validate_features"
+      - acceptance_criterion: AC-3
+        evidence:
+          - "tests/unit/domain/test_companies.py::test_registry_lookup_normalizes_tickers_and_rejects_unsupported_values"
+          - "tests/unit/domain/test_companies.py::test_company_metadata_is_immutable_and_validated"
+          - "uv run pytest"
+    implementation_notes:
+      - "The separate local data repository may contain a broader candidate universe; it does not approve the final thesis or ingestion universe."
+      - "The registry is a domain-owned immutable snapshot; source and market adapters must consume it instead of defining local symbol lists."
+
+  - id: FEAT-019
+    title: "Provide a disposable SQLite workspace for ingestion development"
+    status: rejected
+    priority: high
+    depends_on:
+      - FEAT-018
+    scope:
+      - "Create a local SQLite adapter and idempotent schema setup for interface-development ingestion data."
+      - "Seed the approved company registry and retain fetched-document request metadata, raw payloads, normalized documents, and ingestion cursors for local development."
+      - "Configure the workspace path through runtime configuration and keep it separate from the future PostgreSQL research-record store."
+    non_goals:
+      - "Replacing the approved PostgreSQL audit and provenance persistence planned in FEAT-008."
+      - "Treating SQLite records as thesis corpus, experiment evidence, or evaluation data."
+      - "Implementing LLM scoring, vector indexing, prediction persistence, or API CRUD."
+    acceptance_criteria:
+      - id: AC-1
+        description: "A new local SQLite workspace initializes the development-only schema and seeds every approved company exactly once."
+      - id: AC-2
+        description: "Repeated schema setup and company seeding are idempotent and preserve previously stored development documents and cursors."
+      - id: AC-3
+        description: "The SQLite adapter exposes a narrow ingestion-development interface for company lookup, document recording, and cursor updates without leaking sqlite3 types into domain or application code."
+      - id: AC-4
+        description: "The configured SQLite file is excluded from version control and clearly identified as disposable development state."
+    architecture:
+      layers:
+        - application
+        - adapters
+        - bootstrap
+      ports:
+        - repositories
+    research_decisions:
+      - "docs/THESIS_DECISIONS.md#data-scope"
+      - "docs/THESIS_DECISIONS.md#runtime-and-architecture"
+    verification:
+      required_test_levels:
+        - unit
+        - contract
+        - integration
+      required_checks: *code_checks
+    blocked_reason: null
+    completion_evidence: []
+    implementation_notes:
+      - "Rejected in favor of PostgreSQL-backed integration and end-to-end testing, which matches the production persistence target."
+      - "Simple unit tests remain database-free with fakes or in-memory repositories; FEAT-008 owns the real PostgreSQL persistence path."

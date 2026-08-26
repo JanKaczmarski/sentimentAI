@@ -77,7 +77,8 @@ flowchart LR
     M --> Prom[Prometheus]
     Prom --> Grafana[Grafana]
 ```
-
+Better view:
+![](Structured_scheme.png)
 ### Components
 
 | Component | Responsibility |
