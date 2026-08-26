@@ -116,6 +116,9 @@ class PredictionRepository(Protocol):
     ) -> tuple[Prediction, ...]:
         """Return predictions optionally limited to an as-of date."""
 
+    def list_for_user(self, user_id: str) -> tuple[Prediction, ...]:
+        """Return predictions owned by one user in deterministic order."""
+
 
 @runtime_checkable
 class ExperimentProvenanceRepository(Protocol):
