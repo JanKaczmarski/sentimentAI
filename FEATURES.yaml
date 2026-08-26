@@ -907,7 +907,7 @@ features:
 
   - id: FEAT-015
     title: "Acquire reproducible SEC and investor-relations corpus"
-    status: ready
+    status: blocked
     priority: high
     depends_on:
       - FEAT-001
@@ -947,7 +947,7 @@ features:
         - contract
         - integration
       required_checks: *code_checks
-    blocked_reason: null
+    blocked_reason: "The governing research decision leaves the exact SEC/investor-relations acquisition mechanisms, caching format, and reproducibility process open; implementing this feature requires choosing those research-sensitive contracts rather than inferring them."
     completion_evidence: []
     implementation_notes: []
 
