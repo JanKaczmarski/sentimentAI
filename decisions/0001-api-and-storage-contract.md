@@ -9,18 +9,7 @@
 This record captures decisions needed for `FEAT-006`, `FEAT-008`, and
 `FEAT-009`. It supplements the API drafts in `docs/core_docs.md` and
 `docs/ARCHITECTURE.md`; it does not approve implementation while material entries
-remain open. Decision 0006 now fixes the remaining v0.2 request, response, and
-persistence contract.
-
-## Scope Boundary
-
-This record approves the account identity, API-key, error, and Investment Thesis
-schema direction needed to prepare account API work. It does not close
-`FEAT-006`: the final corpus split, benchmark protocol, complete v0.2 API
-schemas, and database contract remain open there. The current in-memory account
-implementation is development preparation only; it is not the PostgreSQL
-implementation required by `FEAT-008`, and full account/thesis CRUD remains in
-`FEAT-009`.
+remain open.
 
 ## Confirmed Decisions
 
@@ -64,7 +53,7 @@ implementation required by `FEAT-008`, and full account/thesis CRUD remains in
 
 ### Account and thesis HTTP contract
 
-- `Inżynierka docs.md#account-and-investment-thesis-schemas` defines the
+- `docs/core_docs.md#account-and-investment-thesis-schemas` defines the
   accepted request and response JSON for account and thesis CRUD.
 - Investment Thesis updates use
   `PUT /user/strategy/{thesis_id}?api_key={api_key}`.
@@ -86,9 +75,9 @@ supplies that ID when updating a thesis remains open below.
 
 The project mentions company groups in:
 
-- `Inżynierka docs.md`, functional requirements and strategy endpoints;
- - `docs/THESIS_DECISIONS.md`, Investment Thesis section;
- - `docs/ARCHITECTURE.md`, requirements and API surface;
+- `docs/core_docs.md`, functional requirements and strategy endpoints;
+- `docs/THESIS_DECISIONS.md`, Investment Thesis section;
+- `docs/ARCHITECTURE.md`, requirements and API surface;
 - `FEATURES.yaml`, `FEAT-009` scope.
 
 The accepted schema defines a group as one thesis assigned to several approved
