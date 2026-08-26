@@ -1,5 +1,6 @@
 """HTTP routes for accounts, Investment Theses, predictions, history, and batches."""
 
+from datetime import date
 from typing import Annotated, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -7,8 +8,14 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sentiment_system.adapters.inbound.api.schemas import (
     AccountCreateRequest,
     AccountCreateResponse,
+    FixtureCommunicationRequest,
+    FixtureIngestionResponse,
     InvestmentThesisRequest,
     InvestmentThesisResponse,
+    PredictionEvidenceResponse,
+    PredictionHistoryResponse,
+    PredictionResponse,
+    SentimentResponse,
     ThesisListResponse,
     ThesisWriteResponse,
 )
@@ -17,13 +24,24 @@ from sentiment_system.application.use_cases.create_account import (
     AccountUsernameInUseError,
     CreateAccount,
 )
+from sentiment_system.application.use_cases.generate_prediction import (
+    GeneratePrediction,
+    InvalidForecastHorizonError,
+    ListPredictionHistory,
+    PredictionAccountNotFoundError,
+    PredictionThesisNotFoundError,
+    PredictionUnavailableError,
+)
+from sentiment_system.application.use_cases.ingest_fixture_communication import IngestFixtureCommunication
 from sentiment_system.application.use_cases.manage_investment_theses import (
     AccountNotFoundError,
     ManageInvestmentTheses,
     ThesisNotFoundError,
     UnsupportedCompanyError,
 )
+from sentiment_system.domain.companies import APPROVED_COMPANY_REGISTRY
 from sentiment_system.domain.investment_thesis import InvestmentThesis
+from sentiment_system.domain.predictions import Prediction
 
 router = APIRouter()
 
@@ -48,6 +66,30 @@ def get_manage_investment_theses(request: Request) -> ManageInvestmentTheses:
     if manage_theses is None:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="thesis service unavailable")
     return manage_theses
+
+
+def get_generate_prediction(request: Request) -> GeneratePrediction:
+    """Resolve the prediction generation use case."""
+    use_case = cast(GeneratePrediction | None, request.app.state.container.generate_prediction)
+    if use_case is None:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="prediction service unavailable")
+    return use_case
+
+
+def get_list_prediction_history(request: Request) -> ListPredictionHistory:
+    """Resolve the user-scoped prediction history use case."""
+    use_case = cast(ListPredictionHistory | None, request.app.state.container.list_prediction_history)
+    if use_case is None:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="history service unavailable")
+    return use_case
+
+
+def get_fixture_ingestion(request: Request) -> IngestFixtureCommunication:
+    """Resolve fixture communication ingestion from the composition root."""
+    use_case = cast(IngestFixtureCommunication | None, request.app.state.container.ingest_fixture_communication)
+    if use_case is None:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="ingestion service unavailable")
+    return use_case
 
 
 @router.post(
@@ -156,4 +198,97 @@ def _thesis_response(thesis: InvestmentThesis) -> InvestmentThesisResponse:
         investment_horizon=thesis.investment_horizon,
         investment_style=thesis.investment_style,
         description=thesis.description,
+    )
+
+
+@router.get("/companies/{company}/prediction", response_model=PredictionResponse, tags=["prediction"])
+def get_prediction(
+    company: str,
+    api_key: str,
+    use_case: Annotated[GeneratePrediction, Depends(get_generate_prediction)],
+    forecast_horizon_days: int = 20,
+    as_of: date | None = None,
+) -> PredictionResponse:
+    """Generate and return the latest personalized prediction for a company."""
+    try:
+        prediction = use_case.execute(
+            api_key=api_key,
+            company=company,
+            as_of=as_of or date.today(),
+            forecast_horizon_days=forecast_horizon_days,
+        )
+    except (PredictionAccountNotFoundError, PredictionThesisNotFoundError, PredictionUnavailableError) as error:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
+    except InvalidForecastHorizonError as error:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(error)) from error
+    return _prediction_response(prediction)
+
+
+@router.get("/user/history/{user_id}", response_model=PredictionHistoryResponse, tags=["prediction"])
+def get_prediction_history(
+    user_id: str,
+    api_key: str,
+    use_case: Annotated[ListPredictionHistory, Depends(get_list_prediction_history)],
+) -> PredictionHistoryResponse:
+    """Return only the authenticated user's stored prediction history."""
+    try:
+        predictions = use_case.execute(api_key=api_key, user_id=user_id)
+    except PredictionAccountNotFoundError as error:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="history not found") from error
+    return PredictionHistoryResponse(predictions=tuple(_prediction_response(item) for item in predictions))
+
+
+@router.post(
+    "/companies/{company}",
+    response_model=FixtureIngestionResponse,
+    status_code=status.HTTP_201_CREATED,
+    tags=["ingestion"],
+)
+def ingest_company_fixture(
+    company: str,
+    request: FixtureCommunicationRequest,
+    use_case: Annotated[IngestFixtureCommunication, Depends(get_fixture_ingestion)],
+) -> FixtureIngestionResponse:
+    """Normalize and persist one fixture-based company communication."""
+    try:
+        ticker = APPROVED_COMPANY_REGISTRY.lookup(company).ticker
+        result = use_case.execute(company=ticker, **request.model_dump())
+    except ValueError as error:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(error)) from error
+    return FixtureIngestionResponse(
+        status="success",
+        document_id=result.documents[0].document_id,
+        chunk_count=len(result.chunks),
+    )
+
+
+def _prediction_response(prediction: Prediction) -> PredictionResponse:
+    return PredictionResponse(
+        company=prediction.company,
+        as_of=prediction.as_of,
+        lookback_days=int(prediction.lookback_days),
+        forecast_horizon_days=prediction.forecast_horizon_days,
+        base_sentiment=SentimentResponse(
+            score=prediction.base_sentiment.score,
+            label=prediction.base_sentiment.label.value,
+            confidence=prediction.base_sentiment.confidence,
+        ),
+        personalized_sentiment=SentimentResponse(
+            score=prediction.personalized_sentiment.score,
+            label=prediction.personalized_sentiment.label.value,
+            confidence=prediction.personalized_sentiment.confidence,
+        ),
+        confidence=prediction.confidence,
+        reasoning=prediction.reasoning,
+        evidence=tuple(
+            PredictionEvidenceResponse(
+                chunk_id=item.chunk_id,
+                published_at=item.published_at,
+                importance_score=item.importance_score,
+                excerpt=item.excerpt,
+            )
+            for item in prediction.evidence
+        ),
+        run_id=prediction.run_id,
+        user_id=prediction.user_id,
     )

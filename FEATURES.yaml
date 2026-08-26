@@ -844,7 +844,7 @@ features:
 
   - id: FEAT-014
     title: "Serve predictions, evidence, history, and fixture ingestion"
-    status: queued
+    status: in_review
     priority: high
     depends_on:
       - FEAT-002
@@ -884,8 +884,26 @@ features:
         - integration
       required_checks: *code_checks
     blocked_reason: null
-    completion_evidence: []
-    implementation_notes: []
+    completion_evidence:
+      - acceptance_criterion: AC-1
+        evidence:
+          - "tests/integration/test_api.py::test_prediction_history_and_fixture_ingestion_are_served_through_the_api"
+          - "tests/integration/test_postgres_persistence.py::test_postgres_migrates_and_preserves_auditable_research_history"
+          - "src/sentiment_system/adapters/inbound/api/schemas.py::PredictionResponse"
+          - "uv run pytest"
+      - acceptance_criterion: AC-2
+        evidence:
+          - "tests/integration/test_api.py::test_prediction_history_and_fixture_ingestion_are_served_through_the_api"
+          - "src/sentiment_system/application/use_cases/generate_prediction.py::ListPredictionHistory"
+          - "src/sentiment_system/application/ports/repositories.py::PredictionRepository.list_for_user"
+      - acceptance_criterion: AC-3
+        evidence:
+          - "tests/integration/test_api.py::test_prediction_history_and_fixture_ingestion_are_served_through_the_api"
+          - "src/sentiment_system/application/use_cases/ingest_fixture_communication.py::IngestFixtureCommunication"
+          - "uv run pytest"
+    implementation_notes:
+      - "Prediction persistence uses a repository migration with user ownership and evidence rows; fixture ingestion reuses the approved normalization and chunk lineage pipeline."
+      - "Scheduler operation and public SEC/investor-relations acquisition remain deferred to their dedicated features."
 
   - id: FEAT-015
     title: "Acquire reproducible SEC and investor-relations corpus"
