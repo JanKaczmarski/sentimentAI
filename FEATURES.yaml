@@ -1074,7 +1074,7 @@ features:
 
   - id: FEAT-020
     title: "Provide a local browser UI for API smoke testing"
-    status: implemented
+    status: in_review
     priority: medium
     depends_on:
       - FEAT-009
