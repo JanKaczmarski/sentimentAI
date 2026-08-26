@@ -907,7 +907,7 @@ features:
 
   - id: FEAT-015
     title: "Acquire reproducible SEC and investor-relations corpus"
-    status: implemented
+    status: complete
     priority: high
     depends_on:
       - FEAT-001
