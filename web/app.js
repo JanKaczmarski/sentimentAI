@@ -15,6 +15,16 @@ const connectionState = document.querySelector("#connection-state");
 const thesisList = document.querySelector("#thesis-list");
 const thesisSubmit = document.querySelector("#thesis-submit");
 const cancelEdit = document.querySelector("#cancel-edit");
+const batchForm = document.querySelector("#batch-form");
+const batchMessage = document.querySelector("#batch-message");
+const batchSubmit = document.querySelector("#batch-submit");
+const predictionCard = document.querySelector("#prediction-card");
+const predictionMessage = document.querySelector("#prediction-message");
+const predictionRunId = document.querySelector("#prediction-run-id");
+const predictionBase = document.querySelector("#prediction-base");
+const predictionPersonalized = document.querySelector("#prediction-personalized");
+const predictionConfidence = document.querySelector("#prediction-confidence");
+const predictionEvidence = document.querySelector("#prediction-evidence");
 
 function setMessage(element, text, kind = "") {
   element.textContent = text;
@@ -72,6 +82,48 @@ function requireApiKey() {
 
 function apiKeyQuery() {
   return `?api_key=${encodeURIComponent(requireApiKey())}`;
+}
+
+function readBatchForm() {
+  const company = document.querySelector("#batch-company").value.trim().toUpperCase();
+  const asOf = document.querySelector("#batch-as-of").value;
+  if (!company || !asOf) {
+    throw new Error("Choose a company and as-of date before running the batch.");
+  }
+  return { company, asOf };
+}
+
+function predictionPath(company, asOf) {
+  const params = new URLSearchParams({
+    api_key: requireApiKey(),
+    as_of: asOf,
+    forecast_horizon_days: "20",
+  });
+  return `/companies/${encodeURIComponent(company)}/prediction?${params.toString()}`;
+}
+
+function formatSentiment(sentiment) {
+  return `${sentiment.label} · ${Number(sentiment.score).toFixed(2)}`;
+}
+
+function renderPrediction(prediction) {
+  predictionCard.hidden = false;
+  predictionRunId.textContent = `Run ${prediction.run_id}`;
+  predictionBase.textContent = formatSentiment(prediction.base_sentiment);
+  predictionPersonalized.textContent = formatSentiment(prediction.personalized_sentiment);
+  predictionConfidence.textContent = `${(Number(prediction.confidence) * 100).toFixed(0)}%`;
+  const evidence = prediction.evidence || [];
+  predictionEvidence.innerHTML = evidence.length
+    ? evidence.map((item) => `
+      <article class="evidence-item">
+        <div class="evidence-meta">
+          <span>${escapeHtml(item.published_at)}</span>
+          <span>Importance ${(Number(item.importance_score) * 100).toFixed(0)}%</span>
+        </div>
+        <p>${escapeHtml(item.excerpt)}</p>
+      </article>
+    `).join("")
+    : '<div class="empty-state">No qualifying evidence was returned for this snapshot.</div>';
 }
 
 function readThesisForm() {
@@ -203,5 +255,37 @@ document.querySelector("#clear-session").addEventListener("click", () => {
   thesisList.innerHTML = '<div class="empty-state">Create an account to load saved theses.</div>';
 });
 
+batchForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  setMessage(batchMessage, "Running batch...");
+  setMessage(predictionMessage, "");
+  predictionCard.hidden = true;
+  batchSubmit.disabled = true;
+  try {
+    const { company, asOf } = readBatchForm();
+    requireApiKey();
+    const batch = await request("/batch/run", {
+      method: "POST",
+      body: JSON.stringify({ company, as_of: asOf }),
+    });
+    setMessage(
+      batchMessage,
+      `Batch complete: ${batch.document_count} document(s), ${batch.scored_chunk_count} scored chunk(s).`,
+      "success",
+    );
+    setMessage(predictionMessage, "Loading prediction...");
+    const prediction = await request(predictionPath(company, asOf));
+    renderPrediction(prediction);
+    setMessage(predictionMessage, "Prediction ready.", "success");
+  } catch (error) {
+    setMessage(batchMessage, error.message, "error");
+    setMessage(predictionMessage, "");
+    predictionCard.hidden = true;
+  } finally {
+    batchSubmit.disabled = false;
+  }
+});
+
 updateSessionView();
+document.querySelector("#batch-as-of").value = new Date().toISOString().slice(0, 10);
 loadTheses();
