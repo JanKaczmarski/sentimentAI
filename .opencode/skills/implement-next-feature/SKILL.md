@@ -14,10 +14,10 @@ Do not use it to brainstorm, create a feature specification, implement a
 Read these files before selecting or changing a feature:
 
 1. `AGENTS.md`
-2. `DEVELOPMENT_RULES.md`
-3. `IMPLEMENTATION_WORKFLOW.md`
-4. `ARCHITECTURE.md`
-5. `THESIS_DECISIONS.md`
+2. `docs/DEVELOPMENT_RULES.md`
+3. `docs/IMPLEMENTATION_WORKFLOW.md`
+4. `docs/ARCHITECTURE.md`
+5. `docs/THESIS_DECISIONS.md`
 6. `FEATURES.yaml`
 7. `templates/feature.md`
 8. Relevant records under `decisions/`, when present

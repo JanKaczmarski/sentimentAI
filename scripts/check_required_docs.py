@@ -8,10 +8,10 @@ from pathlib import Path
 
 REQUIRED_DOCUMENTS = (
     Path("AGENTS.md"),
-    Path("ARCHITECTURE.md"),
-    Path("THESIS_DECISIONS.md"),
-    Path("DEVELOPMENT_RULES.md"),
-    Path("IMPLEMENTATION_WORKFLOW.md"),
+    Path("docs/ARCHITECTURE.md"),
+    Path("docs/THESIS_DECISIONS.md"),
+    Path("docs/DEVELOPMENT_RULES.md"),
+    Path("docs/IMPLEMENTATION_WORKFLOW.md"),
     Path("FEATURES.yaml"),
     Path("templates/feature.md"),
     Path("scripts/reconcile_feature_readiness.py"),

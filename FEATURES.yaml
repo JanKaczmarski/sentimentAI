@@ -134,8 +134,8 @@ features:
         - domain
       ports: []
     research_decisions:
-      - "THESIS_DECISIONS.md#data-scope"
-      - "THESIS_DECISIONS.md#runtime-and-architecture"
+      - "docs/THESIS_DECISIONS.md#data-scope"
+      - "docs/THESIS_DECISIONS.md#runtime-and-architecture"
     verification:
       required_test_levels:
         - unit
@@ -180,8 +180,8 @@ features:
         - domain
       ports: []
     research_decisions:
-      - "THESIS_DECISIONS.md#research-model"
-      - "THESIS_DECISIONS.md#runtime-and-architecture"
+      - "docs/THESIS_DECISIONS.md#research-model"
+      - "docs/THESIS_DECISIONS.md#runtime-and-architecture"
     verification:
       required_test_levels:
         - unit
@@ -238,7 +238,7 @@ features:
         - vector_store
         - market_data
     research_decisions:
-      - "THESIS_DECISIONS.md#runtime-and-architecture"
+      - "docs/THESIS_DECISIONS.md#runtime-and-architecture"
     verification:
       required_test_levels:
         - unit
@@ -294,10 +294,10 @@ features:
         - documentation
       ports: []
     research_decisions:
-      - "THESIS_DECISIONS.md#data-scope"
-      - "THESIS_DECISIONS.md#rag-and-scoring"
-      - "THESIS_DECISIONS.md#runtime-and-architecture"
-      - "THESIS_DECISIONS.md#open-decisions"
+      - "docs/THESIS_DECISIONS.md#data-scope"
+      - "docs/THESIS_DECISIONS.md#rag-and-scoring"
+      - "docs/THESIS_DECISIONS.md#runtime-and-architecture"
+      - "docs/THESIS_DECISIONS.md#open-decisions"
       - "decisions/0003-processing-and-scoring-configuration.md"
     verification:
       required_test_levels: []
@@ -346,9 +346,9 @@ features:
         - documentation
       ports: []
     research_decisions:
-      - "THESIS_DECISIONS.md#research-model"
-      - "THESIS_DECISIONS.md#evaluation"
-      - "THESIS_DECISIONS.md#open-decisions"
+      - "docs/THESIS_DECISIONS.md#research-model"
+      - "docs/THESIS_DECISIONS.md#evaluation"
+      - "docs/THESIS_DECISIONS.md#open-decisions"
       - "decisions/0005-aggregation-and-personalization-rules.md"
     verification:
       required_test_levels: []
@@ -392,10 +392,10 @@ features:
         - documentation
       ports: []
     research_decisions:
-      - "THESIS_DECISIONS.md#data-scope"
-      - "THESIS_DECISIONS.md#evaluation"
-      - "THESIS_DECISIONS.md#runtime-and-architecture"
-      - "THESIS_DECISIONS.md#open-decisions"
+      - "docs/THESIS_DECISIONS.md#data-scope"
+      - "docs/THESIS_DECISIONS.md#evaluation"
+      - "docs/THESIS_DECISIONS.md#runtime-and-architecture"
+      - "docs/THESIS_DECISIONS.md#open-decisions"
       - "decisions/0002-market-data-and-evaluation-scope.md"
       - "decisions/0006-reproducible-research-and-runtime-contract.md"
     verification:
@@ -449,8 +449,8 @@ features:
         - document_sources
         - repositories
     research_decisions:
-      - "THESIS_DECISIONS.md#data-scope"
-      - "THESIS_DECISIONS.md#rag-and-scoring"
+      - "docs/THESIS_DECISIONS.md#data-scope"
+      - "docs/THESIS_DECISIONS.md#rag-and-scoring"
     verification:
       required_test_levels:
         - unit
@@ -506,8 +506,8 @@ features:
       ports:
         - repositories
     research_decisions:
-      - "THESIS_DECISIONS.md#runtime-and-architecture"
-      - "THESIS_DECISIONS.md#open-decisions"
+      - "docs/THESIS_DECISIONS.md#runtime-and-architecture"
+      - "docs/THESIS_DECISIONS.md#open-decisions"
     verification:
       required_test_levels:
         - unit
@@ -566,8 +566,8 @@ features:
       ports:
         - repositories
     research_decisions:
-      - "THESIS_DECISIONS.md#research-model"
-      - "THESIS_DECISIONS.md#runtime-and-architecture"
+      - "docs/THESIS_DECISIONS.md#research-model"
+      - "docs/THESIS_DECISIONS.md#runtime-and-architecture"
     verification:
       required_test_levels:
         - unit
@@ -610,8 +610,8 @@ features:
         - embeddings
         - vector_store
     research_decisions:
-      - "THESIS_DECISIONS.md#rag-and-scoring"
-      - "THESIS_DECISIONS.md#runtime-and-architecture"
+      - "docs/THESIS_DECISIONS.md#rag-and-scoring"
+      - "docs/THESIS_DECISIONS.md#runtime-and-architecture"
     verification:
       required_test_levels:
         - unit
@@ -656,9 +656,9 @@ features:
         - repositories
         - vector_store
     research_decisions:
-      - "THESIS_DECISIONS.md#research-model"
-      - "THESIS_DECISIONS.md#rag-and-scoring"
-      - "THESIS_DECISIONS.md#runtime-and-architecture"
+      - "docs/THESIS_DECISIONS.md#research-model"
+      - "docs/THESIS_DECISIONS.md#rag-and-scoring"
+      - "docs/THESIS_DECISIONS.md#runtime-and-architecture"
     verification:
       required_test_levels:
         - unit
@@ -698,8 +698,8 @@ features:
       ports:
         - repositories
     research_decisions:
-      - "THESIS_DECISIONS.md#research-model"
-      - "THESIS_DECISIONS.md#evaluation"
+      - "docs/THESIS_DECISIONS.md#research-model"
+      - "docs/THESIS_DECISIONS.md#evaluation"
     verification:
       required_test_levels:
         - unit
@@ -739,8 +739,8 @@ features:
       ports:
         - repositories
     research_decisions:
-      - "THESIS_DECISIONS.md#research-model"
-      - "THESIS_DECISIONS.md#runtime-and-architecture"
+      - "docs/THESIS_DECISIONS.md#research-model"
+      - "docs/THESIS_DECISIONS.md#runtime-and-architecture"
     verification:
       required_test_levels:
         - unit
@@ -784,8 +784,8 @@ features:
       ports:
         - repositories
     research_decisions:
-      - "THESIS_DECISIONS.md#runtime-and-architecture"
-      - "THESIS_DECISIONS.md#open-decisions"
+      - "docs/THESIS_DECISIONS.md#runtime-and-architecture"
+      - "docs/THESIS_DECISIONS.md#open-decisions"
     verification:
       required_test_levels:
         - unit
@@ -829,8 +829,8 @@ features:
         - document_sources
         - repositories
     research_decisions:
-      - "THESIS_DECISIONS.md#data-scope"
-      - "THESIS_DECISIONS.md#open-decisions"
+      - "docs/THESIS_DECISIONS.md#data-scope"
+      - "docs/THESIS_DECISIONS.md#open-decisions"
     verification:
       required_test_levels:
         - unit
@@ -875,8 +875,8 @@ features:
         - market_data
         - repositories
     research_decisions:
-      - "THESIS_DECISIONS.md#evaluation"
-      - "THESIS_DECISIONS.md#open-decisions"
+      - "docs/THESIS_DECISIONS.md#evaluation"
+      - "docs/THESIS_DECISIONS.md#open-decisions"
     verification:
       required_test_levels:
         - unit
@@ -921,8 +921,8 @@ features:
       ports:
         - repositories
     research_decisions:
-      - "THESIS_DECISIONS.md#runtime-and-architecture"
-      - "ARCHITECTURE.md#deployment-and-observability"
+      - "docs/THESIS_DECISIONS.md#runtime-and-architecture"
+      - "docs/ARCHITECTURE.md#deployment-and-observability"
     verification:
       required_test_levels:
         - unit
@@ -960,7 +960,7 @@ features:
         - domain
       ports: []
     research_decisions:
-      - "THESIS_DECISIONS.md#data-scope"
+      - "docs/THESIS_DECISIONS.md#data-scope"
       - "decisions/0004-company-universe-approval.md"
     verification:
       required_test_levels:
@@ -1018,8 +1018,8 @@ features:
       ports:
         - repositories
     research_decisions:
-      - "THESIS_DECISIONS.md#data-scope"
-      - "THESIS_DECISIONS.md#runtime-and-architecture"
+      - "docs/THESIS_DECISIONS.md#data-scope"
+      - "docs/THESIS_DECISIONS.md#runtime-and-architecture"
     verification:
       required_test_levels:
         - unit
