@@ -978,7 +978,7 @@ features:
 
   - id: FEAT-016
     title: "Evaluate predictions against leakage-safe market outcomes"
-    status: queued
+    status: blocked
     priority: high
     depends_on:
       - FEAT-002
@@ -1018,7 +1018,7 @@ features:
         - contract
         - integration
       required_checks: *code_checks
-    blocked_reason: null
+    blocked_reason: "The evaluation implementation requires the unresolved chronological development/held-out split and sector benchmark mapping documented in docs/THESIS_DECISIONS.md#open-decisions. These choices affect the evaluation contract and cannot be inferred safely."
     completion_evidence: []
     implementation_notes: []
 
