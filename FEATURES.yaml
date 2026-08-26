@@ -786,7 +786,7 @@ features:
 
   - id: FEAT-013
     title: "Apply deterministic Investment Thesis personalization"
-    status: queued
+    status: implemented
     priority: high
     depends_on:
       - FEAT-002
@@ -822,8 +822,25 @@ features:
         - integration
       required_checks: *code_checks
     blocked_reason: null
-    completion_evidence: []
-    implementation_notes: []
+    completion_evidence:
+      - acceptance_criterion: AC-1
+        evidence:
+          - "tests/unit/application/test_personalize_snapshots.py::test_personalization_applies_horizon_and_style_weights"
+          - "uv run pytest"
+      - acceptance_criterion: AC-2
+        evidence:
+          - "src/sentiment_system/application/use_cases/personalize_snapshots.py::_style_weights"
+          - "src/sentiment_system/application/use_cases/personalize_snapshots.py::_risk_thresholds"
+          - "tests/unit/application/test_personalize_snapshots.py::test_personalization_applies_horizon_and_style_weights"
+          - "tests/unit/application/test_personalize_snapshots.py::test_personalization_applies_risk_thresholds_and_preserves_evidence"
+      - acceptance_criterion: AC-3
+        evidence:
+          - "tests/unit/application/test_personalize_snapshots.py::test_personalization_applies_risk_thresholds_and_preserves_evidence"
+          - "src/sentiment_system/application/use_cases/personalize_snapshots.py::PersonalizationResult"
+          - "uv run pytest"
+    implementation_notes:
+      - "Personalization returns a deterministic application result; prediction persistence and HTTP exposure remain in FEAT-014."
+      - "Risk-specific labels use PersonalizedSentiment so the global base label thresholds remain unchanged."
 
   - id: FEAT-014
     title: "Serve predictions, evidence, history, and fixture ingestion"
