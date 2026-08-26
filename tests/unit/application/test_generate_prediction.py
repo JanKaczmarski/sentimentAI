@@ -66,6 +66,7 @@ def _snapshots(*, thesis_run: str) -> tuple[CompanySentimentSnapshot, ...]:
                 PredictionEvidence(
                     chunk_id=f"chunk-{window}",
                     published_at=date(2025, 1, 1),
+                    sentiment=SentimentScore(score=score, confidence=0.8),
                     importance_score=0.9,
                     excerpt=f"Evidence {window}",
                 ),

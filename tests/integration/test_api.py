@@ -229,6 +229,13 @@ def test_prediction_history_and_fixture_ingestion_are_served_through_the_api() -
     assert prediction.status_code == 200
     assert prediction.json()["personalized_sentiment"]["score"] == 0.54
     assert prediction.json()["evidence"]
+    assert [item["chunk_id"] for item in prediction.json()["evidence"]] == ["chunk-365", "chunk-90"]
+    evidence = next(item for item in prediction.json()["evidence"] if item["chunk_id"] == "chunk-90")
+    assert evidence["sentiment"] == {
+        "score": 0.4,
+        "label": "NEUTRAL",
+        "confidence": 0.8,
+    }
     assert history.status_code == 200
     assert len(history.json()["predictions"]) == 1
     assert ingestion.status_code == 201
@@ -247,6 +254,7 @@ def _snapshots() -> tuple[CompanySentimentSnapshot, ...]:
                 PredictionEvidence(
                     chunk_id=f"chunk-{window}",
                     published_at=date(2025, 1, 1),
+                    sentiment=SentimentScore(score=score, confidence=0.8),
                     importance_score=0.9,
                     excerpt="Evidence",
                 ),

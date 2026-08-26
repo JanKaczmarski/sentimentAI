@@ -38,7 +38,8 @@ def test_aggregate_snapshots_uses_importance_confidence_and_recency_weights() ->
     second_weight = 1.0 * 0.6 * exp(-log(2) * 1 / 90)
     expected = (0.2 * first_weight + 0.8 * second_weight) / (first_weight + second_weight)
     assert snapshot.sentiment.score == expected
-    assert [item.chunk_id for item in snapshot.evidence] == ["chunk-1", "chunk-2"]
+    assert [item.chunk_id for item in snapshot.evidence] == ["chunk-2", "chunk-1"]
+    assert snapshot.evidence[0].sentiment.score == 0.8
     assert snapshot.rule_version == "aggregation-personalization-v1"
 
 

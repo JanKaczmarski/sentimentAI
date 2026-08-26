@@ -404,8 +404,9 @@ class PostgresSnapshotRepository(_PostgresRepository, SnapshotRepository):
                     """
                     INSERT INTO company_sentiment_snapshot_evidence (
                         company, as_of, window_days, run_id, evidence_rank,
-                        chunk_id, published_at, importance_score, excerpt
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        chunk_id, published_at, sentiment_score, sentiment_label,
+                        sentiment_confidence, importance_score, excerpt
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     ON CONFLICT DO NOTHING
                     """,
                     (
@@ -416,6 +417,9 @@ class PostgresSnapshotRepository(_PostgresRepository, SnapshotRepository):
                         rank,
                         evidence.chunk_id,
                         evidence.published_at,
+                        evidence.sentiment.score,
+                        evidence.sentiment.label.value,
+                        evidence.sentiment.confidence,
                         evidence.importance_score,
                         evidence.excerpt,
                     ),
@@ -439,7 +443,8 @@ class PostgresSnapshotRepository(_PostgresRepository, SnapshotRepository):
             for row in rows:
                 evidence_rows = connection.execute(
                     """
-                    SELECT chunk_id, published_at, importance_score, excerpt
+                    SELECT chunk_id, published_at, sentiment_score, sentiment_label,
+                           sentiment_confidence, importance_score, excerpt
                     FROM company_sentiment_snapshot_evidence
                     WHERE company = %s AND as_of = %s AND window_days = %s AND run_id = %s
                     ORDER BY evidence_rank
@@ -495,8 +500,9 @@ class PostgresPredictionRepository(_PostgresRepository, PredictionRepository):
                     """
                     INSERT INTO prediction_evidence (
                         company, as_of, lookback_days, forecast_horizon_days, run_id,
-                        evidence_rank, chunk_id, published_at, importance_score, excerpt
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        evidence_rank, chunk_id, published_at, sentiment_score,
+                        sentiment_label, sentiment_confidence, importance_score, excerpt
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     ON CONFLICT DO NOTHING
                     """,
                     (
@@ -508,6 +514,9 @@ class PostgresPredictionRepository(_PostgresRepository, PredictionRepository):
                         rank,
                         evidence.chunk_id,
                         evidence.published_at,
+                        evidence.sentiment.score,
+                        evidence.sentiment.label.value,
+                        evidence.sentiment.confidence,
                         evidence.importance_score,
                         evidence.excerpt,
                     ),
@@ -532,7 +541,8 @@ class PostgresPredictionRepository(_PostgresRepository, PredictionRepository):
             for row in rows:
                 evidence_rows = connection.execute(
                     """
-                    SELECT chunk_id, published_at, importance_score, excerpt
+                    SELECT chunk_id, published_at, sentiment_score, sentiment_label,
+                           sentiment_confidence, importance_score, excerpt
                     FROM prediction_evidence
                     WHERE company = %s AND as_of = %s AND lookback_days = %s
                       AND forecast_horizon_days = %s AND run_id = %s
@@ -660,6 +670,10 @@ def _snapshot_from_row(row: Mapping[str, Any], evidence_rows: list[Mapping[str, 
             PredictionEvidence(
                 chunk_id=evidence["chunk_id"],
                 published_at=evidence["published_at"],
+                sentiment=SentimentScore(
+                    score=float(evidence["sentiment_score"]),
+                    confidence=float(evidence["sentiment_confidence"]),
+                ),
                 importance_score=float(evidence["importance_score"]),
                 excerpt=evidence["excerpt"],
             )
@@ -687,6 +701,10 @@ def _prediction_from_row(row: Mapping[str, Any], evidence_rows: list[Mapping[str
             PredictionEvidence(
                 chunk_id=evidence["chunk_id"],
                 published_at=evidence["published_at"],
+                sentiment=SentimentScore(
+                    score=float(evidence["sentiment_score"]),
+                    confidence=float(evidence["sentiment_confidence"]),
+                ),
                 importance_score=float(evidence["importance_score"]),
                 excerpt=evidence["excerpt"],
             )

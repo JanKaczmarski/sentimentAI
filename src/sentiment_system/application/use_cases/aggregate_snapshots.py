@@ -15,6 +15,7 @@ from sentiment_system.domain.predictions import (
     CompanySentimentSnapshot,
     PredictionEvidence,
     SnapshotWindow,
+    sort_evidence,
 )
 from sentiment_system.domain.scoring import ChunkScoreRecord
 from sentiment_system.domain.sentiment import SentimentScore
@@ -92,6 +93,7 @@ def _aggregate(
             PredictionEvidence(
                 chunk_id=chunk.chunk_id,
                 published_at=published_at,
+                sentiment=score_record.sentiment,
                 importance_score=score_record.importance_score,
                 excerpt=chunk.content,
             )
@@ -102,4 +104,4 @@ def _aggregate(
         return SentimentScore(score=0.5, confidence=0.0), ()
     score = sum(item[0] * item[1] for item in weighted) / denominator
     confidence = sum(item[1] for item in weighted) / sum(item[2] for item in weighted)
-    return SentimentScore(score=score, confidence=confidence), tuple(evidence)
+    return SentimentScore(score=score, confidence=confidence), sort_evidence(evidence)

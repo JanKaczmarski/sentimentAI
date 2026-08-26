@@ -113,17 +113,26 @@ function renderPrediction(prediction) {
   predictionPersonalized.textContent = formatSentiment(prediction.personalized_sentiment);
   predictionConfidence.textContent = `${(Number(prediction.confidence) * 100).toFixed(0)}%`;
   const evidence = prediction.evidence || [];
-  predictionEvidence.innerHTML = evidence.length
-    ? evidence.map((item) => `
+  const renderEvidenceItem = (item) => `
       <article class="evidence-item">
         <div class="evidence-meta">
-          <span>${escapeHtml(item.published_at)}</span>
-          <span>Importance ${(Number(item.importance_score) * 100).toFixed(0)}%</span>
+           <span>${escapeHtml(item.published_at)}</span>
+           <span>Importance ${(Number(item.importance_score) * 100).toFixed(0)}%</span>
+           <span class="evidence-sentiment evidence-sentiment-${String(item.sentiment.label).toLowerCase()}" aria-label="Evidence sentiment: ${escapeHtml(item.sentiment.label)}">Sentiment ${escapeHtml(item.sentiment.label)} · ${Number(item.sentiment.score).toFixed(2)}</span>
         </div>
         <p>${escapeHtml(item.excerpt)}</p>
       </article>
-    `).join("")
-    : '<div class="empty-state">No qualifying evidence was returned for this snapshot.</div>';
+    `;
+  if (!evidence.length) {
+    predictionEvidence.innerHTML = '<div class="empty-state">No qualifying evidence was returned for this snapshot.</div>';
+    return;
+  }
+  const preview = evidence.slice(0, 5).map(renderEvidenceItem).join("");
+  const remaining = evidence.slice(5);
+  const more = remaining.length
+    ? `<details class="evidence-more"><summary><span class="show-more-label">Show more (${remaining.length})</span><span class="show-less-label">Show less</span></summary>${remaining.map(renderEvidenceItem).join("")}</details>`
+    : "";
+  predictionEvidence.innerHTML = preview + more;
 }
 
 function readThesisForm() {

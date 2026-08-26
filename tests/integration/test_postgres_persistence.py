@@ -128,8 +128,16 @@ def test_postgres_migrates_and_preserves_auditable_research_history() -> None:
             PredictionEvidence(
                 chunk_id=chunk.chunk_id,
                 published_at=document.published_at,
+                sentiment=score.sentiment,
                 importance_score=0.9,
                 excerpt="Cleaned source text.",
+            ),
+            PredictionEvidence(
+                chunk_id=f"{chunk.chunk_id}-older",
+                published_at=date(2025, 1, 1),
+                sentiment=historical_score.sentiment,
+                importance_score=0.5,
+                excerpt="Older source text.",
             ),
         ),
         run_id=first_run.run_id,
@@ -186,8 +194,16 @@ def test_postgres_migrates_and_preserves_auditable_research_history() -> None:
             PredictionEvidence(
                 chunk_id=chunk.chunk_id,
                 published_at=document.published_at,
+                sentiment=score.sentiment,
                 importance_score=0.9,
                 excerpt=chunk.content,
+            ),
+            PredictionEvidence(
+                chunk_id=f"{chunk.chunk_id}-older",
+                published_at=date(2025, 1, 1),
+                sentiment=historical_score.sentiment,
+                importance_score=0.5,
+                excerpt="Older source text.",
             ),
         ),
         run_id=first_run.run_id,
@@ -200,10 +216,14 @@ def test_postgres_migrates_and_preserves_auditable_research_history() -> None:
     assert runs.get(first_run.run_id) == first_run
     assert provenance_repository.get(first_run.run_id) == provenance
     assert scores.list_for_chunk(chunk.chunk_id) == (score, historical_score)
-    assert snapshot in snapshots.list_for_company("AAPL")
+    stored_snapshot = next(item for item in snapshots.list_for_company("AAPL") if item.run_id == first_run.run_id)
+    assert stored_snapshot == snapshot
+    assert [item.chunk_id for item in stored_snapshot.evidence] == [chunk.chunk_id, f"{chunk.chunk_id}-older"]
     assert accounts.get_by_email(account.email) == account
     assert accounts.get_by_username(account.username) == account
     assert accounts.get_by_api_key_digest(account.api_key_digest) == account
     assert theses.get(thesis.thesis_id) == thesis
     assert theses.list_for_user(str(account.user_id)) == (thesis,)
-    assert predictions.list_for_user(str(account.user_id)) == (prediction,)
+    stored_prediction = predictions.list_for_user(str(account.user_id))[0]
+    assert stored_prediction == prediction
+    assert [item.chunk_id for item in stored_prediction.evidence] == [chunk.chunk_id, f"{chunk.chunk_id}-older"]

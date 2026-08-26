@@ -10,7 +10,12 @@ from sentiment_system.domain.investment_thesis import (
     InvestmentThesis,
     RiskTolerance,
 )
-from sentiment_system.domain.predictions import CompanySentimentSnapshot, PredictionEvidence, SnapshotWindow
+from sentiment_system.domain.predictions import (
+    CompanySentimentSnapshot,
+    PredictionEvidence,
+    SnapshotWindow,
+    sort_evidence,
+)
 from sentiment_system.domain.sentiment import PersonalizedSentiment, SentimentLabel, SentimentScore
 
 RULE_VERSION = "aggregation-personalization-v1"
@@ -122,4 +127,4 @@ def _merge_evidence(
             if item.chunk_id not in seen:
                 seen.add(item.chunk_id)
                 evidence.append(item)
-    return tuple(evidence)
+    return sort_evidence(evidence)
