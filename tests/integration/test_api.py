@@ -4,7 +4,12 @@ from hashlib import sha256
 
 from fastapi.testclient import TestClient
 
+from sentiment_system.adapters.outbound.persistence.in_memory import (
+    InMemoryInvestmentThesisRepository,
+    InMemoryUserAccountRepository,
+)
 from sentiment_system.application.use_cases.create_account import CreateAccount
+from sentiment_system.application.use_cases.manage_investment_theses import ManageInvestmentTheses
 from sentiment_system.bootstrap.container import ApplicationContainer, build_container
 from sentiment_system.bootstrap.main import create_app
 from sentiment_system.domain.accounts import UserAccount
@@ -96,3 +101,50 @@ def test_default_app_retains_created_accounts_for_its_process_lifetime() -> None
 
     assert account is not None
     assert str(account.user_id) == created.json()["user_id"]
+
+
+def test_strategy_endpoints_scope_crud_to_the_account_selected_by_api_key() -> None:
+    accounts = InMemoryUserAccountRepository()
+    app = create_app(
+        container=ApplicationContainer(
+            account_repository=accounts,
+            create_account=CreateAccount(accounts, api_key_factory=lambda: "api-key"),
+            manage_investment_theses=ManageInvestmentTheses(accounts, InMemoryInvestmentThesisRepository()),
+        )
+    )
+    client = TestClient(app)
+    account = client.post("/user/account", json={"email": "investor@example.com", "username": "investor"})
+    api_key = account.json()["api_key"]
+    payload = {
+        "companies": ["aapl", "MSFT"],
+        "risk_tolerance": "medium",
+        "investment_horizon": "long_term",
+        "investment_style": "passive",
+        "description": "Prefer durable compounders.",
+    }
+
+    created = client.post("/user/strategy", params={"api_key": api_key}, json=payload)
+    thesis_id = created.json()["thesis_id"]
+    listed = client.get("/user/strategy", params={"api_key": api_key})
+    by_company = client.get("/user/strategy/AAPL", params={"api_key": api_key})
+    updated = client.put(
+        f"/user/strategy/{thesis_id}",
+        params={"api_key": api_key},
+        json={**payload, "companies": ["AMD"], "description": None},
+    )
+    missing = client.put("/user/strategy/missing", params={"api_key": api_key}, json=payload)
+    invalid = client.post("/user/strategy", params={"api_key": api_key}, json={**payload, "companies": ["UNKNOWN"]})
+    unknown_account = client.get("/user/strategy", params={"api_key": "unknown"})
+
+    assert account.status_code == 201
+    assert created.status_code == 201
+    assert created.json() == {"status": "success", "thesis_id": thesis_id}
+    assert listed.status_code == 200
+    assert listed.json()["theses"] == [{"thesis_id": thesis_id, **payload, "companies": ["AAPL", "MSFT"]}]
+    assert by_company.status_code == 200
+    assert by_company.json() == listed.json()
+    assert updated.status_code == 200
+    assert updated.json() == {"status": "success", "thesis_id": thesis_id}
+    assert missing.status_code == 404
+    assert invalid.status_code == 422
+    assert unknown_account.status_code == 404

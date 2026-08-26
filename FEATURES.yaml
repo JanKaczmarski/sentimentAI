@@ -540,7 +540,7 @@ features:
 
   - id: FEAT-009
     title: "Persist accounts and Investment Theses through CRUD API"
-    status: queued
+    status: in_progress
     priority: high
     depends_on:
       - FEAT-002
@@ -581,7 +581,7 @@ features:
 
   - id: FEAT-010
     title: "Index real local embeddings in Qdrant"
-    status: queued
+    status: ready
     priority: high
     depends_on:
       - FEAT-001
@@ -797,7 +797,7 @@ features:
 
   - id: FEAT-015
     title: "Acquire reproducible SEC and investor-relations corpus"
-    status: queued
+    status: ready
     priority: high
     depends_on:
       - FEAT-001

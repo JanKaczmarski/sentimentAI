@@ -16,9 +16,18 @@ from sentiment_system.application.ports.repositories import (
     DocumentRepository,
     ExperimentProvenanceRepository,
     ExperimentRunRepository,
+    InvestmentThesisRepository,
     SnapshotRepository,
+    UserAccountRepository,
 )
+from sentiment_system.domain.accounts import UserAccount
 from sentiment_system.domain.documents import DocumentChunk, SourceDocument
+from sentiment_system.domain.investment_thesis import (
+    InvestmentHorizon,
+    InvestmentStyle,
+    InvestmentThesis,
+    RiskTolerance,
+)
 from sentiment_system.domain.predictions import (
     CompanySentimentSnapshot,
     ExperimentProvenance,
@@ -70,6 +79,108 @@ class _PostgresRepository:
 
     def __init__(self, database: PostgresDatabase) -> None:
         self._database = database
+
+
+class PostgresUserAccountRepository(_PostgresRepository, UserAccountRepository):
+    """Persist accounts without storing raw API keys."""
+
+    def save(self, account: UserAccount) -> None:
+        with self._database.connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO user_accounts (user_id, email, username, api_key_digest)
+                VALUES (%s, %s, %s, %s)
+                ON CONFLICT (user_id) DO UPDATE SET
+                    email = EXCLUDED.email,
+                    username = EXCLUDED.username,
+                    api_key_digest = EXCLUDED.api_key_digest
+                """,
+                (account.user_id, account.email, account.username, account.api_key_digest),
+            )
+
+    def get_by_email(self, email: str) -> UserAccount | None:
+        return self._get_one("email", email)
+
+    def get_by_username(self, username: str) -> UserAccount | None:
+        return self._get_one("username", username)
+
+    def get_by_api_key_digest(self, api_key_digest: str) -> UserAccount | None:
+        return self._get_one("api_key_digest", api_key_digest)
+
+    def _get_one(self, column: str, value: str) -> UserAccount | None:
+        with self._database.connect() as connection:
+            row = connection.execute(f"SELECT * FROM user_accounts WHERE {column} = %s", (value,)).fetchone()
+        return None if row is None else _account_from_row(row)
+
+
+class PostgresInvestmentThesisRepository(_PostgresRepository, InvestmentThesisRepository):
+    """Persist user-owned structured theses and their company assignments."""
+
+    def save(self, thesis: InvestmentThesis) -> None:
+        with self._database.connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO investment_theses (
+                    thesis_id, user_id, risk_tolerance, investment_horizon, investment_style, description
+                ) VALUES (%s, %s, %s, %s, %s, %s)
+                ON CONFLICT (thesis_id) DO UPDATE SET
+                    risk_tolerance = EXCLUDED.risk_tolerance,
+                    investment_horizon = EXCLUDED.investment_horizon,
+                    investment_style = EXCLUDED.investment_style,
+                    description = EXCLUDED.description,
+                    updated_at = now()
+                """,
+                (
+                    thesis.thesis_id,
+                    thesis.user_id,
+                    thesis.risk_tolerance.value,
+                    thesis.investment_horizon.value,
+                    thesis.investment_style.value,
+                    thesis.description,
+                ),
+            )
+            connection.execute("DELETE FROM investment_thesis_companies WHERE thesis_id = %s", (thesis.thesis_id,))
+            for ordinal, company in enumerate(thesis.companies):
+                connection.execute(
+                    """
+                    INSERT INTO investment_thesis_companies (thesis_id, ordinal, company)
+                    VALUES (%s, %s, %s)
+                    """,
+                    (thesis.thesis_id, ordinal, company),
+                )
+
+    def get(self, thesis_id: str) -> InvestmentThesis | None:
+        with self._database.connect() as connection:
+            row = connection.execute(
+                "SELECT thesis_id::text, user_id::text, risk_tolerance, investment_horizon, investment_style, description "
+                "FROM investment_theses WHERE thesis_id = %s",
+                (thesis_id,),
+            ).fetchone()
+            if row is None:
+                return None
+            company_rows = connection.execute(
+                "SELECT company FROM investment_thesis_companies WHERE thesis_id = %s ORDER BY ordinal",
+                (thesis_id,),
+            ).fetchall()
+        return _thesis_from_row(row, company_rows)
+
+    def list_for_user(self, user_id: str) -> tuple[InvestmentThesis, ...]:
+        with self._database.connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT thesis_id::text, user_id::text, risk_tolerance, investment_horizon, investment_style, description
+                FROM investment_theses WHERE user_id = %s ORDER BY thesis_id
+                """,
+                (user_id,),
+            ).fetchall()
+            theses = []
+            for row in rows:
+                company_rows = connection.execute(
+                    "SELECT company FROM investment_thesis_companies WHERE thesis_id = %s ORDER BY ordinal",
+                    (row["thesis_id"],),
+                ).fetchall()
+                theses.append(_thesis_from_row(row, company_rows))
+        return tuple(theses)
 
 
 class PostgresDocumentRepository(_PostgresRepository, DocumentRepository):
@@ -347,6 +458,27 @@ def _document_values(document: SourceDocument) -> tuple[object, ...]:
         document.cleaned_content,
         _content_hash(document.raw_content),
         _content_hash(document.cleaned_content),
+    )
+
+
+def _account_from_row(row: Mapping[str, Any]) -> UserAccount:
+    return UserAccount(
+        user_id=row["user_id"],
+        email=row["email"],
+        username=row["username"],
+        api_key_digest=row["api_key_digest"],
+    )
+
+
+def _thesis_from_row(row: Mapping[str, Any], company_rows: list[Mapping[str, Any]]) -> InvestmentThesis:
+    return InvestmentThesis(
+        thesis_id=row["thesis_id"],
+        user_id=row["user_id"],
+        companies=tuple(company_row["company"] for company_row in company_rows),
+        risk_tolerance=RiskTolerance(row["risk_tolerance"]),
+        investment_horizon=InvestmentHorizon(row["investment_horizon"]),
+        investment_style=InvestmentStyle(row["investment_style"]),
+        description=row["description"],
     )
 
 
