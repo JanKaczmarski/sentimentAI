@@ -9,7 +9,7 @@ from sentiment_system.adapters.outbound.persistence.in_memory import (
     InMemoryDocumentRepository,
 )
 from sentiment_system.adapters.outbound.sources.fixtures import FixtureDocumentSource
-from sentiment_system.application.use_cases.ingest_documents import IngestDocuments
+from sentiment_system.application.use_cases.ingest_documents import ContentQualityError, IngestDocuments
 
 
 def _fixture(*, document_id: str = "document-1", raw_content: str = "First sentence.") -> dict[str, object]:
@@ -87,3 +87,44 @@ def test_reprocessing_same_fixture_is_idempotent_and_deterministic() -> None:
     assert second == first
     assert document_repository.list_documents() == first.documents
     assert chunk_repository.list_for_document("document-1") == first.chunks
+
+
+def test_ingestion_extracts_sec_exhibit_and_removes_markup_without_changing_raw_content() -> None:
+    raw_content = """
+    <SEC-DOCUMENT>submission.txt
+    <DOCUMENT>
+    <TYPE>8-K
+    <TEXT><XBRL>encoded filing metadata</XBRL></TEXT>
+    </DOCUMENT>
+    <DOCUMENT>
+    <TYPE>EX-99.1
+    <TEXT><html><head><title>Hidden title</title><style>.noise { display: none; }</style></head>
+    <body><h1>Quarterly results</h1><p>Revenue &amp; outlook improved.</p>
+    <p>Table of Contents</p></body></html></TEXT>
+    </DOCUMENT>
+    </SEC-DOCUMENT>
+    """
+    ingestor, document_repository, _ = _ingestor(_fixture(raw_content=raw_content))
+
+    result = ingestor.run()
+
+    document = document_repository.get("document-1")
+    assert document is not None
+    assert document.raw_content == raw_content
+    assert "Quarterly results" in document.cleaned_content
+    assert "Revenue & outlook improved." in document.cleaned_content
+    assert "encoded filing metadata" not in document.cleaned_content
+    assert "Table of Contents" not in document.cleaned_content
+    assert "<html" not in document.cleaned_content
+    assert "&amp;" not in document.cleaned_content
+    assert result.chunks
+
+
+def test_ingestion_rejects_unreadable_content_before_persistence() -> None:
+    ingestor, document_repository, chunk_repository = _ingestor(_fixture(raw_content="☠" * 100))
+
+    with pytest.raises(ContentQualityError, match="readable"):
+        ingestor.run()
+
+    assert document_repository.list_documents() == ()
+    assert chunk_repository.list_for_document("document-1") == ()

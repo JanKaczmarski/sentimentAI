@@ -42,6 +42,6 @@ class IngestFixtureCommunication:
             source_adapter,
             self._documents,
             self._chunks,
-            processing_config_version="processing-v1",
+            processing_config_version="processing-v2",
             token_counter=lambda value: len(value.split()),
         ).run()

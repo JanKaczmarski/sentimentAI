@@ -142,7 +142,7 @@ def build_container() -> ApplicationContainer:
         document_source,
         document_repository,
         chunk_repository,
-        processing_config_version="processing-v1",
+        processing_config_version="processing-v2",
         token_counter=lambda value: len(value.split()),
     )
     score_chunks = ScoreChunks(

@@ -6,6 +6,8 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date
 
+from bs4 import BeautifulSoup
+
 from sentiment_system.application.ports.document_sources import DocumentSource
 from sentiment_system.application.ports.repositories import ChunkRepository, DocumentRepository
 from sentiment_system.domain.documents import DocumentChunk, SourceDocument
@@ -20,6 +22,10 @@ class IngestionResult:
     documents: tuple[SourceDocument, ...]
     chunks: tuple[DocumentChunk, ...]
     processing_config_version: str
+
+
+class ContentQualityError(ValueError):
+    """Raised when a source document has no sufficiently readable content."""
 
 
 class IngestDocuments:
@@ -71,9 +77,19 @@ class IngestDocuments:
         return IngestionResult(tuple(documents), tuple(chunks), self._processing_config_version)
 
 
+_SEC_DOCUMENT = re.compile(r"<DOCUMENT>(?P<body>.*?)</DOCUMENT>", re.IGNORECASE | re.DOTALL)
+_SEC_TYPE = re.compile(r"<TYPE>\s*(?P<document_type>[^\s<]+)", re.IGNORECASE)
+_SEC_TEXT = re.compile(r"<TEXT>(?P<text>.*?)</TEXT>", re.IGNORECASE | re.DOTALL)
+_SEC_XBRL = re.compile(r"<XBRL>.*?</XBRL>", re.IGNORECASE | re.DOTALL)
+_HTML_MARKUP = re.compile(r"<[A-Za-z][^>]*>")
 _PAGE_MARKER = re.compile(r"^(?:page\s+\d+|\d+\s+of\s+\d+)$", re.IGNORECASE)
+_NAVIGATION_MARKER = re.compile(
+    r"^(?:back to top|contents|home|next|previous|skip to main content|table of contents)$", re.IGNORECASE
+)
 _SENTENCE_END = re.compile(r"(?<=[.!?])\s+")
 _ABBREVIATIONS = {"e.g.", "i.e.", "etc.", "inc.", "ltd.", "co.", "corp.", "u.s.", "u.k."}
+_SEC_EXHIBIT_TYPES = {"ex-99.1", "ex-99.2"}
+_IGNORED_TAGS = {"head", "script", "style", "svg"}
 
 
 def _normalize_document(document: SourceDocument) -> SourceDocument:
@@ -85,12 +101,15 @@ def _normalize_document(document: SourceDocument) -> SourceDocument:
         published_at=document.published_at,
         document_type=document.document_type,
         raw_content=document.raw_content,
-        cleaned_content=_clean_content(document.raw_content),
+        cleaned_content=_clean_content(document.raw_content, source=document.source),
     )
 
 
-def _clean_content(raw_content: str) -> str:
-    normalized = unicodedata.normalize("NFKC", raw_content).replace("\r\n", "\n").replace("\r", "\n")
+def _clean_content(raw_content: str, *, source: str = "") -> str:
+    extracted = _extract_sec_communication(raw_content) if source.casefold() == "sec" else raw_content
+    extracted = _SEC_XBRL.sub("", extracted)
+    extracted = _html_to_text(extracted)
+    normalized = unicodedata.normalize("NFKC", extracted).replace("\r\n", "\n").replace("\r", "\n")
     paragraphs: list[str] = []
     current_lines: list[str] = []
     for line in normalized.split("\n"):
@@ -102,7 +121,7 @@ def _clean_content(raw_content: str) -> str:
             if current_lines:
                 paragraphs.append("\n".join(current_lines))
                 current_lines = []
-        elif not _PAGE_MARKER.fullmatch(cleaned_line):
+        elif not _PAGE_MARKER.fullmatch(cleaned_line) and not _NAVIGATION_MARKER.fullmatch(cleaned_line):
             current_lines.append(cleaned_line)
     if current_lines:
         paragraphs.append("\n".join(current_lines))
@@ -110,7 +129,41 @@ def _clean_content(raw_content: str) -> str:
     counts: dict[str, int] = {}
     for paragraph in paragraphs:
         counts[paragraph] = counts.get(paragraph, 0) + 1
-    return "\n\n".join(paragraph for paragraph in paragraphs if counts[paragraph] < 3)
+    cleaned = "\n\n".join(paragraph for paragraph in paragraphs if counts[paragraph] < 3)
+    _require_readable_content(raw_content, cleaned)
+    return cleaned
+
+
+def _extract_sec_communication(raw_content: str) -> str:
+    sections: list[tuple[str, str]] = []
+    for match in _SEC_DOCUMENT.finditer(raw_content):
+        body = match.group("body")
+        document_type_match = _SEC_TYPE.search(body)
+        text_match = _SEC_TEXT.search(body)
+        if document_type_match is not None and text_match is not None:
+            sections.append((document_type_match.group("document_type").casefold(), text_match.group("text")))
+    if not sections:
+        return raw_content
+    exhibits = [text for document_type, text in sections if document_type in _SEC_EXHIBIT_TYPES]
+    return "\n\n".join(exhibits or [text for _, text in sections])
+
+
+def _html_to_text(content: str) -> str:
+    if _HTML_MARKUP.search(content) is None:
+        return content
+    soup = BeautifulSoup(content, "html.parser")
+    for tag in soup.find_all(list(_IGNORED_TAGS)):
+        tag.decompose()
+    return soup.get_text("\n")
+
+
+def _require_readable_content(raw_content: str, cleaned_content: str) -> None:
+    if "\x00" in raw_content or "\ufffd" in raw_content:
+        raise ContentQualityError("document content is not readable")
+    visible = [character for character in cleaned_content if not character.isspace()]
+    alphanumeric = sum(character.isalnum() for character in visible)
+    if not visible or not alphanumeric or alphanumeric / len(visible) < 0.35:
+        raise ContentQualityError("document content does not contain sufficient readable text")
 
 
 def _chunk_document(
