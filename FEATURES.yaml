@@ -599,7 +599,7 @@ features:
 
   - id: FEAT-010
     title: "Index real local embeddings in Qdrant"
-    status: implemented
+    status: in_review
     priority: high
     depends_on:
       - FEAT-001
