@@ -7,8 +7,8 @@
 ## Purpose
 
 This record captures decisions needed for `FEAT-006`, `FEAT-008`, and
-`FEAT-009`. It supplements the API drafts in `Inżynierka docs.md` and
-`ARCHITECTURE.md`; it does not approve implementation while material entries
+`FEAT-009`. It supplements the API drafts in `docs/core_docs.md` and
+`docs/ARCHITECTURE.md`; it does not approve implementation while material entries
 remain open.
 
 ## Confirmed Decisions
@@ -53,7 +53,7 @@ remain open.
 
 ### Account and thesis HTTP contract
 
-- `Inżynierka docs.md#account-and-investment-thesis-schemas` defines the
+- `docs/core_docs.md#account-and-investment-thesis-schemas` defines the
   accepted request and response JSON for account and thesis CRUD.
 - Investment Thesis updates use
   `PUT /user/strategy/{thesis_id}?api_key={api_key}`.
@@ -75,9 +75,9 @@ supplies that ID when updating a thesis remains open below.
 
 The project mentions company groups in:
 
-- `Inżynierka docs.md`, functional requirements and strategy endpoints;
-- `THESIS_DECISIONS.md`, Investment Thesis section;
-- `ARCHITECTURE.md`, requirements and API surface;
+- `docs/core_docs.md`, functional requirements and strategy endpoints;
+- `docs/THESIS_DECISIONS.md`, Investment Thesis section;
+- `docs/ARCHITECTURE.md`, requirements and API surface;
 - `FEATURES.yaml`, `FEAT-009` scope.
 
 The accepted schema defines a group as one thesis assigned to several approved
