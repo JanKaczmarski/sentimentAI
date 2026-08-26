@@ -786,7 +786,7 @@ features:
 
   - id: FEAT-013
     title: "Apply deterministic Investment Thesis personalization"
-    status: implemented
+    status: in_review
     priority: high
     depends_on:
       - FEAT-002
