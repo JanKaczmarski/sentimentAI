@@ -41,6 +41,7 @@ class ChunkScoringResult:
     raw_response: str
     parsed_output: Mapping[str, object]
     token_usage: TokenUsage | None = None
+    truncated: bool = False
 
     def __post_init__(self) -> None:
         if not isinstance(self.sentiment, SentimentScore):
@@ -58,6 +59,8 @@ class ChunkScoringResult:
             raise ValueError("parsed_output must be a mapping")
         if self.token_usage is not None and not isinstance(self.token_usage, TokenUsage):
             raise ValueError("token_usage must be a TokenUsage")
+        if not isinstance(self.truncated, bool):
+            raise ValueError("truncated must be a boolean")
 
 
 @runtime_checkable
