@@ -35,9 +35,12 @@ specification.
 ## Data Scope
 
 - Use five years of historical source data and a two-year held-out evaluation period.
-- The active company universe is the author-approved registry specified in
-  `FEATURES.yaml` under `FEAT-018`; it supersedes the earlier six-company
-  sample.
+- The operational ingestion universe is the author-approved registry specified
+  in `FEATURES.yaml` under `FEAT-018`.
+- The v1 thesis evaluation universe remains the six-company sample specified in
+  `decisions/0006-reproducible-research-and-runtime-contract.md`; broader
+  ingestion records are excluded from v1 evaluation unless a new decision and
+  manifest expand the sample.
 - Text sources:
   - SEC EDGAR `10-K`, `10-Q`, and relevant `8-K` filings;
   - official company investor-relations earnings releases.

@@ -22,8 +22,31 @@ Read these files before selecting or changing a feature:
 7. `templates/feature.md`
 8. Relevant records under `decisions/`, when present
 
-Inspect `git status` and recent changes before editing. Preserve unrelated
-local changes. Do not reset, revert, stage, or modify another person's work.
+Inspect `git status` and recent changes before editing. Preserve unrelated local
+changes. Do not reset, revert, stage, or modify another person's work.
+
+## Branch And Commit Convention
+
+- `develop` is the ongoing integration branch. Start feature work from the
+  latest `develop` and target feature pull requests at `develop`, not `main`.
+- Keep `main` for intentional release or milestone integration. Do not merge
+  every feature directly to `main`.
+- Use a focused `feature/*` or `feat/*` branch when a change needs review or
+  parallel work; direct commits to `develop` are reserved for explicitly
+  requested, coordinated integration work.
+- Keep commits atomic and use Conventional Commit prefixes such as `feat:`,
+  `fix:`, `test:`, `docs:`, `chore:`, `refactor:`, and `ci:`.
+- Do not mix unrelated features, generated artifacts, or data-repository
+  changes in one commit. Stage only files belonging to the active feature.
+- Never force-push, reset, or rewrite shared `develop` or `main` history.
+- Release `develop` to `main` with a regular merge commit, subject to human
+  approval. Do not squash long-lived `develop` release merges, because squash
+  commits break branch ancestry and make later comparison pull requests appear
+  unnecessarily large.
+- After a release merge, continue from `develop`; do not recreate or reset it.
+  If a historical squash has already caused divergence, reconcile the current
+  `main` into `develop` with a normal merge, verify the tree and checks, and use
+  regular release merges thereafter.
 
 ## Initial Gate
 
@@ -182,9 +205,10 @@ even when all local and remote checks pass.
 
 For every feature:
 
-1. Create or update a focused feature branch and pull request without staging
-   unrelated local changes. If provider access or pull-request creation fails,
-   leave the feature `implemented` and report the exact blocker.
+1. Create or update a focused feature branch and pull request targeting
+   `develop`, without staging unrelated local changes. If provider access or
+   pull-request creation fails, leave the feature `implemented` and report the
+   exact blocker.
 2. After the provider confirms the pull request exists, change the registry
    status to `in_review` in that pull request and validate it locally.
 3. Confirm required remote CI passed for the exact pull-request head commit.
@@ -208,6 +232,11 @@ human approval, merge with failed or missing checks, or merge unrelated local
 changes. If provider authentication, repository policy, required CI, or human
 approval is unavailable, leave the feature in `in_review` and report the exact
 blocker.
+
+For an intentional release or milestone, open a separate `develop` to `main`
+pull request. Review the complete release diff and exact-head CI, then use a
+regular merge commit after explicit human approval. Do not use the feature
+workflow to automatically start another feature after the release.
 
 ## Final Report And Stop
 
