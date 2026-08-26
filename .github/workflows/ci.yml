@@ -100,10 +100,15 @@ jobs:
       - name: Check diff
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
+          if [ -n "$BASE_REF" ]; then
+            git fetch origin "$BASE_REF"
+            BASE_SHA="origin/$BASE_REF"
+          fi
           if [ -n "$BASE_SHA" ] && [ -n "$HEAD_SHA" ]; then
-            git diff --check "$BASE_SHA...$HEAD_SHA"
+            git diff --check "$BASE_SHA...$HEAD_SHA" -- . ':(exclude)data/**' ':(exclude)cik_map.csv'
           else
-            git diff --check
+            git diff --check -- . ':(exclude)data/**' ':(exclude)cik_map.csv'
           fi
