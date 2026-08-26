@@ -60,6 +60,7 @@ produkcyjny.
 Najważniejsze endpointy lokalne:
 
 - API health: `http://localhost:8000/health`;
+- local testing UI: `http://localhost:8000/ui/`;
 - Prometheus: `http://localhost:9090`;
 - Grafana: `http://localhost:3000`.
 

@@ -37,6 +37,7 @@ class DocumentChunk:
     document_id: str
     ordinal: int
     content: str
+    processing_config_version: str = "unspecified"
 
     def __post_init__(self) -> None:
         _require_non_empty_string("chunk_id", self.chunk_id)
@@ -44,6 +45,7 @@ class DocumentChunk:
         if not isinstance(self.ordinal, int) or isinstance(self.ordinal, bool) or self.ordinal < 0:
             raise ValueError("ordinal must be a non-negative integer")
         _require_non_empty_string("content", self.content)
+        _require_non_empty_string("processing_config_version", self.processing_config_version)
 
 
 def _require_non_empty_string(name: str, value: object) -> None:

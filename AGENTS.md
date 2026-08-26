@@ -5,8 +5,14 @@
 - Use Python 3.13 through `uv`; `.python-version` pins the project interpreter.
 - The thesis implementation lives in `src/sentiment_system/` and follows a modular monolith with a small hexagonal core.
 - `poc/` is the legacy implementation and sample-data reference; do not extend it unless explicitly comparing the old POC with the rebuild.
-- `ARCHITECTURE.md` is the target system design; `THESIS_DECISIONS.md` contains detailed research decisions and open questions.
-- `Inzynierka_arch.docx` is the supervisor-commented architecture reference, not the executable specification.
+- `docs/ARCHITECTURE.md` is the target system design; `docs/THESIS_DECISIONS.md` contains detailed research decisions and open questions.
+- `docs/Inżynierka_arch.docx` is the supervisor-commented architecture reference, not the executable specification.
+
+## Branch Workflow
+
+- `develop` is the protected integration branch for the core API flow and thesis-system backbone.
+- Start related feature branches from `develop` and merge reviewed work back into `develop`, not directly into `main`.
+- Merge `develop` into `main` only as an intentional release or milestone integration.
 
 ## Structure
 

@@ -23,7 +23,7 @@ explicitly approved or derived from an existing approved project decision.
       - application
     ports: []
   research_decisions:
-    - "THESIS_DECISIONS.md#relevant-section"
+    - "docs/THESIS_DECISIONS.md#relevant-section"
   verification:
     required_test_levels:
       - unit

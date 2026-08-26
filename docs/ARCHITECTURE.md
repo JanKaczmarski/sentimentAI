@@ -22,7 +22,7 @@ rebuilt toward this design.
 ### Non-goals
 
 - Predicting an exact stock price or investment value.
-- Production authentication, authorization, or frontend development.
+- Production authentication, authorization, or production frontend development.
 - Live private company-email integration.
 - Cyfronet deployment in the core implementation; it is a stretch goal.
 
@@ -77,7 +77,8 @@ flowchart LR
     M --> Prom[Prometheus]
     Prom --> Grafana[Grafana]
 ```
-
+Better view:
+![](Structured_scheme.png)
 ### Components
 
 | Component | Responsibility |

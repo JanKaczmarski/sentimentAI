@@ -3,13 +3,16 @@
 from datetime import date
 from typing import Protocol, runtime_checkable
 
+from sentiment_system.domain.accounts import UserAccount
 from sentiment_system.domain.documents import DocumentChunk, SourceDocument
 from sentiment_system.domain.investment_thesis import InvestmentThesis
 from sentiment_system.domain.predictions import (
     CompanySentimentSnapshot,
     ExperimentProvenance,
+    ExperimentRun,
     Prediction,
 )
+from sentiment_system.domain.scoring import ChunkScoreRecord
 
 
 @runtime_checkable
@@ -41,6 +44,17 @@ class ChunkRepository(Protocol):
 
 
 @runtime_checkable
+class ChunkScoreRepository(Protocol):
+    """Persist append-only investor-independent chunk scores."""
+
+    def save(self, score: ChunkScoreRecord) -> None:
+        """Insert one score for a chunk and experiment run."""
+
+    def list_for_chunk(self, chunk_id: str) -> tuple[ChunkScoreRecord, ...]:
+        """Return all historical scores for a chunk in run order."""
+
+
+@runtime_checkable
 class InvestmentThesisRepository(Protocol):
     """Persist structured Investment Theses."""
 
@@ -52,6 +66,23 @@ class InvestmentThesisRepository(Protocol):
 
     def list_for_user(self, user_id: str) -> tuple[InvestmentThesis, ...]:
         """Return a user's theses in deterministic identifier order."""
+
+
+@runtime_checkable
+class UserAccountRepository(Protocol):
+    """Persist and query investor accounts without exposing API keys."""
+
+    def save(self, account: UserAccount) -> None:
+        """Persist an account with its one-way API-key digest."""
+
+    def get_by_email(self, email: str) -> UserAccount | None:
+        """Return an account by its normalized email address."""
+
+    def get_by_username(self, username: str) -> UserAccount | None:
+        """Return an account by its normalized username."""
+
+    def get_by_api_key_digest(self, api_key_digest: str) -> UserAccount | None:
+        """Return an account by its one-way API-key digest."""
 
 
 @runtime_checkable
@@ -95,3 +126,14 @@ class ExperimentProvenanceRepository(Protocol):
 
     def get(self, run_id: str) -> ExperimentProvenance | None:
         """Return provenance for one run."""
+
+
+@runtime_checkable
+class ExperimentRunRepository(Protocol):
+    """Persist experiment run state and configuration."""
+
+    def save(self, run: ExperimentRun) -> None:
+        """Insert or update the state of one run."""
+
+    def get(self, run_id: str) -> ExperimentRun | None:
+        """Return one run by identifier."""
