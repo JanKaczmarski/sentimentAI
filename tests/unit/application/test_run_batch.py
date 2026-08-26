@@ -57,6 +57,8 @@ def test_run_batch_ingests_indexes_scores_and_aggregates_only_available_document
     assert scorer.calls == 1
     assert runs.get(result.run_id) is not None
     assert runs.get(result.run_id).status == "completed"
+    assert runs.get(result.run_id).configuration["provider"] == "deterministic"
+    assert runs.get(result.run_id).configuration["model"] == "deterministic-sha256-v1"
     assert provenance.get(result.run_id) is not None
     assert len(snapshots.list_for_company("AAPL")) == 3
 

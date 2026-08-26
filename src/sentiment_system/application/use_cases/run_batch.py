@@ -50,6 +50,9 @@ class RunBatch:
         runs: ExperimentRunRepository,
         *,
         now: Callable[[], datetime] | None = None,
+        scoring_prompt: str | None = None,
+        scoring_provider: str = "deterministic",
+        scoring_model: str = "deterministic-sha256-v1",
     ) -> None:
         self._ingestion = ingestion
         self._indexing = indexing
@@ -57,6 +60,9 @@ class RunBatch:
         self._aggregation = aggregation
         self._runs = runs
         self._now = now or (lambda: datetime.now(timezone.utc))
+        self._scoring_prompt = scoring_prompt or _SCORING_PROMPT
+        self._scoring_provider = scoring_provider
+        self._scoring_model = scoring_model
 
     def execute(self, *, as_of: date, company: str | None = None) -> BatchResult:
         """Run the deterministic pipeline for documents available at ``as_of``."""
@@ -66,7 +72,9 @@ class RunBatch:
             "pipeline_version": _BATCH_VERSION,
             "as_of": as_of.isoformat(),
             "company": company,
-            "scoring_prompt": _SCORING_PROMPT,
+            "scoring_prompt": self._scoring_prompt,
+            "provider": self._scoring_provider,
+            "model": self._scoring_model,
         }
         self._runs.save(
             ExperimentRun(
@@ -87,7 +95,7 @@ class RunBatch:
             scored_count = self._scoring.execute(
                 ingestion_result.chunks,
                 run_id=run_id,
-                prompt=_SCORING_PROMPT,
+                prompt=self._scoring_prompt,
             )
             companies = tuple(sorted({document.company for document in ingestion_result.documents}))
             snapshot_count = sum(

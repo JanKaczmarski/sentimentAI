@@ -5,7 +5,6 @@ from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
 
-from sentiment_system.adapters.outbound.llm.mock import DeterministicLLMScorer
 from sentiment_system.adapters.outbound.persistence.in_memory import (
     InMemoryChunkRepository,
     InMemoryChunkScoreRepository,
@@ -30,9 +29,11 @@ from sentiment_system.adapters.outbound.persistence.postgres import (
     PostgresUserAccountRepository,
 )
 from sentiment_system.adapters.outbound.sources.cached import CachedCorpusDocumentSource
+from sentiment_system.adapters.outbound.sources.demo_manifest import DemoManifestDocumentSource
 from sentiment_system.adapters.outbound.sources.fixtures import FixtureDocumentSource
 from sentiment_system.adapters.outbound.vector.in_memory import InMemoryVectorStore
 from sentiment_system.adapters.outbound.vector.qdrant import QdrantVectorStore
+from sentiment_system.application.ports.document_sources import DocumentSource
 from sentiment_system.application.ports.embeddings import EmbeddingProvider
 from sentiment_system.application.ports.repositories import (
     ChunkRepository,
@@ -55,7 +56,12 @@ from sentiment_system.application.use_cases.ingest_fixture_communication import 
 from sentiment_system.application.use_cases.manage_investment_theses import ManageInvestmentTheses
 from sentiment_system.application.use_cases.run_batch import RunBatch
 from sentiment_system.application.use_cases.score_chunks import ScoreChunks
-from sentiment_system.bootstrap.config import EmbeddingConfig, build_embedding_provider
+from sentiment_system.bootstrap.config import (
+    EmbeddingConfig,
+    LLMConfig,
+    build_embedding_provider,
+    build_llm_scorer,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -110,11 +116,21 @@ def build_container() -> ApplicationContainer:
     experiment_run_repository: ExperimentRunRepository = InMemoryExperimentRunRepository()
     provenance_repository: ExperimentProvenanceRepository = InMemoryProvenanceRepository()
     prediction_repository: PredictionRepository = InMemoryPredictionRepository()
-    embedding_provider = build_embedding_provider(EmbeddingConfig.from_env())
+    embedding_config = EmbeddingConfig.from_env()
+    embedding_provider = build_embedding_provider(embedding_config)
     data_root = os.getenv("SENTIMENT_DATA_ROOT")
-    document_source = (
-        CachedCorpusDocumentSource(Path(data_root)) if data_root else FixtureDocumentSource(_POC_DOCUMENTS)
-    )
+    manifest_path = os.getenv("DEMO_MANIFEST_PATH")
+    document_source: DocumentSource
+    if manifest_path:
+        if not data_root:
+            raise ValueError("SENTIMENT_DATA_ROOT is required when DEMO_MANIFEST_PATH is configured")
+        document_source = DemoManifestDocumentSource(root=Path(data_root), manifest_path=Path(manifest_path))
+    else:
+        document_source = (
+            CachedCorpusDocumentSource(Path(data_root)) if data_root else FixtureDocumentSource(_POC_DOCUMENTS)
+        )
+    llm_config = LLMConfig.from_env()
+    llm_scorer = build_llm_scorer(llm_config)
     database_url = os.getenv("DATABASE_URL")
     qdrant_url = os.getenv("QDRANT_URL")
     research_database = None
@@ -146,10 +162,12 @@ def build_container() -> ApplicationContainer:
         token_counter=lambda value: len(value.split()),
     )
     score_chunks = ScoreChunks(
-        DeterministicLLMScorer(),
+        llm_scorer,
         chunk_score_repository,
         provenance_repository,
         experiment_run_repository,
+        provider=llm_config.backend,
+        model_name=llm_config.model_name,
     )
     aggregate_snapshots = AggregateSnapshots(
         document_repository,
@@ -187,5 +205,8 @@ def build_container() -> ApplicationContainer:
             score_chunks,
             aggregate_snapshots,
             experiment_run_repository,
+            scoring_prompt=getattr(llm_scorer, "prompt", None),
+            scoring_provider=llm_config.backend,
+            scoring_model=llm_config.model_name,
         ),
     )

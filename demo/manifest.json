@@ -1,0 +1,37 @@
+{
+  "manifest_version": "supervisor-demo-v1",
+  "cutoff_date": "2026-05-14",
+  "processing_config_version": "processing-v2",
+  "evaluation_universe": ["AMAT"],
+  "records": [
+    {
+      "document_id": "sec:0001628280-26-035071",
+      "source_id": "0001628280-26-035071",
+      "company": "AMAT",
+      "source": "sec",
+      "published_at": "2026-05-14",
+      "document_type": "8-K",
+      "source_url": "https://www.sec.gov/Archives/edgar/data/6951/000162828026035071/0001628280-26-035071.txt",
+      "raw_path": "data/sec/earnings_releases/AMAT_0001628280-26-035071.txt",
+      "raw_sha256": "4bb0aa7dc7fcdc4f022b7c13718e105b86c7a4efc97cd553aec65533f5118ff8",
+      "cleaned_content_version": "processing-v2"
+    },
+    {
+      "document_id": "investor_relations:AMAT__FY2026-Q2__2026-05-14__investor_relations__earnings_call_prepared_remarks.pdf",
+      "source_id": "AMAT__FY2026-Q2__2026-05-14__investor_relations__earnings_call_prepared_remarks.pdf",
+      "company": "AMAT",
+      "source": "investor_relations",
+      "published_at": "2026-05-14",
+      "document_type": "earnings_call_prepared_remarks",
+      "source_url": "https://ir.appliedmaterials.com/financial-information/quarterly-results",
+      "raw_path": "data/company_communications/curated/AMAT/AMAT__FY2026-Q2__2026-05-14__investor_relations__earnings_call_prepared_remarks.pdf",
+      "raw_sha256": "1a2e05cb830c3f89e876aad8991e53597f45812608ba833487711caafd855701",
+      "cleaned_content_version": "processing-v2"
+    }
+  ],
+  "known_limitations": [
+    "This is a two-document AMAT functional demonstration, not the five-year thesis corpus.",
+    "The output is not market-outcome evaluation evidence and must not be used to tune research parameters.",
+    "The local Ollama model and real embedding model are runtime prerequisites and are not vendored here."
+  ]
+}
