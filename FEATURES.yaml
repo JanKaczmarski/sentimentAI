@@ -1567,7 +1567,7 @@ features:
 
   - id: FEAT-027
     title: "Rank and progressively disclose prediction evidence"
-    status: in_review
+    status: complete
     priority: medium
     depends_on:
       - FEAT-002
