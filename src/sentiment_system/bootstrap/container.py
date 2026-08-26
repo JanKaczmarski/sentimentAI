@@ -18,6 +18,8 @@ from sentiment_system.adapters.outbound.persistence.postgres import (
     PostgresSnapshotRepository,
     PostgresUserAccountRepository,
 )
+from sentiment_system.adapters.outbound.vector.qdrant import QdrantVectorStore
+from sentiment_system.application.ports.embeddings import EmbeddingProvider
 from sentiment_system.application.ports.repositories import (
     ChunkRepository,
     ChunkScoreRepository,
@@ -28,8 +30,11 @@ from sentiment_system.application.ports.repositories import (
     SnapshotRepository,
     UserAccountRepository,
 )
+from sentiment_system.application.ports.vector_store import VectorStore
 from sentiment_system.application.use_cases.create_account import CreateAccount
+from sentiment_system.application.use_cases.index_chunks import IndexChunks
 from sentiment_system.application.use_cases.manage_investment_theses import ManageInvestmentTheses
+from sentiment_system.bootstrap.config import EmbeddingConfig, build_embedding_provider
 
 
 @dataclass(frozen=True, slots=True)
@@ -40,6 +45,9 @@ class ApplicationContainer:
     create_account: CreateAccount | None = None
     investment_thesis_repository: InvestmentThesisRepository | None = None
     manage_investment_theses: ManageInvestmentTheses | None = None
+    embedding_provider: EmbeddingProvider | None = None
+    vector_store: VectorStore | None = None
+    index_chunks: IndexChunks | None = None
     research_database: PostgresDatabase | None = None
     document_repository: DocumentRepository | None = None
     chunk_repository: ChunkRepository | None = None
@@ -56,7 +64,9 @@ def build_container() -> ApplicationContainer:
     """
     account_repository: UserAccountRepository = InMemoryUserAccountRepository()
     investment_thesis_repository: InvestmentThesisRepository = InMemoryInvestmentThesisRepository()
+    embedding_provider = build_embedding_provider(EmbeddingConfig.from_env())
     database_url = os.getenv("DATABASE_URL")
+    qdrant_url = os.getenv("QDRANT_URL")
     research_database = None
     document_repository = None
     chunk_repository = None
@@ -64,6 +74,8 @@ def build_container() -> ApplicationContainer:
     snapshot_repository = None
     experiment_run_repository = None
     provenance_repository = None
+    vector_store = None
+    index_chunks = None
     if database_url:
         research_database = PostgresDatabase(database_url)
         research_database.migrate()
@@ -75,11 +87,21 @@ def build_container() -> ApplicationContainer:
         snapshot_repository = PostgresSnapshotRepository(research_database)
         experiment_run_repository = PostgresExperimentRunRepository(research_database)
         provenance_repository = PostgresProvenanceRepository(research_database)
+    if qdrant_url:
+        vector_store = QdrantVectorStore(
+            url=qdrant_url,
+            collection_name=os.getenv("QDRANT_COLLECTION") or "sentiment_chunks",
+        )
+        if document_repository is not None:
+            index_chunks = IndexChunks(document_repository, embedding_provider, vector_store)
     return ApplicationContainer(
         account_repository=account_repository,
         create_account=CreateAccount(account_repository),
         investment_thesis_repository=investment_thesis_repository,
         manage_investment_theses=ManageInvestmentTheses(account_repository, investment_thesis_repository),
+        embedding_provider=embedding_provider,
+        vector_store=vector_store,
+        index_chunks=index_chunks,
         research_database=research_database,
         document_repository=document_repository,
         chunk_repository=chunk_repository,

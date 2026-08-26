@@ -5,6 +5,7 @@ from hashlib import sha256
 from uuid import UUID
 
 import pytest
+from qdrant_client import QdrantClient
 
 from sentiment_system.adapters.outbound.embeddings.mock import DeterministicEmbeddings
 from sentiment_system.adapters.outbound.llm.mock import DeterministicLLMScorer
@@ -22,6 +23,7 @@ from sentiment_system.adapters.outbound.persistence.in_memory import (
 )
 from sentiment_system.adapters.outbound.sources.fixtures import FixtureDocumentSource
 from sentiment_system.adapters.outbound.vector.in_memory import InMemoryVectorStore
+from sentiment_system.adapters.outbound.vector.qdrant import QdrantVectorStore
 from sentiment_system.application.ports.document_sources import DocumentSource
 from sentiment_system.application.ports.embeddings import EmbeddingProvider
 from sentiment_system.application.ports.llm import LLMScorer
@@ -187,6 +189,56 @@ def test_port_fakes_are_structurally_typed() -> None:
     assert isinstance(DeterministicLLMScorer(), LLMScorer)
     assert isinstance(DeterministicEmbeddings(), EmbeddingProvider)
     assert isinstance(InMemoryVectorStore(), VectorStore)
+
+
+def test_qdrant_store_round_trips_payloads_and_applies_leakage_filters() -> None:
+    store = QdrantVectorStore(collection_name="contract_chunks", client=QdrantClient(location=":memory:"))
+    document = _document(published_at=date(2025, 1, 30))
+    chunk = _chunk(document_id=document.document_id)
+    excluded_chunk = _chunk(document_id=document.document_id, chunk_id="chunk-excluded")
+    future_document = _document("document-future", published_at=date(2025, 2, 2))
+    future_chunk = _chunk(document_id=future_document.document_id, chunk_id="chunk-future")
+    embedded = EmbeddedChunk(
+        chunk=chunk,
+        company=document.company,
+        published_at=document.published_at,
+        embedding=(1.0, 0.0),
+        excluded=False,
+    )
+    store.upsert(
+        (
+            embedded,
+            EmbeddedChunk(
+                chunk=excluded_chunk,
+                company=document.company,
+                published_at=document.published_at,
+                embedding=(0.9, 0.1),
+                excluded=True,
+            ),
+            EmbeddedChunk(
+                chunk=future_chunk,
+                company=future_document.company,
+                published_at=future_document.published_at,
+                embedding=(0.8, 0.2),
+                excluded=False,
+            ),
+        )
+    )
+
+    matches = store.search(VectorQuery(embedding=(1.0, 0.0), company="AAPL", as_of=date(2025, 2, 1)))
+    included_excluded = store.search(
+        VectorQuery(
+            embedding=(1.0, 0.0),
+            company="AAPL",
+            as_of=date(2025, 2, 1),
+            include_excluded=True,
+        )
+    )
+
+    assert [match.chunk.chunk_id for match in matches] == ["chunk-1"]
+    assert [match.chunk.chunk_id for match in included_excluded] == ["chunk-1", "chunk-excluded"]
+    assert matches[0].chunk == chunk
+    assert matches[0].company == "AAPL"
     assert isinstance(InMemoryMarketData(), MarketData)
 
 
