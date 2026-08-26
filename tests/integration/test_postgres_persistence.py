@@ -59,6 +59,7 @@ def test_postgres_migrates_and_preserves_auditable_research_history() -> None:
         document_type="company_communication",
         raw_content="Raw source text.",
         cleaned_content="Cleaned source text.",
+        manifest_version="fixture-v1",
     )
     chunk = DocumentChunk(
         chunk_id=f"chunk-{suffix}",

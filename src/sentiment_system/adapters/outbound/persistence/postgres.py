@@ -195,8 +195,8 @@ class PostgresDocumentRepository(_PostgresRepository, DocumentRepository):
                 INSERT INTO source_documents (
                     document_id, source_id, company, source, published_at,
                     document_type, raw_content, cleaned_content,
-                    raw_content_sha256, cleaned_content_sha256
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    raw_content_sha256, cleaned_content_sha256, manifest_version
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT (document_id) DO UPDATE SET
                     source_id = EXCLUDED.source_id,
                     company = EXCLUDED.company,
@@ -206,7 +206,8 @@ class PostgresDocumentRepository(_PostgresRepository, DocumentRepository):
                     raw_content = EXCLUDED.raw_content,
                     cleaned_content = EXCLUDED.cleaned_content,
                     raw_content_sha256 = EXCLUDED.raw_content_sha256,
-                    cleaned_content_sha256 = EXCLUDED.cleaned_content_sha256
+                    cleaned_content_sha256 = EXCLUDED.cleaned_content_sha256,
+                    manifest_version = EXCLUDED.manifest_version
                 """,
                 _document_values(document),
             )
@@ -555,6 +556,7 @@ def _document_values(document: SourceDocument) -> tuple[object, ...]:
         document.cleaned_content,
         _content_hash(document.raw_content),
         _content_hash(document.cleaned_content),
+        document.manifest_version,
     )
 
 
@@ -593,6 +595,7 @@ def _document_from_row(row: Mapping[str, Any]) -> SourceDocument:
         document_type=row["document_type"],
         raw_content=row["raw_content"],
         cleaned_content=row["cleaned_content"],
+        manifest_version=row["manifest_version"],
     )
 
 

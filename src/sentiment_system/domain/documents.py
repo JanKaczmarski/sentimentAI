@@ -16,6 +16,7 @@ class SourceDocument:
     document_type: str
     raw_content: str
     cleaned_content: str
+    manifest_version: str = "unspecified"
 
     def __post_init__(self) -> None:
         _require_non_empty_string("document_id", self.document_id)
@@ -27,6 +28,7 @@ class SourceDocument:
         _require_non_empty_string("document_type", self.document_type)
         _require_non_empty_string("raw_content", self.raw_content)
         _require_string("cleaned_content", self.cleaned_content)
+        _require_non_empty_string("manifest_version", self.manifest_version)
 
 
 @dataclass(frozen=True, slots=True)

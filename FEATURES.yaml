@@ -907,7 +907,7 @@ features:
 
   - id: FEAT-015
     title: "Acquire reproducible SEC and investor-relations corpus"
-    status: ready
+    status: implemented
     priority: high
     depends_on:
       - FEAT-001
@@ -918,7 +918,7 @@ features:
       - FEAT-008
     scope:
       - "Acquire and cache supported SEC filings and official investor-relations earnings releases with reproducible manifests."
-      - "Provide a source adapter that wraps sec-api.io filing queries for supported quarterly-report forms, pagination, and metadata retrieval behind the document-source port."
+      - "Provide a source adapter that reads official SEC EDGAR and curated investor-relations cache manifests behind the document-source port."
     non_goals:
       - "Private email integration or event-driven ingestion."
     acceptance_criteria:
@@ -929,7 +929,7 @@ features:
       - id: AC-3
         description: "Repeated acquisition is idempotent and does not duplicate historical evidence."
       - id: AC-4
-        description: "The SEC adapter validates supported form types and query inputs, obtains its API key only from runtime configuration, paginates deterministically, and never exposes sec-api.io representations outside its adapter boundary."
+        description: "The cache adapter validates supported source records and filters, preserves deterministic ordering, and requires no provider credential at runtime."
     architecture:
       layers:
         - application
@@ -948,9 +948,33 @@ features:
         - integration
       required_checks: *code_checks
     blocked_reason: null
-    completion_evidence: []
+    completion_evidence:
+      - acceptance_criterion: AC-1
+        evidence:
+          - "src/sentiment_system/adapters/outbound/sources/cached.py::CachedCorpusDocumentSource"
+          - "src/sentiment_system/domain/documents.py::SourceDocument"
+          - "src/sentiment_system/adapters/outbound/persistence/migrations/0005_document_manifest_version.sql"
+          - "tests/unit/adapters/outbound/test_cached_sources.py::test_cached_source_loads_sec_records_and_filters_deterministically"
+          - "tests/integration/test_postgres_persistence.py::test_postgres_migrates_and_preserves_auditable_research_history"
+      - acceptance_criterion: AC-2
+        evidence:
+          - "tests/unit/adapters/outbound/test_cached_sources.py::test_cached_source_loads_sec_records_and_filters_deterministically"
+          - "tests/unit/adapters/outbound/test_cached_sources.py::test_cached_source_loads_curated_ir_records_and_rejects_hash_mismatch"
+          - "tests/contract/ports/test_adapters.py::test_port_fakes_are_structurally_typed"
+      - acceptance_criterion: AC-3
+        evidence:
+          - "tests/unit/adapters/outbound/test_cached_sources.py::test_cached_source_loads_sec_records_and_filters_deterministically"
+          - "tests/integration/test_cached_sources.py::test_external_research_snapshot_loads_sec_and_ir_documents"
+          - "uv run pytest"
+      - acceptance_criterion: AC-4
+        evidence:
+          - "src/sentiment_system/adapters/outbound/sources/cached.py::CachedCorpusDocumentSource"
+          - "tests/unit/adapters/outbound/test_cached_sources.py::test_cached_source_loads_curated_ir_records_and_rejects_hash_mismatch"
+          - "tests/contract/ports/test_adapters.py::test_port_fakes_are_structurally_typed"
+          - "SENTIMENT_DATA_ROOT=/Users/jan/private/sentimentAI-data uv run python -c '... CachedCorpusDocumentSource ...'"
     implementation_notes:
       - "The initial implementation uses official SEC EDGAR endpoints and manually curated official investor-relations downloads through an immutable local cache; sec-api.io and licensed providers are deferred to FEAT-021."
+      - "Encrypted curated PDFs require the direct cryptography runtime dependency; no provider credential is needed by the cache adapter."
 
   - id: FEAT-016
     title: "Evaluate predictions against leakage-safe market outcomes"
