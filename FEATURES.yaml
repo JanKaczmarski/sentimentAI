@@ -1075,7 +1075,7 @@ features:
       - "Adding inactive or commented-out symbols from the author-provided candidate list."
     acceptance_criteria:
       - id: AC-1
-        description: "The static registry contains exactly the approved active ingestion symbols: AAPL, ADBE, ALGM, ALK, AMAT, AMD, AMZN, ANET, ANF, APH, ARE, AVGO, BLBD, BWXT, CAKE, CMCSA, COST, CRM, CRWD, DDOG, DIS, DUOL, ELF, EPR, EVO, FOUR, FCN, FUBO, GIS, GS, HD, ISRG, KSPI, LULU, MAA, META, MRP, MSFT, NLCP, NOVO B, NU, PINS, PLTR, POOL, PYPL, RBLX, RHM, SILA, SIRI, SOFI, SOUN, SPY, STZ, SYNA, T, TDW, TSN, TTD, UNH, UUUU, V, VICI, WHR, and ZM."
+        description: "The static registry contains exactly the approved active ingestion symbols: AAPL, ADBE, ALGM, ALK, AMAT, AMD, AMZN, ANET, ANF, APH, ARE, AVGO, BLBD, BWXT, CAKE, CMCSA, COST, CRM, CRWD, DDOG, DIS, DUOL, ELF, EPR, EVO, FOUR, FCN, FUBO, GIS, GS, HD, ISRG, JNJ, JPM, KSPI, LULU, MAA, META, MRP, MSFT, NLCP, NOVO B, NVDA, NU, PINS, PLTR, POOL, PYPL, RBLX, RHM, SILA, SIRI, SOFI, SOUN, SPY, STZ, SYNA, T, TDW, TSN, TTD, UNH, UUUU, V, VICI, WHR, XOM, and ZM."
       - id: AC-2
         description: "Each active company preserves its approved display name, market-routing value, and currency."
       - id: AC-3
@@ -1732,3 +1732,85 @@ features:
     implementation_notes:
       - "On macOS with the application in Compose and Ollama on the host, the configured provider URL should use host.docker.internal rather than localhost."
       - "The bounded demonstration is a functional supervisor milestone; FEAT-015, FEAT-022, FEAT-023, FEAT-016, and FEAT-017 remain necessary for the complete thesis system."
+
+  - id: FEAT-029
+    title: "Run a functional six-company local prediction workflow"
+    status: implemented
+    priority: high
+    depends_on:
+      - FEAT-008
+      - FEAT-010
+      - FEAT-014
+      - FEAT-018
+      - FEAT-025
+      - FEAT-026
+      - FEAT-027
+      - FEAT-028
+    scope:
+      - "Make the default Docker Compose runtime consume the external cached corpus instead of the AMAT-only supervisor manifest."
+      - "Materialize one official SEC earnings-release record for each v1 research company in the external cache with stable identifiers, publication dates, retrieval URLs, and raw-content hashes."
+      - "Document and verify the normal local workflow for AAPL, MSFT, NVDA, JPM, XOM, and JNJ without changing scoring or Investment Thesis rules."
+    non_goals:
+      - "Acquiring the complete five-year thesis corpus, final held-out evaluation manifest, or market-outcome evaluation."
+      - "Completing official investor-relations coverage for every research company; the existing adapter continues to support curated IR records where available."
+      - "Changing the scoring methodology, personalization rules, or provider policy."
+    acceptance_criteria:
+      - id: AC-1
+        description: "A default Compose startup with SENTIMENT_DATA_ROOT configured selects the cached corpus source without DEMO_MANIFEST_PATH and retains the explicit bounded manifest as an opt-in override."
+      - id: AC-2
+        description: "The external cache contains at least one readable, hash-verified official SEC earnings-release document for each of AAPL, MSFT, NVDA, JPM, XOM, and JNJ within the functional snapshot cutoff."
+      - id: AC-3
+        description: "The cache adapter returns all six research companies in deterministic order, and the batch/API contracts accept each ticker without a demo-specific code path."
+      - id: AC-4
+        description: "The local UI and runbook identify the six-company functional workflow and preserve configurable Investment Thesis fields rather than requiring medium risk and a long-term horizon."
+    architecture:
+      layers:
+        - domain
+        - adapters
+        - bootstrap
+      ports:
+        - document_sources
+    research_decisions:
+      - "docs/THESIS_DECISIONS.md#data-scope"
+      - "docs/THESIS_DECISIONS.md#runtime-and-architecture"
+      - "decisions/0006-reproducible-research-and-runtime-contract.md"
+      - "decisions/0008-local-cache-acquisition-contract.md"
+      - "decisions/0009-ingestion-and-evaluation-universe.md"
+      - "decisions/0011-functional-six-company-snapshot.md"
+    verification:
+      required_test_levels:
+        - unit
+        - integration
+      required_checks: *code_checks
+    blocked_reason: null
+    completion_evidence:
+      - acceptance_criterion: AC-1
+        evidence:
+          - "compose.yaml::app.environment"
+          - "src/sentiment_system/bootstrap/container.py::build_container"
+          - "docker compose --env-file /dev/null config --quiet"
+          - "Live Compose environment: no DEMO_MANIFEST_PATH, SENTIMENT_DATA_ROOT=/data, QDRANT_COLLECTION=research_chunks"
+      - acceptance_criterion: AC-2
+        evidence:
+          - "sentimentAI-data/data/sec/manifests/previous_calendar_quarter_earnings_releases.json::functional_universe"
+          - "sentimentAI-data/data/sec/earnings_releases/{AAPL,MSFT,NVDA,JPM,XOM,JNJ}_*.txt"
+          - "sentimentAI-data/cik_map.csv"
+          - "tests/integration/test_cached_sources.py::test_external_research_snapshot_contains_all_functional_tickers"
+          - "SENTIMENT_DATA_ROOT=/Users/jan/private/sentimentAI-data uv run pytest tests/integration/test_cached_sources.py"
+      - acceptance_criterion: AC-3
+        evidence:
+          - "src/sentiment_system/adapters/outbound/sources/cached.py::_load_sec"
+          - "tests/unit/adapters/outbound/test_cached_sources.py::test_cached_source_rejects_sec_hash_mismatch"
+          - "tests/integration/test_cached_sources.py::test_external_research_snapshot_contains_all_functional_tickers"
+          - "tests/integration/test_api.py::test_strategy_endpoints_scope_crud_to_the_account_selected_by_api_key"
+          - "Live Compose batches for AAPL, MSFT, NVDA, JPM, XOM, and JNJ: completed with three snapshots each"
+      - acceptance_criterion: AC-4
+        evidence:
+          - "web/index.html::research-companies"
+          - "docs/LOCAL_SIX_COMPANY_RUNBOOK.md"
+          - "tests/integration/test_web_ui.py::test_ui_serves_page_and_same_origin_assets"
+          - "tests/unit/domain/test_companies.py::test_registry_contains_exact_approved_universe"
+          - "Live Compose prediction API responses for all six research tickers"
+    implementation_notes:
+      - "The six-company functional snapshot is intentionally smaller than FEAT-015's final acquisition and evaluation corpus."
+      - "The current functional snapshot uses one official SEC earnings-release record per ticker; curated investor-relations coverage remains a separate expansion."

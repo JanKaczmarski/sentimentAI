@@ -38,7 +38,13 @@ cp .env.example .env
 
 The Compose configuration overrides the provider URL inside the application
 container to `http://host.docker.internal:11434/v1`. It mounts the external
-data repository read-only at `/data` and selects the bounded manifest.
+data repository read-only at `/data`. To select the bounded manifest for this
+legacy supervisor workflow, add the following line to `.env` before starting
+Compose:
+
+```bash
+DEMO_MANIFEST_PATH=/app/demo/manifest.json
+```
 
 ```bash
 docker compose build app
@@ -54,7 +60,7 @@ docker compose logs app
 ```
 
 The application must use `APP_ENV=research`, `LLM_BACKEND=ollama`,
-`LLM_MODEL=llama3.1:8b`, `EMBEDDING_BACKEND=local`, and
+`LLM_MODEL=llama3.1:8b`, `EMBEDDING_BACKEND=ollama`, and
 `DEMO_MANIFEST_PATH=/app/demo/manifest.json`. Research mode rejects the
 deterministic LLM and mock embeddings.
 

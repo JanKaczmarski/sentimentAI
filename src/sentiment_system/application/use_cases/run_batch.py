@@ -1,4 +1,4 @@
-"""Use case for the manually triggered deterministic POC batch."""
+"""Use case for a manually triggered source-to-prediction batch."""
 
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -12,13 +12,13 @@ from sentiment_system.application.use_cases.ingest_documents import IngestDocume
 from sentiment_system.application.use_cases.score_chunks import ScoreChunks
 from sentiment_system.domain.predictions import ExperimentRun
 
-_BATCH_VERSION = "poc-pipeline-v1"
+_BATCH_VERSION = "source-to-prediction-v1"
 _SCORING_PROMPT = "Score each chunk for investor-independent sentiment and general importance."
 
 
 @dataclass(frozen=True, slots=True)
 class BatchResult:
-    """Counts and identity returned by one completed POC batch."""
+    """Counts and identity returned by one completed batch."""
 
     run_id: str
     status: str

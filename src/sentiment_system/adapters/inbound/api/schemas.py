@@ -104,7 +104,7 @@ class FixtureIngestionResponse(ApiSchema):
 
 
 class BatchRunRequest(ApiSchema):
-    """Optional limits for a manual deterministic POC batch."""
+    """Optional scope for a manual source-to-prediction batch."""
 
     company: str | None = None
     as_of: date | None = None

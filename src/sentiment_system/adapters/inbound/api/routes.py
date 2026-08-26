@@ -278,7 +278,7 @@ def run_batch(
     request: BatchRunRequest,
     use_case: Annotated[RunBatch, Depends(get_run_batch)],
 ) -> BatchRunResponse:
-    """Trigger one deterministic POC batch without investor-specific scoring."""
+    """Trigger one manual batch without investor-specific scoring."""
     try:
         result = use_case.execute(as_of=request.as_of or date.today(), company=request.company)
     except BatchExecutionError as error:

@@ -57,9 +57,9 @@ The scaffold exposes the API at `http://localhost:8000/health`, Prometheus at
 testing UI is available at `http://localhost:8000/ui/`.
 
 Open the UI after `make deploy` to create a local account, manage an Investment
-Thesis, run the deterministic POC batch, and inspect a prediction without
-composing curl requests. The API key is retained only in the current browser
-session.
+Thesis, run a cached-corpus batch for the six-company research snapshot, and
+inspect a prediction without composing curl requests. The API key is retained
+only in the current browser session.
 
 ## Make Commands
 

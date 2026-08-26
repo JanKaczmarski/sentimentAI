@@ -46,6 +46,36 @@ def test_cached_source_loads_sec_records_and_filters_deterministically(tmp_path:
     assert CachedCorpusDocumentSource(tmp_path).fetch_documents() == documents
 
 
+def test_cached_source_rejects_sec_hash_mismatch(tmp_path: Path) -> None:
+    sec = tmp_path / "data" / "sec"
+    (sec / "manifests").mkdir(parents=True)
+    (sec / "earnings_releases").mkdir()
+    document = sec / "earnings_releases" / "AAPL_acc-1.txt"
+    document.write_text("Revenue increased.", encoding="utf-8")
+    (sec / "manifests" / "previous_calendar_quarter_earnings_releases.json").write_text(
+        json.dumps(
+            {
+                "manifest_version": "sec-v1",
+                "releases": [
+                    {
+                        "ticker": "AAPL",
+                        "accession_number": "acc-1",
+                        "filed_at": "2026-05-01",
+                        "report_date": "2026-03-31",
+                        "source_url": "https://sec.example/release",
+                        "raw_sha256": "0" * 64,
+                        "document_type": "earnings_release",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(CacheManifestError, match="checksum mismatch"):
+        CachedCorpusDocumentSource(tmp_path)
+
+
 def test_cached_source_loads_curated_ir_records_and_rejects_hash_mismatch(tmp_path: Path) -> None:
     curated = tmp_path / "data" / "company_communications" / "curated" / "AMAT"
     curated.mkdir(parents=True)

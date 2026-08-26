@@ -55,6 +55,15 @@ class CachedCorpusDocumentSource:
             ticker = _string(release, "ticker")
             source_id = _string(release, "accession_number")
             path = self._root / "data" / "sec" / "earnings_releases" / f"{ticker}_{source_id}.txt"
+            expected_hash = release.get("raw_sha256")
+            if expected_hash is not None:
+                if not path.is_file():
+                    raise CacheManifestError(f"missing cached source file: {path}")
+                if not isinstance(expected_hash, str) or len(expected_hash) != 64:
+                    raise CacheManifestError(f"invalid raw_sha256 for {path}")
+                actual_hash = hashlib.sha256(path.read_bytes()).hexdigest()
+                if actual_hash != expected_hash:
+                    raise CacheManifestError(f"checksum mismatch for {path}")
             documents.append(
                 _document(
                     path=path,

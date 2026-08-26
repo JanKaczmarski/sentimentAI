@@ -94,6 +94,8 @@ APPROVED_COMPANIES: tuple[Company, ...] = (
     _company("GS", "GOLDMAN SACHS GROUP INC"),
     _company("HD", "HOME DEPOT, INC."),
     _company("ISRG", "INTUITIVE SURGICAL INC"),
+    _company("JNJ", "JOHNSON & JOHNSON"),
+    _company("JPM", "JPMORGAN CHASE & CO"),
     _company("KSPI", "Joint Stock Co Kaspi.kz"),
     _company("LULU", "lululemon athletica inc."),
     _company("MAA", "MID AMERICA APARTMENT COMMUNITIES INC."),
@@ -102,6 +104,7 @@ APPROVED_COMPANIES: tuple[Company, ...] = (
     _company("MSFT", "MICROSOFT CORP"),
     _company("NLCP", "NewLake Capital Partners, Inc."),
     Company("NOVO B", "Novo Nordisk A/S", "NOVO-B.CO", "DKK"),
+    _company("NVDA", "NVIDIA CORP"),
     _company("NU", "Nu Holdings Ltd."),
     _company("PINS", "PINTEREST, INC."),
     _company("PLTR", "Palantir Technologies Inc."),
@@ -125,6 +128,7 @@ APPROVED_COMPANIES: tuple[Company, ...] = (
     _company("V", "VISA INC."),
     _company("VICI", "VICI PROPERTIES INC."),
     _company("WHR", "WHIRLPOOL CORP /DE/"),
+    _company("XOM", "EXXON MOBIL CORP"),
     _company("ZM", "Zoom Communications, Inc."),
 )
 

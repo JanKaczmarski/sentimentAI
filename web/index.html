@@ -117,17 +117,25 @@
           <div class="section-heading">
             <div>
               <p class="eyebrow">04 / PIPELINE</p>
-              <h2 id="prediction-title">Run a POC prediction</h2>
+              <h2 id="prediction-title">Run a local research prediction</h2>
             </div>
             <span class="step-number">04</span>
           </div>
-          <p class="muted">Run the deterministic source-to-prediction workflow for one approved company, then inspect the evidence returned by the API.</p>
+          <p class="muted">Run the cached source-to-prediction workflow for one research company, then inspect the evidence returned by the API.</p>
           <form id="batch-form" class="stacked-form">
             <div class="form-row">
               <label>
                 Company
-                <input id="batch-company" name="company" value="AAPL" maxlength="10" autocomplete="off" required>
-                <span class="field-help">Use an approved ticker symbol.</span>
+                <input id="batch-company" name="company" value="AAPL" list="research-companies" maxlength="10" autocomplete="off" required>
+                <datalist id="research-companies">
+                  <option value="AAPL"></option>
+                  <option value="MSFT"></option>
+                  <option value="NVDA"></option>
+                  <option value="JPM"></option>
+                  <option value="XOM"></option>
+                  <option value="JNJ"></option>
+                </datalist>
+                <span class="field-help">Research snapshot: AAPL, MSFT, NVDA, JPM, XOM, or JNJ.</span>
               </label>
               <label>
                 As-of date
