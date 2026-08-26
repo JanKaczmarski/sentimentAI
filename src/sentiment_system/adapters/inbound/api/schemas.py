@@ -103,6 +103,32 @@ class FixtureIngestionResponse(ApiSchema):
     chunk_count: int
 
 
+class BatchRunRequest(ApiSchema):
+    """Optional limits for a manual deterministic POC batch."""
+
+    company: str | None = None
+    as_of: date | None = None
+
+    @field_validator("company")
+    @classmethod
+    def validate_company(cls, company: str | None) -> str | None:
+        """Normalize an optional company against the canonical registry."""
+        return None if company is None else APPROVED_COMPANY_REGISTRY.lookup(company).ticker
+
+
+class BatchRunResponse(ApiSchema):
+    """Counts and run identity returned by a completed manual batch."""
+
+    status: Literal["completed"]
+    run_id: str
+    document_count: int
+    chunk_count: int
+    indexed_chunk_count: int
+    scored_chunk_count: int
+    snapshot_count: int
+    companies: tuple[str, ...]
+
+
 class SentimentResponse(ApiSchema):
     """Public sentiment score and derived label."""
 

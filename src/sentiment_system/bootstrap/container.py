@@ -2,7 +2,10 @@
 
 import os
 from dataclasses import dataclass
+from datetime import date
+from pathlib import Path
 
+from sentiment_system.adapters.outbound.llm.mock import DeterministicLLMScorer
 from sentiment_system.adapters.outbound.persistence.in_memory import (
     InMemoryChunkRepository,
     InMemoryChunkScoreRepository,
@@ -26,6 +29,9 @@ from sentiment_system.adapters.outbound.persistence.postgres import (
     PostgresSnapshotRepository,
     PostgresUserAccountRepository,
 )
+from sentiment_system.adapters.outbound.sources.cached import CachedCorpusDocumentSource
+from sentiment_system.adapters.outbound.sources.fixtures import FixtureDocumentSource
+from sentiment_system.adapters.outbound.vector.in_memory import InMemoryVectorStore
 from sentiment_system.adapters.outbound.vector.qdrant import QdrantVectorStore
 from sentiment_system.application.ports.embeddings import EmbeddingProvider
 from sentiment_system.application.ports.repositories import (
@@ -40,11 +46,15 @@ from sentiment_system.application.ports.repositories import (
     UserAccountRepository,
 )
 from sentiment_system.application.ports.vector_store import VectorStore
+from sentiment_system.application.use_cases.aggregate_snapshots import AggregateSnapshots
 from sentiment_system.application.use_cases.create_account import CreateAccount
 from sentiment_system.application.use_cases.generate_prediction import GeneratePrediction, ListPredictionHistory
 from sentiment_system.application.use_cases.index_chunks import IndexChunks
+from sentiment_system.application.use_cases.ingest_documents import IngestDocuments
 from sentiment_system.application.use_cases.ingest_fixture_communication import IngestFixtureCommunication
 from sentiment_system.application.use_cases.manage_investment_theses import ManageInvestmentTheses
+from sentiment_system.application.use_cases.run_batch import RunBatch
+from sentiment_system.application.use_cases.score_chunks import ScoreChunks
 from sentiment_system.bootstrap.config import EmbeddingConfig, build_embedding_provider
 
 
@@ -70,6 +80,20 @@ class ApplicationContainer:
     generate_prediction: GeneratePrediction | None = None
     list_prediction_history: ListPredictionHistory | None = None
     ingest_fixture_communication: IngestFixtureCommunication | None = None
+    run_batch: RunBatch | None = None
+
+
+_POC_DOCUMENTS = (
+    {
+        "document_id": "poc-document-aapl-2025-01-15",
+        "source_id": "poc-source-aapl-2025-01-15",
+        "company": "AAPL",
+        "source": "poc_fixture",
+        "published_at": date(2025, 1, 15),
+        "document_type": "company_communication",
+        "raw_content": "Revenue increased. Operating costs remained controlled.",
+    },
+)
 
 
 def build_container() -> ApplicationContainer:
@@ -87,11 +111,13 @@ def build_container() -> ApplicationContainer:
     provenance_repository: ExperimentProvenanceRepository = InMemoryProvenanceRepository()
     prediction_repository: PredictionRepository = InMemoryPredictionRepository()
     embedding_provider = build_embedding_provider(EmbeddingConfig.from_env())
+    data_root = os.getenv("SENTIMENT_DATA_ROOT")
+    document_source = (
+        CachedCorpusDocumentSource(Path(data_root)) if data_root else FixtureDocumentSource(_POC_DOCUMENTS)
+    )
     database_url = os.getenv("DATABASE_URL")
     qdrant_url = os.getenv("QDRANT_URL")
     research_database = None
-    vector_store = None
-    index_chunks = None
     if database_url:
         research_database = PostgresDatabase(database_url)
         research_database.migrate()
@@ -104,13 +130,33 @@ def build_container() -> ApplicationContainer:
         experiment_run_repository = PostgresExperimentRunRepository(research_database)
         provenance_repository = PostgresProvenanceRepository(research_database)
         prediction_repository = PostgresPredictionRepository(research_database)
+    vector_store: VectorStore = InMemoryVectorStore()
+    index_chunks = IndexChunks(document_repository, embedding_provider, vector_store)
     if qdrant_url:
         vector_store = QdrantVectorStore(
             url=qdrant_url,
             collection_name=os.getenv("QDRANT_COLLECTION") or "sentiment_chunks",
         )
-        if document_repository is not None:
-            index_chunks = IndexChunks(document_repository, embedding_provider, vector_store)
+        index_chunks = IndexChunks(document_repository, embedding_provider, vector_store)
+    ingest_documents = IngestDocuments(
+        document_source,
+        document_repository,
+        chunk_repository,
+        processing_config_version="processing-v1",
+        token_counter=lambda value: len(value.split()),
+    )
+    score_chunks = ScoreChunks(
+        DeterministicLLMScorer(),
+        chunk_score_repository,
+        provenance_repository,
+        experiment_run_repository,
+    )
+    aggregate_snapshots = AggregateSnapshots(
+        document_repository,
+        chunk_repository,
+        chunk_score_repository,
+        snapshot_repository,
+    )
     return ApplicationContainer(
         account_repository=account_repository,
         create_account=CreateAccount(account_repository),
@@ -135,4 +181,11 @@ def build_container() -> ApplicationContainer:
         ),
         list_prediction_history=ListPredictionHistory(account_repository, prediction_repository),
         ingest_fixture_communication=IngestFixtureCommunication(document_repository, chunk_repository),
+        run_batch=RunBatch(
+            ingest_documents,
+            index_chunks,
+            score_chunks,
+            aggregate_snapshots,
+            experiment_run_repository,
+        ),
     )

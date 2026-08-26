@@ -8,6 +8,8 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sentiment_system.adapters.inbound.api.schemas import (
     AccountCreateRequest,
     AccountCreateResponse,
+    BatchRunRequest,
+    BatchRunResponse,
     FixtureCommunicationRequest,
     FixtureIngestionResponse,
     InvestmentThesisRequest,
@@ -39,6 +41,7 @@ from sentiment_system.application.use_cases.manage_investment_theses import (
     ThesisNotFoundError,
     UnsupportedCompanyError,
 )
+from sentiment_system.application.use_cases.run_batch import BatchExecutionError, RunBatch
 from sentiment_system.domain.companies import APPROVED_COMPANY_REGISTRY
 from sentiment_system.domain.investment_thesis import InvestmentThesis
 from sentiment_system.domain.predictions import Prediction
@@ -89,6 +92,14 @@ def get_fixture_ingestion(request: Request) -> IngestFixtureCommunication:
     use_case = cast(IngestFixtureCommunication | None, request.app.state.container.ingest_fixture_communication)
     if use_case is None:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="ingestion service unavailable")
+    return use_case
+
+
+def get_run_batch(request: Request) -> RunBatch:
+    """Resolve the manual batch use case from the application container."""
+    use_case = cast(RunBatch | None, request.app.state.container.run_batch)
+    if use_case is None:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="batch service unavailable")
     return use_case
 
 
@@ -259,6 +270,31 @@ def ingest_company_fixture(
         status="success",
         document_id=result.documents[0].document_id,
         chunk_count=len(result.chunks),
+    )
+
+
+@router.post("/batch/run", response_model=BatchRunResponse, tags=["batch"])
+def run_batch(
+    request: BatchRunRequest,
+    use_case: Annotated[RunBatch, Depends(get_run_batch)],
+) -> BatchRunResponse:
+    """Trigger one deterministic POC batch without investor-specific scoring."""
+    try:
+        result = use_case.execute(as_of=request.as_of or date.today(), company=request.company)
+    except BatchExecutionError as error:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"batch run failed: {error.run_id}",
+        ) from error
+    return BatchRunResponse(
+        status="completed",
+        run_id=result.run_id,
+        document_count=result.document_count,
+        chunk_count=result.chunk_count,
+        indexed_chunk_count=result.indexed_chunk_count,
+        scored_chunk_count=result.scored_chunk_count,
+        snapshot_count=result.snapshot_count,
+        companies=result.companies,
     )
 
 
