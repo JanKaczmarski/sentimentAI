@@ -1434,3 +1434,63 @@ features:
       - "The POC uses deterministic scoring and a small fixture or locally cached corpus; FEAT-015 remains the separate thesis-data gate."
       - "When SENTIMENT_DATA_ROOT is configured, the composition root loads the existing cache; otherwise it uses one synthetic development fixture."
       - "Scheduler integration, final thesis corpus acquisition, production LLM scoring, and market evaluation remain deferred to FEAT-017, FEAT-015, FEAT-023, and FEAT-016."
+
+  - id: FEAT-025
+    title: "Extend the local UI for POC predictions"
+    status: in_review
+    priority: high
+    depends_on:
+      - FEAT-020
+      - FEAT-024
+    scope:
+      - "Add browser controls for selecting an approved company and as-of date, then triggering the manual POST /batch/run POC endpoint."
+      - "Request and display the resulting prediction, including base and personalized sentiment, confidence, evidence excerpts, and batch run ID."
+      - "Provide clear loading, empty, success, and API-error states while retaining the existing session-only API-key behavior."
+    non_goals:
+      - "Production frontend architecture, authentication, account recovery, market evaluation, scheduling, or a JavaScript build system."
+      - "Displaying thesis evaluation results or adding controls for the final research corpus."
+    acceptance_criteria:
+      - id: AC-1
+        description: "The local UI allows an account holder to choose an approved company and as-of date and trigger POST /batch/run with validated input."
+      - id: AC-2
+        description: "After a successful batch, the UI requests and displays the corresponding prediction's base and personalized sentiment, confidence, evidence excerpts, and run ID."
+      - id: AC-3
+        description: "The UI provides actionable loading, empty, success, and API-error states and does not persist API keys outside the existing browser session storage."
+    architecture:
+      layers:
+        - adapters
+        - bootstrap
+      ports: []
+    research_decisions:
+      - "docs/THESIS_DECISIONS.md#runtime-and-architecture"
+      - "decisions/0010-poc-corpus-and-thesis-data-separation.md"
+    verification:
+      required_test_levels:
+        - integration
+      required_checks: *code_checks
+    blocked_reason: null
+    completion_evidence:
+      - acceptance_criterion: AC-1
+        evidence:
+          - "web/index.html::batch-form"
+          - "web/app.js::readBatchForm"
+          - "web/app.js::request(\"/batch/run\")"
+          - "tests/integration/test_web_ui.py::test_ui_serves_page_and_same_origin_assets"
+          - "node --check web/app.js"
+      - acceptance_criterion: AC-2
+        evidence:
+          - "web/app.js::predictionPath"
+          - "web/app.js::renderPrediction"
+          - "tests/integration/test_web_ui.py::test_ui_serves_page_and_same_origin_assets"
+          - "tests/integration/test_batch.py::test_manual_batch_serves_multiple_theses_from_one_scoring_run"
+      - acceptance_criterion: AC-3
+        evidence:
+          - "web/app.js::setMessage"
+          - "web/app.js::sessionStorage"
+          - "web/index.html::prediction-message"
+          - "tests/integration/test_web_ui.py::test_ui_serves_page_and_same_origin_assets"
+          - "node --check web/app.js"
+    implementation_notes:
+      - "This extends the no-build same-origin smoke-testing console; the backend batch and prediction contracts are provided by FEAT-024."
+      - "The UI presents deterministic POC output for local validation and does not imply thesis-quality evaluation evidence."
+      - "The browser uses the existing fixed 20-trading-day prediction request; market evaluation and configurable forecast horizons remain outside this POC feature."

@@ -56,10 +56,10 @@ The scaffold exposes the API at `http://localhost:8000/health`, Prometheus at
 `http://localhost:9090`, and Grafana at `http://localhost:3000`. The local API
 testing UI is available at `http://localhost:8000/ui/`.
 
-Open the UI after `make deploy` to create a local account and manage an
-Investment Thesis without composing curl requests. The API key is retained
-only in the current browser session. Prediction controls will be added with
-the prediction API feature.
+Open the UI after `make deploy` to create a local account, manage an Investment
+Thesis, run the deterministic POC batch, and inspect a prediction without
+composing curl requests. The API key is retained only in the current browser
+session.
 
 ## Make Commands
 

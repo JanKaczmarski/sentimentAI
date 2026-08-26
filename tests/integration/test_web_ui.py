@@ -26,6 +26,13 @@ def test_ui_serves_page_and_same_origin_assets() -> None:
     assert "/user/account" in script.text
     assert "/user/strategy" in script.text
     assert "/user/strategy/" in script.text
+    assert 'id="batch-form"' in page.text
+    assert 'id="batch-company"' in page.text
+    assert 'id="batch-as-of"' in page.text
+    assert 'id="prediction-card"' in page.text
+    assert "/batch/run" in script.text
+    assert "/companies/" in script.text
+    assert "renderPrediction" in script.text
     assert 'classList.toggle("ready"' in script.text
     assert stylesheet.status_code == 200
     assert "--ink" in stylesheet.text

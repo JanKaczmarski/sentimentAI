@@ -13,7 +13,7 @@
         <div>
           <p class="eyebrow">LOCAL TEST CONSOLE</p>
           <h1>Sentiment System</h1>
-          <p class="hero-copy">A small browser workspace for the account and Investment Thesis API.</p>
+          <p class="hero-copy">A small browser workspace for the account, Investment Thesis, and deterministic POC pipeline.</p>
         </div>
         <span id="connection-state" class="status-pill">Session not configured</span>
       </header>
@@ -113,12 +113,60 @@
           </div>
         </section>
 
-        <section class="panel wide-panel future-panel" aria-labelledby="prediction-title">
-          <div class="future-mark">04</div>
-          <div>
-            <p class="eyebrow">NEXT PIPELINE SLICE</p>
-            <h2 id="prediction-title">Predictions</h2>
-            <p class="muted">Prediction and history controls will be connected when the scoring, aggregation, personalization, and prediction API features are implemented.</p>
+        <section class="panel wide-panel pipeline-panel" aria-labelledby="prediction-title">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">04 / PIPELINE</p>
+              <h2 id="prediction-title">Run a POC prediction</h2>
+            </div>
+            <span class="step-number">04</span>
+          </div>
+          <p class="muted">Run the deterministic source-to-prediction workflow for one approved company, then inspect the evidence returned by the API.</p>
+          <form id="batch-form" class="stacked-form">
+            <div class="form-row">
+              <label>
+                Company
+                <input id="batch-company" name="company" value="AAPL" maxlength="10" autocomplete="off" required>
+                <span class="field-help">Use an approved ticker symbol.</span>
+              </label>
+              <label>
+                As-of date
+                <input id="batch-as-of" name="as_of" type="date" required>
+                <span class="field-help">Only documents available by this date are used.</span>
+              </label>
+            </div>
+            <div class="form-actions">
+              <button id="batch-submit" class="button button-primary" type="submit">Run batch</button>
+            </div>
+          </form>
+          <div id="batch-message" class="message" role="status" aria-live="polite"></div>
+          <div id="prediction-card" class="prediction-card" hidden>
+            <div class="section-heading section-heading-inline">
+              <div>
+                <p class="eyebrow">RESULT</p>
+                <h3>Prediction snapshot</h3>
+              </div>
+              <span id="prediction-run-id" class="run-id"></span>
+            </div>
+            <div class="prediction-grid">
+              <div class="prediction-stat">
+                <span class="field-caption">Base sentiment</span>
+                <strong id="prediction-base"></strong>
+              </div>
+              <div class="prediction-stat">
+                <span class="field-caption">Personalized sentiment</span>
+                <strong id="prediction-personalized"></strong>
+              </div>
+              <div class="prediction-stat">
+                <span class="field-caption">Confidence</span>
+                <strong id="prediction-confidence"></strong>
+              </div>
+            </div>
+            <div id="prediction-message" class="message" role="status" aria-live="polite"></div>
+            <div>
+              <span class="field-caption">Evidence</span>
+              <div id="prediction-evidence" class="evidence-list"></div>
+            </div>
           </div>
         </section>
       </main>
