@@ -1497,7 +1497,7 @@ features:
 
   - id: FEAT-026
     title: "Parse and quality-gate source documents before chunking"
-    status: ready
+    status: implemented
     priority: high
     depends_on:
       - FEAT-001
@@ -1540,10 +1540,30 @@ features:
         - integration
       required_checks: *code_checks
     blocked_reason: null
-    completion_evidence: []
+    completion_evidence:
+      - acceptance_criterion: AC-1
+        evidence:
+          - "tests/unit/application/test_ingest_documents.py::test_ingestion_extracts_sec_exhibit_and_removes_markup_without_changing_raw_content"
+          - "tests/integration/test_ingestion.py::test_html_communication_is_cleaned_before_persistence"
+          - "tests/integration/test_cached_sources.py::test_external_research_documents_are_cleaned_before_chunking"
+          - "SENTIMENT_DATA_ROOT=../sentimentAI-data uv run pytest tests/integration/test_cached_sources.py"
+      - acceptance_criterion: AC-2
+        evidence:
+          - "tests/unit/application/test_ingest_documents.py::test_ingestion_rejects_unreadable_content_before_persistence"
+          - "src/sentiment_system/application/use_cases/ingest_documents.py::ContentQualityError"
+          - "uv run pytest tests/unit/application/test_ingest_documents.py"
+      - acceptance_criterion: AC-3
+        evidence:
+          - "tests/unit/application/test_ingest_documents.py::test_reprocessing_same_fixture_is_idempotent_and_deterministic"
+          - "tests/unit/application/test_ingest_documents.py::test_ingestion_preserves_raw_lineage_and_creates_cleaned_deterministic_chunks"
+          - "src/sentiment_system/application/use_cases/ingest_documents.py::_clean_content"
+          - "src/sentiment_system/application/use_cases/score_chunks.py::ScoreChunks"
+          - "uv run pytest"
     implementation_notes:
       - "Raw source content remains the audit record; parsing applies to the derived cleaned representation and chunks."
       - "The current deterministic scorer derives importance from a hash byte, so a high importance value is not evidence of semantic relevance; this feature prevents unusable input from entering that workflow."
+      - "Malformed and unreadable documents are rejected with ContentQualityError rather than quarantined because the current repository contract has no quarantine store."
+      - "The parser uses standard-library HTML handling and selects EX-99.1 or EX-99.2 SEC exhibits when available; source acquisition and final corpus curation remain separate features."
 
   - id: FEAT-027
     title: "Rank and progressively disclose prediction evidence"

@@ -27,7 +27,7 @@ class ScoreChunks:
         provider: str = "deterministic",
         model_name: str = "deterministic-sha256-v1",
         input_source: str = "normalized_chunks",
-        input_version: str = "processing-v1",
+        input_version: str = "processing-v2",
         now: Callable[[], datetime] | None = None,
     ) -> None:
         self._scorer = scorer
