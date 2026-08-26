@@ -1437,7 +1437,7 @@ features:
 
   - id: FEAT-025
     title: "Extend the local UI for POC predictions"
-    status: implemented
+    status: in_review
     priority: high
     depends_on:
       - FEAT-020
