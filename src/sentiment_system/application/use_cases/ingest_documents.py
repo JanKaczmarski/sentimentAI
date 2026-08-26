@@ -5,7 +5,8 @@ import unicodedata
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date
-from html.parser import HTMLParser
+
+from bs4 import BeautifulSoup
 
 from sentiment_system.application.ports.document_sources import DocumentSource
 from sentiment_system.application.ports.repositories import ChunkRepository, DocumentRepository
@@ -88,23 +89,6 @@ _NAVIGATION_MARKER = re.compile(
 _SENTENCE_END = re.compile(r"(?<=[.!?])\s+")
 _ABBREVIATIONS = {"e.g.", "i.e.", "etc.", "inc.", "ltd.", "co.", "corp.", "u.s.", "u.k."}
 _SEC_EXHIBIT_TYPES = {"ex-99.1", "ex-99.2"}
-_BLOCK_TAGS = {
-    "article",
-    "br",
-    "div",
-    "h1",
-    "h2",
-    "h3",
-    "h4",
-    "h5",
-    "h6",
-    "li",
-    "p",
-    "section",
-    "td",
-    "th",
-    "tr",
-}
 _IGNORED_TAGS = {"head", "script", "style", "svg"}
 
 
@@ -164,45 +148,13 @@ def _extract_sec_communication(raw_content: str) -> str:
     return "\n\n".join(exhibits or [text for _, text in sections])
 
 
-class _PlainTextHTMLParser(HTMLParser):
-    """Extract visible text while retaining block-level line boundaries."""
-
-    def __init__(self) -> None:
-        super().__init__(convert_charrefs=True)
-        self._ignored_depth = 0
-        self._parts: list[str] = []
-
-    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-        del attrs
-        if tag in _IGNORED_TAGS:
-            self._ignored_depth += 1
-
-    def handle_startendtag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-        del attrs
-        if self._ignored_depth == 0 and tag in _BLOCK_TAGS:
-            self._parts.append("\n")
-
-    def handle_endtag(self, tag: str) -> None:
-        if tag in _IGNORED_TAGS:
-            self._ignored_depth = max(0, self._ignored_depth - 1)
-        elif self._ignored_depth == 0 and tag in _BLOCK_TAGS:
-            self._parts.append("\n")
-
-    def handle_data(self, data: str) -> None:
-        if self._ignored_depth == 0:
-            self._parts.append(data)
-
-    def text(self) -> str:
-        return "".join(self._parts)
-
-
 def _html_to_text(content: str) -> str:
     if _HTML_MARKUP.search(content) is None:
         return content
-    parser = _PlainTextHTMLParser()
-    parser.feed(content)
-    parser.close()
-    return parser.text()
+    soup = BeautifulSoup(content, "html.parser")
+    for tag in soup.find_all(list(_IGNORED_TAGS)):
+        tag.decompose()
+    return soup.get_text("\n")
 
 
 def _require_readable_content(raw_content: str, cleaned_content: str) -> None:
