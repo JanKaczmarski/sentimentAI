@@ -728,7 +728,7 @@ features:
 
   - id: FEAT-012
     title: "Aggregate document and company sentiment snapshots"
-    status: queued
+    status: implemented
     priority: high
     depends_on:
       - FEAT-002
@@ -763,8 +763,26 @@ features:
         - integration
       required_checks: *code_checks
     blocked_reason: null
-    completion_evidence: []
-    implementation_notes: []
+    completion_evidence:
+      - acceptance_criterion: AC-1
+        evidence:
+          - "tests/unit/application/test_aggregate_snapshots.py::test_aggregate_snapshots_uses_importance_confidence_and_recency_weights"
+          - "src/sentiment_system/application/use_cases/aggregate_snapshots.py::_aggregate"
+          - "uv run pytest"
+      - acceptance_criterion: AC-2
+        evidence:
+          - "tests/unit/application/test_aggregate_snapshots.py::test_aggregate_snapshots_excludes_future_and_soft_excluded_chunks"
+          - "src/sentiment_system/application/use_cases/aggregate_snapshots.py::_aggregate"
+          - "uv run pytest"
+      - acceptance_criterion: AC-3
+        evidence:
+          - "tests/unit/application/test_aggregate_snapshots.py::test_aggregate_snapshots_uses_importance_confidence_and_recency_weights"
+          - "tests/integration/test_postgres_persistence.py::test_postgres_migrates_and_preserves_auditable_research_history"
+          - "POSTGRES_TEST_DSN=postgresql://sentiment:sentiment@localhost:5432/sentiment uv run pytest tests/integration/test_postgres_persistence.py"
+
+    implementation_notes:
+      - "Document-level weighted inputs are aggregated into the company snapshots; the existing persistence contract stores auditable chunk evidence and versioned company snapshots."
+      - "Rule version is persisted in a repository migration and linked to each snapshot record."
 
   - id: FEAT-013
     title: "Apply deterministic Investment Thesis personalization"

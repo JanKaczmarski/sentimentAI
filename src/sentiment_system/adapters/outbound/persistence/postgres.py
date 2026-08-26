@@ -381,8 +381,8 @@ class PostgresSnapshotRepository(_PostgresRepository, SnapshotRepository):
                 """
                 INSERT INTO company_sentiment_snapshots (
                     company, as_of, window_days, sentiment_score,
-                    sentiment_label, confidence, run_id
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    sentiment_label, confidence, run_id, rule_version
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT (company, as_of, window_days, run_id) DO NOTHING
                 """,
                 (
@@ -393,6 +393,7 @@ class PostgresSnapshotRepository(_PostgresRepository, SnapshotRepository):
                     snapshot.sentiment.label.value,
                     snapshot.sentiment.confidence,
                     snapshot.run_id,
+                    snapshot.rule_version,
                 ),
             )
             for rank, evidence in enumerate(snapshot.evidence, start=1):
@@ -566,6 +567,7 @@ def _snapshot_from_row(row: Mapping[str, Any], evidence_rows: list[Mapping[str, 
             for evidence in evidence_rows
         ),
         run_id=row["run_id"],
+        rule_version=row["rule_version"],
     )
 
 
