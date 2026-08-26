@@ -1071,3 +1071,65 @@ features:
     implementation_notes:
       - "Rejected in favor of PostgreSQL-backed integration and end-to-end testing, which matches the production persistence target."
       - "Simple unit tests remain database-free with fakes or in-memory repositories; FEAT-008 owns the real PostgreSQL persistence path."
+
+  - id: FEAT-020
+    title: "Provide a local browser UI for API smoke testing"
+    status: in_review
+    priority: medium
+    depends_on:
+      - FEAT-009
+    scope:
+      - "Serve a same-origin, no-build browser UI at /ui/ for local application testing."
+      - "Allow a user to create an account, retain the one-time API key for the browser session, and create, list, and update Investment Theses."
+      - "Expose loading, validation, success, empty, and API-error states without duplicating backend business rules."
+    non_goals:
+      - "Prediction generation, prediction history, or fixture ingestion UI; FEAT-014 owns those backend contracts and their later UI integration."
+      - "A production frontend application, separate frontend service, production authentication, or account recovery."
+      - "Adding a JavaScript build system, frontend framework, or new network boundary."
+    acceptance_criteria:
+      - id: AC-1
+        description: "The application serves a responsive static UI at /ui/ and includes its JavaScript and CSS assets from the same origin."
+      - id: AC-2
+        description: "The UI creates an account, displays the one-time API key, and keeps it only in browser session storage for subsequent requests."
+      - id: AC-3
+        description: "The UI submits validated Investment Thesis fields through the existing API and displays created and listed thesis data."
+      - id: AC-4
+        description: "The UI presents actionable loading, validation, empty, success, and API-error states and does not log or persist secrets outside session storage."
+    architecture:
+      layers:
+        - adapters
+        - bootstrap
+      ports: []
+    research_decisions:
+      - "docs/THESIS_DECISIONS.md#runtime-and-architecture"
+      - "decisions/0007-local-testing-ui.md"
+    verification:
+      required_test_levels:
+        - integration
+      required_checks: *code_checks
+    blocked_reason: null
+    completion_evidence:
+      - acceptance_criterion: AC-1
+        evidence:
+          - "tests/integration/test_web_ui.py::test_ui_serves_page_and_same_origin_assets"
+          - "node --check web/app.js"
+          - "docker build --tag sentiment-system-ui-check ."
+          - "container UI smoke: GET /ui/ from sentiment-system-ui-check"
+      - acceptance_criterion: AC-2
+        evidence:
+          - "web/app.js::setApiKey"
+          - "tests/integration/test_web_ui.py::test_ui_serves_page_and_same_origin_assets"
+          - "tests/integration/test_api.py::test_account_endpoint_creates_an_account_and_reports_identity_conflicts"
+      - acceptance_criterion: AC-3
+        evidence:
+          - "web/app.js::readThesisForm"
+          - "web/app.js::loadTheses"
+          - "tests/integration/test_api.py::test_strategy_endpoints_scope_crud_to_the_account_selected_by_api_key"
+      - acceptance_criterion: AC-4
+        evidence:
+          - "web/app.js::setMessage"
+          - "tests/integration/test_web_ui.py::test_ui_serves_page_and_same_origin_assets"
+          - "node --check web/app.js"
+    implementation_notes:
+      - "Prediction, history, and fixture-ingestion controls remain deferred to FEAT-014 because their backend contracts are not implemented yet."
+      - "The UI stores the existing prototype API key in sessionStorage only; this is local testing support, not production authentication."
