@@ -1359,3 +1359,78 @@ features:
     completion_evidence: []
     implementation_notes:
       - "Provider credentials remain runtime-only and production calls are not required for deterministic CI tests."
+
+  - id: FEAT-024
+    title: "Run a deterministic source-to-prediction POC"
+    status: implemented
+    priority: critical
+    depends_on:
+      - FEAT-007
+      - FEAT-008
+      - FEAT-009
+      - FEAT-010
+      - FEAT-011
+      - FEAT-012
+      - FEAT-013
+      - FEAT-014
+      - FEAT-018
+    scope:
+      - "Compose a small fixture or locally cached source set through ingestion, indexing, deterministic investor-independent scoring, snapshot aggregation, personalization, and persistence."
+      - "Expose a manual POST /batch/run trigger for repeatable local and CI verification."
+      - "Serve a prediction from the POC run through the existing prediction API for more than one Investment Thesis without repeating chunk scoring."
+    non_goals:
+      - "Acquiring the complete five-year thesis corpus or final immutable research manifest."
+      - "Market-outcome evaluation, benchmark calculation, daily scheduling, production LLM providers, contextual RAG, licensed providers, or production authentication."
+      - "Representing POC output as thesis evaluation evidence or tuning research parameters against it."
+    acceptance_criteria:
+      - id: AC-1
+        description: "A fresh local development setup can run one approved source document through normalization, chunking, indexing, deterministic scoring, and 30-, 90-, and 365-day snapshot creation."
+      - id: AC-2
+        description: "One investor-independent scoring run can serve predictions for multiple Investment Theses without another chunk-scoring call."
+      - id: AC-3
+        description: "The manual batch trigger returns a run identifier and processing counts, and persists run state, source lineage, and secret-free deterministic provenance for successful and failed runs."
+    architecture:
+      layers:
+        - application
+        - adapters
+        - bootstrap
+      ports:
+        - document_sources
+        - repositories
+        - llm
+        - embeddings
+        - vector_store
+    research_decisions:
+      - "docs/THESIS_DECISIONS.md#research-model"
+      - "docs/THESIS_DECISIONS.md#runtime-and-architecture"
+      - "decisions/0010-poc-corpus-and-thesis-data-separation.md"
+    verification:
+      required_test_levels:
+        - unit
+        - contract
+        - integration
+      required_checks: *code_checks
+    blocked_reason: null
+    completion_evidence:
+      - acceptance_criterion: AC-1
+        evidence:
+          - "tests/unit/application/test_run_batch.py::test_run_batch_ingests_indexes_scores_and_aggregates_only_available_documents"
+          - "tests/integration/test_batch.py::test_default_container_runs_the_small_development_poc"
+          - "tests/integration/test_batch.py::test_manual_batch_serves_multiple_theses_from_one_scoring_run"
+          - "SENTIMENT_DATA_ROOT=../sentimentAI-data uv run pytest tests/integration/test_cached_sources.py"
+          - "uv run pytest"
+      - acceptance_criterion: AC-2
+        evidence:
+          - "tests/integration/test_batch.py::test_manual_batch_serves_multiple_theses_from_one_scoring_run"
+          - "tests/integration/test_batch.py::CountingScorer.calls == 1"
+          - "uv run pytest tests/unit/application/test_run_batch.py tests/integration/test_batch.py"
+      - acceptance_criterion: AC-3
+        evidence:
+          - "tests/unit/application/test_run_batch.py::test_run_batch_marks_the_run_failed_when_scoring_raises"
+          - "tests/unit/application/test_run_batch.py::test_run_batch_ingests_indexes_scores_and_aggregates_only_available_documents"
+          - "src/sentiment_system/application/use_cases/run_batch.py::RunBatch"
+          - "uv run python -m scripts.validate_features"
+    implementation_notes:
+      - "The POC uses deterministic scoring and a small fixture or locally cached corpus; FEAT-015 remains the separate thesis-data gate."
+      - "When SENTIMENT_DATA_ROOT is configured, the composition root loads the existing cache; otherwise it uses one synthetic development fixture."
+      - "Scheduler integration, final thesis corpus acquisition, production LLM scoring, and market evaluation remain deferred to FEAT-017, FEAT-015, FEAT-023, and FEAT-016."
