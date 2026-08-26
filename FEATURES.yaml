@@ -844,7 +844,7 @@ features:
 
   - id: FEAT-014
     title: "Serve predictions, evidence, history, and fixture ingestion"
-    status: in_review
+    status: complete
     priority: high
     depends_on:
       - FEAT-002
