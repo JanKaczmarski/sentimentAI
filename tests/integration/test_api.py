@@ -1,7 +1,10 @@
 """API integration tests using the application composition root."""
 
+import os
 from hashlib import sha256
+from uuid import uuid4
 
+import pytest
 from fastapi.testclient import TestClient
 
 from sentiment_system.adapters.outbound.persistence.in_memory import (
@@ -132,6 +135,7 @@ def test_strategy_endpoints_scope_crud_to_the_account_selected_by_api_key() -> N
         params={"api_key": api_key},
         json={**payload, "companies": ["AMD"], "description": None},
     )
+    listed_after_update = client.get("/user/strategy", params={"api_key": api_key})
     missing = client.put("/user/strategy/missing", params={"api_key": api_key}, json=payload)
     invalid = client.post("/user/strategy", params={"api_key": api_key}, json={**payload, "companies": ["UNKNOWN"]})
     unknown_account = client.get("/user/strategy", params={"api_key": "unknown"})
@@ -145,6 +149,58 @@ def test_strategy_endpoints_scope_crud_to_the_account_selected_by_api_key() -> N
     assert by_company.json() == listed.json()
     assert updated.status_code == 200
     assert updated.json() == {"status": "success", "thesis_id": thesis_id}
+    assert listed_after_update.status_code == 200
+    assert listed_after_update.json()["theses"] == [
+        {
+            "thesis_id": thesis_id,
+            "companies": ["AMD"],
+            "risk_tolerance": "medium",
+            "investment_horizon": "long_term",
+            "investment_style": "passive",
+            "description": None,
+        }
+    ]
     assert missing.status_code == 404
     assert invalid.status_code == 422
     assert unknown_account.status_code == 404
+
+
+@pytest.mark.integration
+def test_postgres_container_wires_account_and_thesis_api(monkeypatch: pytest.MonkeyPatch) -> None:
+    dsn = os.getenv("POSTGRES_TEST_DSN")
+    if not dsn:
+        pytest.skip("POSTGRES_TEST_DSN is not configured")
+
+    monkeypatch.setenv("DATABASE_URL", dsn)
+    suffix = uuid4().hex
+    client = TestClient(create_app(container=build_container()))
+    account = client.post(
+        "/user/account",
+        json={"email": f"{suffix}@example.com", "username": suffix},
+    )
+    api_key = account.json()["api_key"]
+    payload = {
+        "companies": ["AAPL", "MSFT"],
+        "risk_tolerance": "medium",
+        "investment_horizon": "long_term",
+        "investment_style": "passive",
+        "description": "Persisted explanation.",
+    }
+
+    created = client.post("/user/strategy", params={"api_key": api_key}, json=payload)
+    thesis_id = created.json()["thesis_id"]
+    listed = client.get("/user/strategy", params={"api_key": api_key})
+    updated = client.put(
+        f"/user/strategy/{thesis_id}",
+        params={"api_key": api_key},
+        json={**payload, "companies": ["AMD"], "description": None},
+    )
+    by_company = client.get("/user/strategy/AMD", params={"api_key": api_key})
+
+    assert account.status_code == 201
+    assert created.status_code == 201
+    assert listed.status_code == 200
+    assert listed.json()["theses"][0]["description"] == payload["description"]
+    assert updated.status_code == 200
+    assert by_company.status_code == 200
+    assert by_company.json()["theses"][0]["companies"] == ["AMD"]
