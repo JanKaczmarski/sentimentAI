@@ -3,7 +3,13 @@
 import pytest
 
 from sentiment_system.adapters.outbound.embeddings.mock import DeterministicEmbeddings
-from sentiment_system.bootstrap.config import EmbeddingConfig, EmbeddingConfigurationError, build_embedding_provider
+from sentiment_system.bootstrap.config import (
+    EmbeddingConfig,
+    EmbeddingConfigurationError,
+    LLMConfig,
+    LLMConfigurationError,
+    build_embedding_provider,
+)
 
 
 def test_research_configuration_rejects_mock_embeddings() -> None:
@@ -27,3 +33,18 @@ def test_embedding_configuration_defaults_to_local_backend() -> None:
     assert config.backend == "local"
     assert config.model_name == "BAAI/bge-small-en-v1.5"
     assert config.research_mode is False
+
+
+def test_research_configuration_requires_a_real_llm_backend() -> None:
+    with pytest.raises(LLMConfigurationError, match="deterministic LLM scoring is not allowed"):
+        LLMConfig.from_env({"APP_ENV": "research", "LLM_BACKEND": "deterministic"})
+
+
+def test_ollama_configuration_defaults_to_local_compatible_settings() -> None:
+    config = LLMConfig.from_env({"APP_ENV": "research", "LLM_BACKEND": "ollama"})
+
+    assert config.backend == "ollama"
+    assert config.model_name == "llama3.1:8b"
+    assert config.base_url == "http://localhost:11434/v1"
+    assert config.api_key == "ollama"
+    assert config.research_mode is True
