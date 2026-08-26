@@ -81,7 +81,8 @@ specification.
 - Persist full audit artifacts: source dates and IDs, chunk scores, model/provider configuration, prompts, raw LLM responses, parsed results, strategy parameters, and run IDs. Never store secrets.
 - Rebuild the core draft API endpoints for accounts, company/group Investment Thesis CRUD, predictions, prediction history, and fixture-based company communication ingestion.
 - Prediction responses should expose base and personalized scores/labels, dates and horizons, confidence, explanation, source excerpts/IDs, importance scores, and run metadata.
-- REST API and Swagger are sufficient; no separate frontend is required.
+- REST API and Swagger remain sufficient for the thesis; a small same-origin
+  static browser UI is also allowed as a local testing console.
 - Authentication, user roles, and admin authorization are out of scope and should be documented as POC limitations.
 - Use Docker Compose from the beginning with the application, persistent Qdrant, PostgreSQL, Prometheus, and Grafana. Keep observability focused on useful batch, retrieval, LLM, and evaluation metrics.
 

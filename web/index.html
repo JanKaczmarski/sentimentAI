@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Local browser console for the Sentiment System API">
+    <title>Sentiment System | Local Console</title>
+    <link rel="stylesheet" href="/ui/styles.css">
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="hero">
+        <div>
+          <p class="eyebrow">LOCAL TEST CONSOLE</p>
+          <h1>Sentiment System</h1>
+          <p class="hero-copy">A small browser workspace for the account and Investment Thesis API.</p>
+        </div>
+        <span id="connection-state" class="status-pill">Session not configured</span>
+      </header>
+
+      <main class="content-grid">
+        <section class="panel account-panel" aria-labelledby="account-title">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">01 / ACCESS</p>
+              <h2 id="account-title">Create an account</h2>
+            </div>
+            <span class="step-number">01</span>
+          </div>
+          <p class="muted">The API returns the key once. This console keeps it only for this browser session.</p>
+          <form id="account-form" class="stacked-form">
+            <label>
+              Email
+              <input id="account-email" name="email" type="email" autocomplete="email" placeholder="investor@example.com" required>
+            </label>
+            <label>
+              Username
+              <input id="account-username" name="username" autocomplete="username" placeholder="investor" required>
+            </label>
+            <button class="button button-primary" type="submit">Create account</button>
+          </form>
+          <div id="account-message" class="message" role="status" aria-live="polite"></div>
+          <div id="api-key-panel" class="key-panel" hidden>
+            <div>
+              <span class="field-caption">Current session key</span>
+              <code id="api-key-value"></code>
+            </div>
+            <button id="clear-session" class="button button-quiet" type="button">Clear</button>
+          </div>
+        </section>
+
+        <section class="panel thesis-panel" aria-labelledby="thesis-title">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">02 / PROFILE</p>
+              <h2 id="thesis-title">Investment Thesis</h2>
+            </div>
+            <span class="step-number">02</span>
+          </div>
+          <p class="muted">Structure the investor preferences used by the personalization engine.</p>
+          <form id="thesis-form" class="stacked-form">
+            <label>
+              Companies
+              <input id="thesis-companies" name="companies" placeholder="AAPL, MSFT" required>
+              <span class="field-help">Use approved ticker symbols separated by commas.</span>
+            </label>
+            <div class="form-row">
+              <label>
+                Risk tolerance
+                <select id="risk-tolerance" name="risk_tolerance">
+                  <option value="low">Low</option>
+                  <option value="medium" selected>Medium</option>
+                  <option value="high">High</option>
+                </select>
+              </label>
+              <label>
+                Horizon
+                <select id="investment-horizon" name="investment_horizon">
+                  <option value="short_term">Short term</option>
+                  <option value="long_term" selected>Long term</option>
+                </select>
+              </label>
+            </div>
+            <label>
+              Investment style
+              <select id="investment-style" name="investment_style">
+                <option value="passive" selected>Passive</option>
+                <option value="active">Active</option>
+              </select>
+            </label>
+            <label>
+              Description <span class="optional">optional</span>
+              <textarea id="thesis-description" name="description" rows="3" placeholder="Prefer durable compounders."></textarea>
+            </label>
+            <div class="form-actions">
+              <button id="thesis-submit" class="button button-primary" type="submit">Save thesis</button>
+              <button id="cancel-edit" class="button button-quiet" type="button" hidden>Cancel edit</button>
+            </div>
+          </form>
+          <div id="thesis-message" class="message" role="status" aria-live="polite"></div>
+        </section>
+
+        <section class="panel wide-panel" aria-labelledby="saved-theses-title">
+          <div class="section-heading section-heading-inline">
+            <div>
+              <p class="eyebrow">03 / REVIEW</p>
+              <h2 id="saved-theses-title">Saved theses</h2>
+            </div>
+            <button id="refresh-theses" class="button button-quiet" type="button">Refresh</button>
+          </div>
+          <div id="thesis-list" class="thesis-list">
+            <div class="empty-state">Create an account to load saved theses.</div>
+          </div>
+        </section>
+
+        <section class="panel wide-panel future-panel" aria-labelledby="prediction-title">
+          <div class="future-mark">04</div>
+          <div>
+            <p class="eyebrow">NEXT PIPELINE SLICE</p>
+            <h2 id="prediction-title">Predictions</h2>
+            <p class="muted">Prediction and history controls will be connected when the scoring, aggregation, personalization, and prediction API features are implemented.</p>
+          </div>
+        </section>
+      </main>
+    </div>
+    <script src="/ui/app.js" defer></script>
+  </body>
+</html>
