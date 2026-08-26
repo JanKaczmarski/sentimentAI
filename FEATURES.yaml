@@ -907,7 +907,7 @@ features:
 
   - id: FEAT-015
     title: "Acquire reproducible SEC and investor-relations corpus"
-    status: blocked
+    status: ready
     priority: high
     depends_on:
       - FEAT-001
@@ -940,16 +940,17 @@ features:
         - repositories
     research_decisions:
       - "docs/THESIS_DECISIONS.md#data-scope"
-      - "docs/THESIS_DECISIONS.md#open-decisions"
+      - "decisions/0007-local-cache-acquisition-contract.md"
     verification:
       required_test_levels:
         - unit
         - contract
         - integration
       required_checks: *code_checks
-    blocked_reason: "The governing research decision leaves the exact SEC/investor-relations acquisition mechanisms, caching format, and reproducibility process open; implementing this feature requires choosing those research-sensitive contracts rather than inferring them."
+    blocked_reason: null
     completion_evidence: []
-    implementation_notes: []
+    implementation_notes:
+      - "The initial implementation uses official SEC EDGAR endpoints and manually curated official investor-relations downloads through an immutable local cache; sec-api.io and licensed providers are deferred to FEAT-021."
 
   - id: FEAT-016
     title: "Evaluate predictions against leakage-safe market outcomes"
@@ -1203,3 +1204,46 @@ features:
     implementation_notes:
       - "Prediction, history, and fixture-ingestion controls remain deferred to FEAT-014 because their backend contracts are not implemented yet."
       - "The UI stores the existing prototype API key in sessionStorage only; this is local testing support, not production authentication."
+
+  - id: FEAT-021
+    title: "Integrate production-grade licensed financial data providers"
+    status: proposed
+    priority: low
+    depends_on:
+      - FEAT-015
+      - FEAT-016
+      - FEAT-017
+    scope:
+      - "Add optional licensed providers for SEC filings, investor-relations/news coverage, and market data behind the existing source and market-data ports."
+      - "Add runtime credential configuration, provider quotas, retries, observability, entitlement controls, and cache fallback without changing the thesis data contracts."
+    non_goals:
+      - "Replacing the reproducible local cache for thesis experiments."
+      - "Changing the approved corpus, evaluation split, scoring methodology, or prediction rules."
+      - "Persisting provider credentials or licensed source material in application version control."
+    acceptance_criteria:
+      - id: AC-1
+        description: "A configured licensed provider can be selected without changing domain or application contracts, and credentials are read only from runtime secret configuration."
+      - id: AC-2
+        description: "Provider failures, rate limits, and entitlement errors are observable and handled without corrupting the immutable cache or audit manifests."
+      - id: AC-3
+        description: "Provider licensing metadata, retrieval provenance, and deterministic cache fallback are covered by adapter contract and integration tests."
+    architecture:
+      layers:
+        - adapters
+        - bootstrap
+      ports:
+        - document_sources
+        - market_data
+        - repositories
+    research_decisions:
+      - "docs/THESIS_DECISIONS.md#runtime-and-architecture"
+      - "decisions/0007-local-cache-acquisition-contract.md"
+    verification:
+      required_test_levels:
+        - contract
+        - integration
+      required_checks: *code_checks
+    blocked_reason: null
+    completion_evidence: []
+    implementation_notes:
+      - "Product-hardening work intentionally deferred until the thesis pipeline and evaluation are complete."
