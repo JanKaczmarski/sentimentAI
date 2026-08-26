@@ -1497,7 +1497,7 @@ features:
 
   - id: FEAT-026
     title: "Parse and quality-gate source documents before chunking"
-    status: implemented
+    status: in_review
     priority: high
     depends_on:
       - FEAT-001
