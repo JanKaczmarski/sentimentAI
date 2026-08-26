@@ -2,15 +2,16 @@
 
 from pathlib import Path
 
+import pytest
+
 from tools.data_paths import cik_map_path, data_repository_root, sec_directory
 
 
-def test_data_paths_default_to_the_current_repository(monkeypatch) -> None:
+def test_data_paths_require_an_external_repository(monkeypatch) -> None:
     monkeypatch.delenv("SENTIMENT_DATA_ROOT", raising=False)
 
-    assert data_repository_root() == Path(".")
-    assert cik_map_path() == Path("cik_map.csv")
-    assert sec_directory() == Path("data/sec")
+    with pytest.raises(RuntimeError, match="SENTIMENT_DATA_ROOT"):
+        data_repository_root()
 
 
 def test_data_paths_can_target_the_separate_data_repository(monkeypatch) -> None:

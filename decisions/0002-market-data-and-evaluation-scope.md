@@ -9,14 +9,15 @@
 - The author-supplied Kaggle archive at `/Users/jwdev/Downloads/archive` is a
   local development input.
 - Only exact CSV files for the approved company universe were copied to
-  `data/market_prices/`; no other archive files were copied, moved, or
-  deleted.
+  `$SENTIMENT_DATA_ROOT/data/market_prices/` in the separate research-data
+  repository; no other archive files were copied, moved, or deleted.
 - `SPY` is present in the approved universe and was copied from the archive's
   ETF collection. All other selected files came from its stock collection.
-- The copied files are unmodified and are Git-ignored local data artifacts.
-- Missing approved symbols are listed in `data/market_prices/README.md` and
-  will be fetched manually later. No renamed or related ticker substitutes are
-  permitted.
+- The copied files are unmodified and are versioned in the separate research-
+  data repository.
+- Missing approved symbols are listed in the external repository's
+  `data/market_prices/README.md` and will be fetched manually later. No renamed
+  or related ticker substitutes are permitted.
 
 ## Evaluation Decisions
 

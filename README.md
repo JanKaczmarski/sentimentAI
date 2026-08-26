@@ -31,12 +31,15 @@ credentials.
 ## Research Data Repository
 
 Research inputs live in the separate `sentimentAI-data` repository rather than
-in the application repository. Set its local path before running the SEC
-acquisition tools:
+in the application repository. `SENTIMENT_DATA_ROOT` is required before running
+the SEC acquisition tools:
 
 ```bash
 export SENTIMENT_DATA_ROOT=/path/to/sentimentAI-data
 ```
+
+The acquisition tools fail fast when this variable is not set, preventing
+research data from being written into the application repository by accident.
 
 The data repository contains raw source snapshots, market-price inputs, CIK
 metadata, and acquisition manifests. Do not commit credentials or private

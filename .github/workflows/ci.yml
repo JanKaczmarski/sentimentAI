@@ -126,7 +126,7 @@ jobs:
             BASE_SHA="origin/$BASE_REF"
           fi
           if [ -n "$BASE_SHA" ] && [ -n "$HEAD_SHA" ]; then
-            git diff --check "$BASE_SHA...$HEAD_SHA" -- . ':(exclude)data/**' ':(exclude)cik_map.csv'
+            git diff --check "$BASE_SHA...$HEAD_SHA" -- .
           else
-            git diff --check -- . ':(exclude)data/**' ':(exclude)cik_map.csv'
+            git diff --check -- .
           fi

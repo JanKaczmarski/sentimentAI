@@ -3,10 +3,15 @@
 import os
 from pathlib import Path
 
+DATA_ROOT_ENVIRONMENT_VARIABLE = "SENTIMENT_DATA_ROOT"
+
 
 def data_repository_root() -> Path:
     """Return the configured data repository root."""
-    return Path(os.environ.get("SENTIMENT_DATA_ROOT", ".")).expanduser()
+    configured_root = os.environ.get(DATA_ROOT_ENVIRONMENT_VARIABLE)
+    if not configured_root:
+        raise RuntimeError(f"{DATA_ROOT_ENVIRONMENT_VARIABLE} must point to the separate research-data repository")
+    return Path(configured_root).expanduser()
 
 
 def cik_map_path() -> Path:

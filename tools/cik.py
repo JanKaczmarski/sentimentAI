@@ -16,18 +16,18 @@ anything that could not be matched.
 
 import csv
 import json
-import os
 import re
 import sys
 import urllib.request
-from pathlib import Path
+
+from data_paths import data_repository_root
 
 # SEC requires a descriptive User-Agent with a contact address on all automated
 # requests, or it returns 403. Put your own email here.
 USER_AGENT = "jj-wk sentimetn.ai@gmail.com"
 
 SEC_TICKER_URL = "https://www.sec.gov/files/company_tickers.json"
-DATA_REPOSITORY_ROOT = Path(os.environ.get("SENTIMENT_DATA_ROOT", ".")).expanduser()
+DATA_REPOSITORY_ROOT = data_repository_root()
 
 # Fallback list, used when no input file is given.
 TICKERS = [
