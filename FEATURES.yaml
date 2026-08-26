@@ -664,7 +664,7 @@ features:
 
   - id: FEAT-011
     title: "Score chunks with investor-independent LLM signals"
-    status: implemented
+    status: in_review
     priority: high
     depends_on:
       - FEAT-001
