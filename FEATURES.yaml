@@ -1362,7 +1362,7 @@ features:
 
   - id: FEAT-024
     title: "Run a deterministic source-to-prediction POC"
-    status: in_review
+    status: complete
     priority: critical
     depends_on:
       - FEAT-007
