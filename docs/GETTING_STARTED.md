@@ -237,13 +237,14 @@ zależności i aktualny status są w `FEATURES.yaml`.
 |---|---|---|
 | Fundament domeny | `FEAT-001` do `FEAT-003` | Encje, provenance, porty i fake'i |
 | Decyzje badawcze | `FEAT-004` do `FEAT-006` | Konfiguracja eksperymentu, reguły, corpus, API i storage contract |
-| Ingest | `FEAT-007`, `FEAT-015` | Fixture'y, SEC i investor relations |
+| Ingest | `FEAT-007`, `FEAT-015` | Fixture'y, SEC i investor relations oraz reproducible cache |
 | Persistence | `FEAT-008` | PostgreSQL i audytowalne rekordy |
 | API strategii | `FEAT-009`, `FEAT-014` | Konta, Investment Thesis, predykcje, historia i ingestion endpoint |
-| RAG | `FEAT-010`, `FEAT-011` | Lokalne embeddings, Qdrant i investor-independent scoring |
+| RAG | `FEAT-010`, `FEAT-011`, `FEAT-023` | Lokalne embeddings, Qdrant, scoring provider-neutral i produkcyjny |
 | Sentiment | `FEAT-012`, `FEAT-013` | Agregacja snapshotów i deterministyczna personalizacja |
+| Pipeline E2E | `FEAT-022` | Ingest, index, scoring, snapshoty, personalizacja i prediction |
 | Ewaluacja | `FEAT-016` | Leakage-safe market outcomes i baselines |
-| Runtime | `FEAT-017` | Batch, scheduler, run state, Prometheus i Grafana |
+| Runtime | `FEAT-017` | Scheduler, run state, Prometheus i Grafana |
 
 Kolejność nie jest ustalana ręcznie. Po każdym merge uruchom:
 
@@ -253,30 +254,24 @@ uv run python -m scripts.validate_features
 uv run python -m scripts.check_feature_status
 ```
 
-## Stan Na Moment Przekazania
+## Aktualny Stan
 
-- `FEAT-001`: `complete` na `main`;
-- `FEAT-002`: `complete` na `main`;
-- `FEAT-003`: implementacja znajduje się w branchu `feat/typed-ports-fakes`,
-  commit `e3bb822`, status `implemented` do czasu PR-a i merge'a;
-- `FEAT-004`, `FEAT-005`, `FEAT-006`: `blocked`, ponieważ wymagają jawnych
-  decyzji autora/promotora;
-- `FEAT-007` do `FEAT-017`: zatwierdzone feature'y oczekujące na zależności.
-
-Po merge'u `FEAT-003` nie należy automatycznie implementować `FEAT-007+`, jeśli
-`FEAT-004`, `FEAT-005` albo `FEAT-006` nadal są zablokowane. Najpierw trzeba
-uzyskać decyzję i zapisać ją w odpowiednim dokumencie.
+- `FEAT-001` do `FEAT-014`, `FEAT-018` i `FEAT-020` są zakończone jako
+  komponentowe lub kontraktowe etapy; ich statusy są w `FEATURES.yaml`;
+- `FEAT-015` jest zablokowany do czasu materializacji finalnego manifestu i
+  pełnego cache'u badawczego;
+- `FEAT-016` jest zablokowany przez brak finalnych danych wejściowych z
+  `FEAT-015`;
+- `FEAT-017` czeka na pipeline i ewaluację, a `FEAT-022` czeka na `FEAT-015`;
+- `FEAT-021` i `FEAT-023` pozostają propozycjami dotyczącymi produkcyjnych
+  integracji.
 
 ## Otwarte Decyzje
 
 Najważniejsze otwarte decyzje są w `THESIS_DECISIONS.md`:
 
-- dokładny chronological development/test split;
-- recency decay i początkowe współczynniki agregacji;
-- włączenie albo wyłączenie horyzontu 252 dni;
-- mechanizm cache'owania SEC, IR i Yahoo Finance;
-- wybór opcjonalnego lokalnego backendu Llama;
-- finalne API i schemat bazy danych.
+- finalne rekordy źródłowe, cutoff corpus i zawartość manifestu ewaluacyjnego;
+- wybór opcjonalnego lokalnego backendu Llama.
 
 Nie wolno zamieniać tych otwartych punktów w niejawne założenia w kodzie.
 Jeśli feature wymaga takiej decyzji, pozostaw go zablokowanego i przygotuj
