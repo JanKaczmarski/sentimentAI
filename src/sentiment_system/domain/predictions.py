@@ -46,6 +46,7 @@ class CompanySentimentSnapshot:
     sentiment: SentimentScore
     evidence: tuple[PredictionEvidence, ...]
     run_id: str
+    rule_version: str = "aggregation-personalization-v1"
 
     def __post_init__(self) -> None:
         _require_non_empty_string("company", self.company)
@@ -56,6 +57,7 @@ class CompanySentimentSnapshot:
             raise ValueError("sentiment must be a SentimentScore")
         _validate_evidence(self.evidence)
         _require_non_empty_string("run_id", self.run_id)
+        _require_non_empty_string("rule_version", self.rule_version)
 
 
 @dataclass(frozen=True, slots=True)
