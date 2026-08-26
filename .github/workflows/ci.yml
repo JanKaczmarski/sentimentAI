@@ -30,6 +30,7 @@ jobs:
     timeout-minutes: 20
     env:
       POSTGRES_TEST_DSN: postgresql://sentiment:sentiment@localhost:5432/sentiment
+      QDRANT_TEST_URL: http://localhost:6333
 
     steps:
       - name: Check out source
@@ -72,6 +73,20 @@ jobs:
             sleep 2
           done
           docker compose logs postgres
+          exit 1
+
+      - name: Start Qdrant
+        run: docker compose up -d qdrant
+
+      - name: Wait for Qdrant
+        run: |
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent "$QDRANT_TEST_URL/readyz"; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker compose logs qdrant
           exit 1
 
       - name: Run tests
