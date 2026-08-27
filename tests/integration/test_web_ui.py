@@ -28,6 +28,9 @@ def test_ui_serves_page_and_same_origin_assets() -> None:
     assert "/user/strategy/" in script.text
     assert 'id="batch-form"' in page.text
     assert 'id="batch-company"' in page.text
+    assert 'id="research-companies"' in page.text
+    for ticker in ("AAPL", "MSFT", "NVDA", "JPM", "XOM", "JNJ", "AMAT"):
+        assert f'value="{ticker}"' in page.text
     assert 'id="batch-as-of"' in page.text
     assert 'id="prediction-card"' in page.text
     assert "/batch/run" in script.text

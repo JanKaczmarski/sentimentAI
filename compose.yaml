@@ -12,7 +12,6 @@ services:
       DATABASE_URL: postgresql://sentiment:sentiment@postgres:5432/sentiment
       QDRANT_URL: http://qdrant:6333
       SENTIMENT_DATA_ROOT: /data
-      DEMO_MANIFEST_PATH: /app/demo/manifest.json
       LLM_BACKEND: ${LLM_BACKEND:-ollama}
       LLM_MODEL: ${LLM_MODEL:-llama3.1:8b}
       LLM_API_KEY: ${LLM_API_KEY:-ollama}
@@ -21,7 +20,7 @@ services:
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-nomic-embed-text}
       EMBEDDING_API_KEY: ${EMBEDDING_API_KEY:-ollama}
       EMBEDDING_BASE_URL: http://host.docker.internal:11434/v1
-      QDRANT_COLLECTION: ${QDRANT_COLLECTION:-supervisor_demo_chunks}
+      QDRANT_COLLECTION: ${QDRANT_COLLECTION:-research_chunks}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:

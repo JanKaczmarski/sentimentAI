@@ -39,6 +39,8 @@ APPROVED_TICKERS = (
     "GS",
     "HD",
     "ISRG",
+    "JNJ",
+    "JPM",
     "KSPI",
     "LULU",
     "MAA",
@@ -47,6 +49,7 @@ APPROVED_TICKERS = (
     "MSFT",
     "NLCP",
     "NOVO B",
+    "NVDA",
     "NU",
     "PINS",
     "PLTR",
@@ -70,6 +73,7 @@ APPROVED_TICKERS = (
     "V",
     "VICI",
     "WHR",
+    "XOM",
     "ZM",
 )
 

@@ -128,7 +128,7 @@ def test_strategy_endpoints_scope_crud_to_the_account_selected_by_api_key() -> N
     account = client.post("/user/account", json={"email": "investor@example.com", "username": "investor"})
     api_key = account.json()["api_key"]
     payload = {
-        "companies": ["aapl", "MSFT"],
+        "companies": ["aapl", "MSFT", "NVDA", "JPM", "XOM", "JNJ"],
         "risk_tolerance": "medium",
         "investment_horizon": "long_term",
         "investment_style": "passive",
@@ -153,7 +153,9 @@ def test_strategy_endpoints_scope_crud_to_the_account_selected_by_api_key() -> N
     assert created.status_code == 201
     assert created.json() == {"status": "success", "thesis_id": thesis_id}
     assert listed.status_code == 200
-    assert listed.json()["theses"] == [{"thesis_id": thesis_id, **payload, "companies": ["AAPL", "MSFT"]}]
+    assert listed.json()["theses"] == [
+        {"thesis_id": thesis_id, **payload, "companies": ["AAPL", "MSFT", "NVDA", "JPM", "XOM", "JNJ"]}
+    ]
     assert by_company.status_code == 200
     assert by_company.json() == listed.json()
     assert updated.status_code == 200

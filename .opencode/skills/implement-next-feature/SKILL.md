@@ -146,6 +146,23 @@ Do not put framework, database, vector-store, scheduler, or provider-SDK types
 in domain or application code. Do not add speculative abstractions or unrelated
 refactoring.
 
+## Local Development And Docker Contract
+
+The normal implementation loop must be Docker-free. Use `uv` for formatting,
+linting, type checking, unit tests, local API tests, cached-data tests, builds,
+and dependency audits. `make test` and `make check` must not start containers,
+build images, or require a running Docker daemon.
+
+PostgreSQL, Qdrant, Docker Compose, and other containerized infrastructure are
+reserved for explicit infrastructure integration tests, human demonstrations,
+long-lived local servers, and CI end-to-end or deployment checks. Run those
+checks separately after the fast local loop, not after every source edit.
+
+If a feature needs a containerized check, document it as a feature-specific or
+CI/e2e check. Do not make it part of the default local test or check command.
+The human demo remains available through `make deploy`; this exception does not
+change the fast local development contract.
+
 ## Research Safeguards
 
 For data, scoring, retrieval, prediction, or evaluation work:
@@ -163,7 +180,7 @@ research, security, data, or evaluation decision.
 
 ## Verification And Evidence
 
-Run every command listed in the selected feature's
+Run every local command listed in the selected feature's
 `verification.required_checks`, then run the standard project gate:
 
 ```bash
@@ -175,17 +192,18 @@ uv run pytest
 uv run python -m compileall -q src tests scripts
 uv build
 uv run pip-audit
-docker compose config --quiet
 uv run python -m scripts.check_required_docs
 uv run python -m scripts.validate_features
 uv lock --check
 git diff --check
 ```
 
-Run relevant feature-specific checks, including real adapter, migration, API,
-or Compose startup checks where applicable. Inspect `git diff` and `git status`
-before completion. The diff must be limited to the selected feature and its
-necessary test, documentation, configuration, migration, or lockfile changes.
+Run relevant feature-specific checks, including real adapter, migration, or API
+checks where applicable. Run Compose and container checks only as explicit
+infrastructure/e2e validation or in CI, never as part of the normal local loop.
+Inspect `git diff` and `git status` before completion. The diff must be limited
+to the selected feature and its necessary test, documentation, configuration,
+migration, or lockfile changes.
 
 After all local gates pass:
 

@@ -44,6 +44,22 @@ The data repository contains raw source snapshots, market-price inputs, CIK
 metadata, and acquisition manifests. Do not commit credentials or private
 documents there.
 
+## Development And Test Contract
+
+The normal implementation loop is intentionally Docker-free. Run formatting,
+linting, typing, tests, builds, and dependency audits directly through `uv`:
+
+```bash
+make test
+make check
+```
+
+These commands must not start containers, build Docker images, or require a
+running Docker daemon. Unit tests, local API tests, in-memory batch tests, and
+cached-data tests use local or fake adapters. PostgreSQL, Qdrant, and full
+Compose checks are separate infrastructure/e2e checks run in CI or explicitly
+when validating a deployment.
+
 ## Local Services
 
 Start the local integration environment with:
@@ -57,9 +73,11 @@ The scaffold exposes the API at `http://localhost:8000/health`, Prometheus at
 testing UI is available at `http://localhost:8000/ui/`.
 
 Open the UI after `make deploy` to create a local account, manage an Investment
-Thesis, run the deterministic POC batch, and inspect a prediction without
-composing curl requests. The API key is retained only in the current browser
-session.
+Thesis, run a cached-corpus batch for the available research companies, and
+inspect a prediction without composing curl requests. The API key is retained
+only in the current browser session. See
+[`docs/LOCAL_CACHED_CORPUS_RUNBOOK.md`](docs/LOCAL_CACHED_CORPUS_RUNBOOK.md) for
+the browser workflow.
 
 ## Make Commands
 
@@ -69,6 +87,7 @@ Common development commands are available through the `Makefile`:
 make sync
 make test
 make check
+make compose-config
 make deploy
 make status
 make logs
@@ -77,6 +96,10 @@ make down
 
 `make deploy` starts the local Docker Compose integration stack in the
 background. It is not a production deployment command.
+
+`make compose-config` is an explicit Compose validation command and is not part
+of the fast local `make check` loop. Use `make deploy` for the long-lived human
+demo or local server.
 
 ## Checks
 
@@ -92,7 +115,9 @@ uv build
 uv run pip-audit
 ```
 
-GitHub Actions runs the same checks on pushes to `main` and pull requests.
+GitHub Actions additionally starts PostgreSQL and Qdrant and performs the
+containerized integration checks and Compose validation. Those Docker steps are
+CI/e2e checks, not part of the normal local implementation loop.
 
 ## Architecture Direction
 

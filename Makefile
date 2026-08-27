@@ -9,9 +9,10 @@ PROJECT_PATHS := src tests scripts
 help:
 	@printf '%s\n' \
 		"make sync             Install locked project dependencies" \
-		"make test             Run the complete test suite" \
-		"make check            Run formatting, lint, tests, build, and project gates" \
+		"make test             Run the local test suite without Docker" \
+		"make check            Run fast checks without Docker" \
 		"make format           Format source, tests, and scripts" \
+		"make compose-config   Validate Compose configuration explicitly" \
 		"make deploy           Start the local Docker Compose stack in the background" \
 		"make up               Start the local Docker Compose stack in the foreground" \
 		"make down             Stop the local Docker Compose stack" \
@@ -66,7 +67,7 @@ lock-check:
 diff-check:
 	git diff --check
 
-check: format-check lint test compile build audit compose-config governance lock-check diff-check
+check: format-check lint test compile build audit governance lock-check diff-check
 
 # This is a local Docker Compose deployment, not a production deployment.
 deploy:
