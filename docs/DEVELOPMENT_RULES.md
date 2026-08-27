@@ -79,6 +79,19 @@ the legacy POC.
 - Documentation-only and configuration-only changes must include an
   appropriate validation step even when a failing unit test is not relevant.
 
+## Local Development And Docker Boundary
+
+The default implementation and test loop must not use Docker. `make test` and
+`make check`, together with their underlying `uv run` commands, must work
+without a running Docker daemon and must not build images or start containers.
+Use in-memory repositories, fake providers, local cached-data inputs, and local
+test clients for fast feedback.
+
+PostgreSQL, Qdrant, Docker Compose, and containerized application checks belong
+to explicit infrastructure/e2e validation, the human demonstration, long-lived
+local servers, or GitHub Actions CI. They must not be added to the default
+local test/check loop merely because a feature touches infrastructure.
+
 ## Research Integrity And Reproducibility
 
 - Do not change the stated research question, corpus scope, evaluation split,
@@ -120,13 +133,14 @@ uv run mypy
 uv run pytest
 uv build
 uv run pip-audit
-docker compose config --quiet
 uv run python -m scripts.check_required_docs
 uv run python -m scripts.validate_features
 ```
 
 Run relevant additional checks for the feature, such as integration tests,
-contract tests, Compose startup checks, API checks, or migration checks.
+contract tests, API checks, or migration checks. Run Compose startup and other
+container checks separately in CI/e2e validation or when explicitly validating
+the human demo.
 
 If a required check cannot run because an external dependency is unavailable,
 the feature is not eligible for automatic merge. Record the missing evidence

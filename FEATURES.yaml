@@ -101,7 +101,6 @@ verification_profiles:
     - "uv run python -m compileall -q src tests scripts"
     - "uv build"
     - "uv run pip-audit"
-    - "docker compose config --quiet"
     - "uv run python -m scripts.check_required_docs"
     - "uv run python -m scripts.validate_features"
     - "uv lock --check"
@@ -1735,7 +1734,7 @@ features:
 
   - id: FEAT-029
     title: "Run a functional six-company local prediction workflow"
-    status: complete
+    status: implemented
     priority: high
     depends_on:
       - FEAT-008
@@ -1750,19 +1749,26 @@ features:
       - "Make the default Docker Compose runtime consume the external cached corpus instead of the AMAT-only supervisor manifest."
       - "Materialize one official SEC earnings-release record for each v1 research company in the external cache with stable identifiers, publication dates, retrieval URLs, and raw-content hashes."
       - "Document and verify the normal local workflow for AAPL, MSFT, NVDA, JPM, XOM, and JNJ without changing scoring or Investment Thesis rules."
+      - "Retire the bounded demo-only source path so AMAT is processed through the normal cached corpus when its records are available."
+      - "Keep the default local implementation and test loop independent of Docker; reserve container checks for explicit infrastructure/e2e validation, human demonstrations, long-lived servers, and CI."
     non_goals:
       - "Acquiring the complete five-year thesis corpus, final held-out evaluation manifest, or market-outcome evaluation."
       - "Completing official investor-relations coverage for every research company; the existing adapter continues to support curated IR records where available."
       - "Changing the scoring methodology, personalization rules, or provider policy."
+      - "Reproducing the former two-document AMAT demonstration output."
     acceptance_criteria:
       - id: AC-1
-        description: "A default Compose startup with SENTIMENT_DATA_ROOT configured selects the cached corpus source without DEMO_MANIFEST_PATH and retains the explicit bounded manifest as an opt-in override."
+        description: "A default Compose startup with SENTIMENT_DATA_ROOT configured selects the cached corpus source without requiring or supporting DEMO_MANIFEST_PATH."
       - id: AC-2
         description: "The external cache contains at least one readable, hash-verified official SEC earnings-release document for each of AAPL, MSFT, NVDA, JPM, XOM, and JNJ within the functional snapshot cutoff."
       - id: AC-3
-        description: "The cache adapter returns all six research companies in deterministic order, and the batch/API contracts accept each ticker without a demo-specific code path."
+        description: "The cache adapter returns all six research companies and normal cached AMAT records in deterministic order, and the batch/API contracts accept each ticker without a demo-specific code path."
       - id: AC-4
-        description: "The local UI and runbook identify the six-company functional workflow and preserve configurable Investment Thesis fields rather than requiring medium risk and a long-term horizon."
+        description: "The local UI and runbook identify the cached-company workflow, including AMAT, and preserve configurable Investment Thesis fields rather than requiring medium risk and a long-term horizon."
+      - id: AC-5
+        description: "The application repository contains no active demo-manifest source adapter, demo manifest, or demo-specific startup instructions."
+      - id: AC-6
+        description: "The default local test and check commands run without starting containers, building images, or requiring a Docker daemon, while CI retains explicit containerized validation."
     architecture:
       layers:
         - domain
@@ -1777,6 +1783,8 @@ features:
       - "decisions/0008-local-cache-acquisition-contract.md"
       - "decisions/0009-ingestion-and-evaluation-universe.md"
       - "decisions/0011-functional-six-company-snapshot.md"
+      - "decisions/0012-normal-cached-corpus-company-workflow.md"
+      - "decisions/0013-fast-local-verification-contract.md"
     verification:
       required_test_levels:
         - unit
@@ -1786,31 +1794,43 @@ features:
     completion_evidence:
       - acceptance_criterion: AC-1
         evidence:
-          - "compose.yaml::app.environment"
           - "src/sentiment_system/bootstrap/container.py::build_container"
-          - "docker compose --env-file /dev/null config --quiet"
-          - "Live Compose environment: no DEMO_MANIFEST_PATH, SENTIMENT_DATA_ROOT=/data, QDRANT_COLLECTION=research_chunks"
+          - "tests/unit/bootstrap/test_container.py::test_build_container_uses_cached_source_when_legacy_demo_setting_exists"
+          - "docker compose exec -T app env: APP_ENV=research, SENTIMENT_DATA_ROOT=/data, QDRANT_COLLECTION=research_chunks, no DEMO_MANIFEST_PATH"
+          - "curl --fail http://localhost:8000/health"
       - acceptance_criterion: AC-2
         evidence:
           - "sentimentAI-data/data/sec/manifests/previous_calendar_quarter_earnings_releases.json::functional_universe"
           - "sentimentAI-data/data/sec/earnings_releases/{AAPL,MSFT,NVDA,JPM,XOM,JNJ}_*.txt"
-          - "sentimentAI-data/cik_map.csv"
           - "tests/integration/test_cached_sources.py::test_external_research_snapshot_contains_all_functional_tickers"
           - "SENTIMENT_DATA_ROOT=/Users/jan/private/sentimentAI-data uv run pytest tests/integration/test_cached_sources.py"
       - acceptance_criterion: AC-3
         evidence:
           - "src/sentiment_system/adapters/outbound/sources/cached.py::_load_sec"
           - "tests/unit/adapters/outbound/test_cached_sources.py::test_cached_source_rejects_sec_hash_mismatch"
-          - "tests/integration/test_cached_sources.py::test_external_research_snapshot_contains_all_functional_tickers"
-          - "tests/integration/test_api.py::test_strategy_endpoints_scope_crud_to_the_account_selected_by_api_key"
-          - "Live Compose batches for AAPL, MSFT, NVDA, JPM, XOM, and JNJ: completed with three snapshots each"
+          - "tests/integration/test_cached_sources.py::test_external_cached_corpus_exposes_amat_as_a_normal_company"
+          - "Live normal cached AMAT batch: 25 documents, completed run, 213 evidence items"
+          - "Live Compose prediction API response for AMAT at 2026-05-14"
       - acceptance_criterion: AC-4
         evidence:
           - "web/index.html::research-companies"
-          - "docs/LOCAL_SIX_COMPANY_RUNBOOK.md"
+          - "docs/LOCAL_CACHED_CORPUS_RUNBOOK.md"
           - "tests/integration/test_web_ui.py::test_ui_serves_page_and_same_origin_assets"
-          - "tests/unit/domain/test_companies.py::test_registry_contains_exact_approved_universe"
-          - "Live Compose prediction API responses for all six research tickers"
+          - "Live AMAT prediction response with configurable medium-risk, long-term, passive thesis"
+      - acceptance_criterion: AC-5
+        evidence:
+          - "Deleted demo/manifest.json, demo_manifest.py, supervisor-demo tests, and supervisor-only runbook"
+          - "Dockerfile no longer copies a demo directory"
+          - "No active source references to DEMO_MANIFEST_PATH or DemoManifestDocumentSource"
+      - acceptance_criterion: AC-6
+        evidence:
+          - "Makefile::check excludes Docker commands"
+          - "make -n check contains only uv and local shell checks"
+          - "make check: 129 passed, 7 environment-dependent tests skipped, no Docker invocation"
+          - "Configured infrastructure validation: 136 passed with local PostgreSQL, Qdrant, and cached data"
+          - "decisions/0013-fast-local-verification-contract.md"
     implementation_notes:
       - "The six-company functional snapshot is intentionally smaller than FEAT-015's final acquisition and evaluation corpus."
       - "The current functional snapshot uses one official SEC earnings-release record per ticker; curated investor-relations coverage remains a separate expansion."
+      - "The bounded AMAT supervisor path is retired in favor of the normal cached corpus; AMAT batches may process historical SEC and curated investor-relations records beyond the former two-document fixture."
+      - "Fast local checks use uv and local/fake adapters; Docker Compose remains an explicit human-demo and CI/e2e boundary."

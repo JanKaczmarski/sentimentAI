@@ -5,8 +5,8 @@
 
 ## Purpose
 
-Provide a normal local application path for the six-company thesis sample
-without coupling the runtime to the bounded AMAT supervisor demonstration.
+Provide a normal local application path for the six-company thesis sample and
+other companies available in the external cache.
 
 ## Functional Scope
 
@@ -31,5 +31,5 @@ without coupling the runtime to the bounded AMAT supervisor demonstration.
 - The canonical approved-company registry remains the source of truth for
   ticker validation. The six-company list identifies the functional thesis
   sample and must not be copied into source adapters.
-- The AMAT manifest remains available only as an explicit supervisor fixture;
-  the default Compose path uses the external cached corpus.
+- AMAT records in the external cache are consumed through the same cached-corpus
+  path as the functional six-company snapshot.

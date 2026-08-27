@@ -116,6 +116,17 @@ For documentation-only or configuration-only changes, replace the failing-test
 step with a relevant deterministic validation command. State that exception in
 the final evidence.
 
+## Local Verification Boundary
+
+The normal implementation loop is Docker-free. `make test`, `make check`, and
+the standard `uv run` verification commands must not start containers, build
+images, or require Docker. Use fake and in-memory adapters for fast local tests
+and use the external cached-data repository directly for cached-source tests.
+
+PostgreSQL, Qdrant, Docker Compose, and containerized application checks are
+explicit infrastructure/e2e checks. Run them in GitHub Actions or during the
+human demo/long-lived-server validation, not after every local source change.
+
 ## Research And Data Gate
 
 For any feature that processes research data, scores documents, retrieves
@@ -146,12 +157,12 @@ uv run mypy
 uv run pytest
 uv build
 uv run pip-audit
-docker compose config --quiet
 uv run python -m scripts.check_required_docs
 uv run python -m scripts.validate_features
 ```
 
-Also inspect the diff and worktree state. Confirm that the diff is scoped to
+Also inspect the diff and worktree state. Run any required Compose or other
+containerized checks separately in CI/e2e validation. Confirm that the diff is scoped to
 the feature, generated files are intentional, and no secret or unrelated user
 change is included.
 

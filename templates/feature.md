@@ -31,12 +31,11 @@ explicitly approved or derived from an existing approved project decision.
       - "uv run black --check src tests scripts"
       - "uv run isort --check-only src tests scripts"
       - "uv run ruff check src tests scripts"
-      - "uv run mypy"
-      - "uv run pytest"
-      - "uv build"
-      - "uv run pip-audit"
-      - "docker compose config --quiet"
-      - "uv run python -m scripts.check_required_docs"
+       - "uv run mypy"
+       - "uv run pytest"
+       - "uv build"
+       - "uv run pip-audit"
+       - "uv run python -m scripts.check_required_docs"
       - "uv run python -m scripts.validate_features"
   blocked_reason: null
   completion_evidence: []

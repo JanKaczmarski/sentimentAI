@@ -29,7 +29,6 @@ from sentiment_system.adapters.outbound.persistence.postgres import (
     PostgresUserAccountRepository,
 )
 from sentiment_system.adapters.outbound.sources.cached import CachedCorpusDocumentSource
-from sentiment_system.adapters.outbound.sources.demo_manifest import DemoManifestDocumentSource
 from sentiment_system.adapters.outbound.sources.fixtures import FixtureDocumentSource
 from sentiment_system.adapters.outbound.vector.in_memory import InMemoryVectorStore
 from sentiment_system.adapters.outbound.vector.qdrant import QdrantVectorStore
@@ -119,16 +118,10 @@ def build_container() -> ApplicationContainer:
     embedding_config = EmbeddingConfig.from_env()
     embedding_provider = build_embedding_provider(embedding_config)
     data_root = os.getenv("SENTIMENT_DATA_ROOT")
-    manifest_path = os.getenv("DEMO_MANIFEST_PATH")
     document_source: DocumentSource
-    if manifest_path:
-        if not data_root:
-            raise ValueError("SENTIMENT_DATA_ROOT is required when DEMO_MANIFEST_PATH is configured")
-        document_source = DemoManifestDocumentSource(root=Path(data_root), manifest_path=Path(manifest_path))
-    else:
-        document_source = (
-            CachedCorpusDocumentSource(Path(data_root)) if data_root else FixtureDocumentSource(_POC_DOCUMENTS)
-        )
+    document_source = (
+        CachedCorpusDocumentSource(Path(data_root)) if data_root else FixtureDocumentSource(_POC_DOCUMENTS)
+    )
     llm_config = LLMConfig.from_env()
     llm_scorer = build_llm_scorer(llm_config)
     database_url = os.getenv("DATABASE_URL")

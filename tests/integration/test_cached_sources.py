@@ -3,6 +3,7 @@
 import hashlib
 import json
 import os
+from datetime import date
 from pathlib import Path
 
 import pytest
@@ -50,6 +51,22 @@ def test_external_research_snapshot_contains_all_functional_tickers() -> None:
         record = records[ticker]
         path = Path(root_value) / "data" / "sec" / "earnings_releases" / f"{ticker}_{record['accession_number']}.txt"
         assert record["raw_sha256"] == hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+@pytest.mark.integration
+def test_external_cached_corpus_exposes_amat_as_a_normal_company() -> None:
+    root_value = os.getenv("SENTIMENT_DATA_ROOT")
+    if not root_value:
+        pytest.skip("SENTIMENT_DATA_ROOT is not configured")
+
+    documents = CachedCorpusDocumentSource(Path(root_value)).fetch_documents(
+        company="AMAT",
+        published_before=date(2026, 5, 15),
+    )
+
+    assert len(documents) > 2
+    assert {document.source for document in documents} == {"sec", "investor_relations"}
+    assert all(document.raw_content.strip() for document in documents)
 
 
 @pytest.mark.integration
