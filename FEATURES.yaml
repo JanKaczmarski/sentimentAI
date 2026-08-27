@@ -1734,7 +1734,7 @@ features:
 
   - id: FEAT-029
     title: "Run a functional six-company local prediction workflow"
-    status: implemented
+    status: in_review
     priority: high
     depends_on:
       - FEAT-008
