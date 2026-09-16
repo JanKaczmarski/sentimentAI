@@ -1834,3 +1834,248 @@ features:
       - "The current functional snapshot uses one official SEC earnings-release record per ticker; curated investor-relations coverage remains a separate expansion."
       - "The bounded AMAT supervisor path is retired in favor of the normal cached corpus; AMAT batches may process historical SEC and curated investor-relations records beyond the former two-document fixture."
       - "Fast local checks use uv and local/fake adapters; Docker Compose remains an explicit human-demo and CI/e2e boundary."
+
+  - id: FEAT-030
+    title: "Ingest and index one company's documents on demand"
+    status: queued
+    priority: high
+    depends_on:
+      - FEAT-007
+      - FEAT-008
+      - FEAT-010
+      - FEAT-018
+      - FEAT-026
+      - FEAT-029
+    scope:
+      - "Add a dedicated endpoint and use case that runs ingestion, quality-gated chunking, embedding, and vector-store indexing for one approved company, without scoring or aggregation."
+      - "Make repeated ingestion calls for the same company and as-of date idempotent: already-ingested documents, chunks, and vector-store points are not duplicated or re-embedded."
+      - "Return document, chunk, and indexed-chunk counts plus a run identifier, using the same experiment-provenance pattern as the existing batch run."
+    non_goals:
+      - "Chunk scoring, aggregation, or prediction generation; these remain separate use cases and features."
+      - "Changing the cleaning, chunking, or embedding configuration fixed in decisions/0003-processing-and-scoring-configuration.md."
+      - "Asynchronous job execution, background workers, or job-status polling (tracked in a separate scoring-durability feature)."
+      - "Removing or changing the behavior of POST /batch/run for existing callers."
+    acceptance_criteria:
+      - id: AC-1
+        description: "A new endpoint ingests, chunks, embeds, and indexes one approved company's available cached documents for a given as-of date and returns document, chunk, and indexed-chunk counts and a run_id."
+      - id: AC-2
+        description: "Calling the endpoint twice with the same company and as-of date does not create duplicate documents, chunks, or vector-store points, and returns the same or a superset-consistent result."
+      - id: AC-3
+        description: "An unsupported or unapproved company ticker is rejected with the same validation error used by the existing batch endpoint."
+      - id: AC-4
+        description: "POST /batch/run's existing behavior and response contract are unchanged for current callers."
+    architecture:
+      layers:
+        - application
+        - adapters
+        - bootstrap
+      ports:
+        - document_sources
+        - embeddings
+        - vector_store
+        - repositories
+    research_decisions:
+      - "docs/THESIS_DECISIONS.md#runtime-and-architecture"
+      - "decisions/0003-processing-and-scoring-configuration.md"
+      - "decisions/0012-normal-cached-corpus-company-workflow.md"
+    verification:
+      required_test_levels:
+        - unit
+        - integration
+      required_checks: *code_checks
+    blocked_reason: null
+    completion_evidence: []
+    implementation_notes: []
+
+  - id: FEAT-031
+    title: "Score chunks with document-level contextual RAG"
+    status: queued
+    priority: high
+    depends_on:
+      - FEAT-011
+      - FEAT-030
+    scope:
+      - "Implement the `contextual` scoring variant already declared in decisions/0003-processing-and-scoring-configuration.md: generate one investor-independent, no-investor-information document-level summary per document, then prepend that summary to each of its chunks before scoring."
+      - "Use the existing LLMScorer.score_chunk(chunk, context=...) parameter to carry the prepended summary; do not change the port signature."
+      - "Make the scoring variant (`standard` or `contextual`) an explicit, recorded run configuration value so both declared variants remain independently runnable and comparable, per the pre-registered sensitivity plan."
+      - "Enforce the existing 15,000-token hard input budget per LLM request (summary + chunk, excluding the completion budget) using the selected scoring model's tokenizer; when the budget is exceeded, truncate deterministically and record the truncation flag and tokenizer identifier in provenance, per decisions/0003."
+      - "Record summary-generation provenance (provider, model, tokenizer identifier, prompt version, generation parameters, token usage, raw response, parsed output) in addition to existing per-chunk scoring provenance."
+    non_goals:
+      - "Vector-similarity ('retrieval-based') context selection; this feature only implements the document-summary variant already declared in decisions/0003."
+      - "Changing the aggregation formula, snapshot windows, or Investment Thesis personalization rules in decisions/0005-aggregation-and-personalization-rules.md."
+      - "Changing which chunks are eligible for scoring or excluded; soft-exclusion rules are unchanged."
+      - "Asynchronous job execution (tracked separately)."
+    acceptance_criteria:
+      - id: AC-1
+        description: "When the `contextual` variant is selected for a run, one document-level summary is generated per document with an investor-independent prompt containing no Investment Thesis information, using temperature 0 and a 500-token completion budget, and its prompt, raw response, and parsed output are persisted."
+      - id: AC-2
+        description: "Every chunk scored under the `contextual` variant is scored with that document's summary passed as context, and the resulting ChunkScoreRecord/provenance identifies the variant used."
+      - id: AC-3
+        description: "The `standard` variant (no prepended summary) continues to produce identical results to the current implementation, so existing behavior and tests are unaffected when `contextual` is not selected."
+      - id: AC-4
+        description: "A request whose summary-plus-chunk token count would exceed the 15,000-token input budget is truncated deterministically rather than sent as-is, and the run records the tokenizer identifier, measured input size, and a truncation flag."
+      - id: AC-5
+        description: "Malformed, incomplete, or non-JSON summary or scoring output is rejected explicitly and never silently converted into a research result, matching the existing scoring-contract behavior in decisions/0003."
+    architecture:
+      layers:
+        - application
+        - adapters
+      ports:
+        - llm
+        - repositories
+    research_decisions:
+      - "docs/THESIS_DECISIONS.md#rag-and-scoring"
+      - "decisions/0003-processing-and-scoring-configuration.md"
+    verification:
+      required_test_levels:
+        - unit
+        - contract
+      required_checks: *code_checks
+    blocked_reason: null
+    completion_evidence: []
+    implementation_notes:
+      - "The tokenizer used to enforce the 15,000-token input budget for the Ollama-served llama3.1:8b model still needs a concrete library choice (e.g. a Hugging Face tokenizer already available transitively via sentence-transformers, or a model-specific tokenizer); this is an implementation detail, not a new research decision, but must be resolved before the feature is marked ready."
+
+  - id: FEAT-032
+    title: "Run chunk scoring as a durable, resumable job"
+    status: queued
+    priority: high
+    depends_on:
+      - FEAT-008
+      - FEAT-011
+      - FEAT-030
+      - FEAT-031
+    scope:
+      - "Add a persisted scoring-run status record, extending the existing ExperimentRun pattern, that tracks per-chunk progress so a scoring run is resumable rather than all-or-nothing within one HTTP request."
+      - "Add a background worker, wired into the existing (currently empty) scheduler adapter using the already-declared apscheduler dependency, that drains pending chunks for a run with retry/backoff around LLM provider calls and a bounded, configurable concurrency limit."
+      - "Add an endpoint that enqueues a scoring run for one company's already-ingested chunks and returns a run_id immediately, plus a status read to poll per-chunk progress."
+      - "Support the daily-scheduled-batch-plus-manual-trigger runtime goal already stated in docs/THESIS_DECISIONS.md#evaluation, using the same enqueue use case for both triggers."
+    non_goals:
+      - "Changing the scoring contract, prompt, or RAG variant selection decided in FEAT-031 and decisions/0003-processing-and-scoring-configuration.md."
+      - "Any external message queue or additional infrastructure service; concurrency stays in-process against the existing PostgreSQL and Ollama runtime."
+      - "Changing ingestion (FEAT-030) or aggregation (FEAT-012) behavior."
+    acceptance_criteria:
+      - id: AC-1
+        description: "An endpoint enqueues a scoring run for one company's already-ingested chunks and returns a run_id without blocking on any LLM provider call."
+      - id: AC-2
+        description: "A background worker processes pending chunks for an enqueued run, retries a failed provider call with backoff up to a configured limit, and marks the run failed with a recorded reason only after exhausting retries."
+      - id: AC-3
+        description: "Restarting the application process resumes any run left in progress instead of silently losing unscored chunks or double-scoring already-scored ones."
+      - id: AC-4
+        description: "A status read returns the run's current state and per-chunk progress counts sufficient to determine whether scoring has finished."
+      - id: AC-5
+        description: "A daily scheduled trigger and the manual endpoint both enqueue through the same use case, with no duplicated scoring logic between them."
+    architecture:
+      layers:
+        - application
+        - adapters
+        - bootstrap
+      ports:
+        - llm
+        - repositories
+    research_decisions:
+      - "docs/THESIS_DECISIONS.md#evaluation"
+      - "decisions/0006-reproducible-research-and-runtime-contract.md"
+    verification:
+      required_test_levels:
+        - unit
+        - integration
+      required_checks: *code_checks
+    blocked_reason: null
+    completion_evidence: []
+    implementation_notes:
+      - "Default concurrency should be conservative (e.g. 1) given a single local Ollama instance; make it configurable rather than hard-coded so it can be raised against a multi-replica or hosted provider later."
+
+  - id: FEAT-033
+    title: "Rank and de-duplicate prediction evidence with vector similarity"
+    status: ready
+    priority: medium
+    depends_on:
+      - FEAT-010
+      - FEAT-012
+      - FEAT-027
+    scope:
+      - "Use the existing VectorStore.search() port method to re-rank or de-duplicate the evidence chunks attached to a company snapshot or prediction, for display and explainability only."
+      - "Add this as an additive layer that never changes a persisted sentiment score, confidence, or aggregation weight."
+      - "Record which chunks were suppressed as near-duplicates or re-ranked, and why, in provenance sufficient to reconstruct the displayed evidence set."
+    non_goals:
+      - "Changing the aggregation formula, snapshot windows, or any computed score or confidence value; decisions/0005-aggregation-and-personalization-rules.md is unchanged."
+      - "Using any Investment Thesis free-text field to construct a vector query, preserving the investor-independence of the underlying computation."
+      - "Treating Qdrant as a system of record; decisions/0006's PostgreSQL-authoritative contract is unchanged, and this feature only reads a best-effort ranking signal from the vector store."
+      - "Any change to the deterministic full-window aggregation input selection; a retrieval-bounded aggregation variant, if pursued later, is a separate feature requiring its own decision record."
+    acceptance_criteria:
+      - id: AC-1
+        description: "The prediction response's evidence list can be de-duplicated or re-ranked using vector-similarity search over already-indexed chunk embeddings, without changing base_sentiment, personalized_sentiment, or confidence values."
+      - id: AC-2
+        description: "If the vector store is unavailable or a search fails, the existing importance/recency-sorted evidence ordering (sort_evidence) is used unchanged as a fallback, and the prediction request never fails because of this feature."
+      - id: AC-3
+        description: "No Investment Thesis free-text field is used to construct a vector query."
+      - id: AC-4
+        description: "Evidence chunk identifiers, final ordering, and any similarity-derived grouping or suppression are recorded in provenance sufficient to reconstruct why a chunk was included, re-ranked, or suppressed."
+    architecture:
+      layers:
+        - application
+        - adapters
+      ports:
+        - vector_store
+        - repositories
+    research_decisions:
+      - "decisions/0005-aggregation-and-personalization-rules.md"
+      - "decisions/0006-reproducible-research-and-runtime-contract.md"
+    verification:
+      required_test_levels:
+        - unit
+        - contract
+      required_checks: *code_checks
+    blocked_reason: null
+    completion_evidence: []
+    implementation_notes:
+      - "Scoped deliberately narrow: explainability/display only. A retrieval-bounded aggregation variant was considered and intentionally deferred pending an explicit decision update if the team later wants to pre-register and evaluate it."
+
+  - id: FEAT-034
+    title: "Update the local console UI for the ingest, score, and evidence-ranking flow"
+    status: queued
+    priority: medium
+    depends_on:
+      - FEAT-025
+      - FEAT-030
+      - FEAT-031
+      - FEAT-032
+      - FEAT-033
+    scope:
+      - "Replace the single 'Run batch' action in the local console (web/index.html, web/app.js) with separate controls that call the on-demand ingestion endpoint (FEAT-030) and the asynchronous scoring endpoint (FEAT-032), including polling the scoring run's status until it completes or fails."
+      - "Surface which scoring RAG variant (standard or contextual, FEAT-031) produced a run's results in the console."
+      - "Display any evidence de-duplication or re-ranking signal introduced by FEAT-033 alongside the existing importance/recency-sorted evidence list."
+      - "Update the local browser-workflow documentation (docs/LOCAL_CACHED_CORPUS_RUNBOOK.md or its successor) to describe the new multi-step ingest-then-score-then-predict flow in place of the single batch step."
+    non_goals:
+      - "Any change to account creation or Investment Thesis management flows."
+      - "Any change to API response contracts beyond what FEAT-030 through FEAT-033 already define."
+      - "Introducing a UI framework, a build step, or a separate frontend service; the console stays same-origin static HTML/JS served from /ui/, per decisions/0007-local-testing-ui.md."
+      - "Authentication changes or multi-user session handling in the browser console."
+    acceptance_criteria:
+      - id: AC-1
+        description: "The console ingests one company's documents through the on-demand ingestion endpoint from a dedicated control and shows the returned document and chunk counts."
+      - id: AC-2
+        description: "The console starts a scoring run through the new endpoint and polls its status until completion or failure, showing progress without blocking the page, and surfaces a clear error state if the run fails."
+      - id: AC-3
+        description: "After a completed scoring run, the console still requests and renders a prediction using the existing prediction display, unchanged for the values it already showed (sentiment, confidence, reasoning)."
+      - id: AC-4
+        description: "The evidence list shows the FEAT-033 de-duplication or re-ranking signal when the API returns one, and falls back to the current importance/recency ordering when it does not, matching the API's documented fallback behavior."
+      - id: AC-5
+        description: "The console indicates which scoring variant (standard or contextual) produced the displayed results."
+      - id: AC-6
+        description: "The local browser-workflow documentation describes the ingest-then-score-then-predict flow and no longer describes a single combined batch step as the primary path."
+    architecture:
+      layers:
+        - adapters
+      ports: []
+    research_decisions:
+      - "decisions/0007-local-testing-ui.md"
+    verification:
+      required_test_levels:
+        - integration
+      required_checks: *code_checks
+    blocked_reason: null
+    completion_evidence: []
+    implementation_notes:
+      - "Sequenced deliberately last: it depends on the API surface from FEAT-030 through FEAT-033 existing before the console can call it, so it stays queued until those are complete."
