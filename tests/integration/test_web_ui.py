@@ -19,6 +19,8 @@ def test_ui_serves_page_and_same_origin_assets() -> None:
     assert redirect.headers["location"] == "/ui/"
     assert page.status_code == 200
     assert page.headers["content-type"].startswith("text/html")
+    assert 'class="terminal-header"' in page.text
+    assert 'class="terminal-layout"' in page.text
     assert 'id="account-form"' in page.text
     assert 'src="/ui/app.js"' in page.text
     assert script.status_code == 200
@@ -43,3 +45,22 @@ def test_ui_serves_page_and_same_origin_assets() -> None:
     assert 'classList.toggle("ready"' in script.text
     assert stylesheet.status_code == 200
     assert "--ink" in stylesheet.text
+    assert "--terminal-lime" in stylesheet.text
+
+
+def test_ui_serves_interface_studies() -> None:
+    app = create_app(container=ApplicationContainer())
+    client = TestClient(app)
+
+    gallery = client.get("/ui/sketches/")
+    stylesheet = client.get("/ui/sketches/sketches.css")
+
+    assert gallery.status_code == 200
+    assert 'href="analyst-dossier.html"' in gallery.text
+    assert 'href="market-terminal.html"' in gallery.text
+    assert 'href="signal-journal.html"' in gallery.text
+    assert stylesheet.status_code == 200
+    for study in ("analyst-dossier", "market-terminal", "signal-journal"):
+        page = client.get(f"/ui/sketches/{study}.html")
+        assert page.status_code == 200
+        assert 'href="sketches.css"' in page.text

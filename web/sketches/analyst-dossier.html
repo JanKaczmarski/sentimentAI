@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Analyst Dossier interface study for the Sentiment System.">
+    <title>Analyst Dossier | Sentiment System</title>
+    <link rel="stylesheet" href="sketches.css">
+  </head>
+  <body class="dossier-page">
+    <div class="dossier-shell">
+      <aside class="dossier-rail">
+        <a class="dossier-mark" href="index.html" aria-label="Return to interface studies">S<br>S</a>
+        <nav class="dossier-nav" aria-label="Dossier sections">
+          <a class="is-current" href="#brief">Brief</a>
+          <a href="#evidence">Evidence</a>
+          <a href="#thesis">Thesis</a>
+          <a href="#run">New run</a>
+        </nav>
+        <p class="dossier-rail-note">LOCAL<br>RESEARCH<br>FILE 024</p>
+      </aside>
+
+      <main class="dossier-main">
+        <header class="dossier-topline">
+          <p>THURSDAY, 17 SEPTEMBER 2026</p>
+          <p>MARKET SENTIMENT / UNITED STATES</p>
+          <span class="dossier-ready"><i></i> API CONNECTED</span>
+        </header>
+
+        <section id="brief" class="dossier-brief">
+          <div class="dossier-title-block">
+            <p class="dossier-label">COMPANY BRIEF / 01</p>
+            <h1>Apple<br>Inc.</h1>
+            <p class="dossier-dek">The strength of the current research signal after filtering for an investor who values durable cash generation over near-term expansion.</p>
+          </div>
+          <div class="dossier-conviction">
+            <p class="dossier-label">PERSONALIZED<br>CONVICTION</p>
+            <strong>+0.61</strong>
+            <span>Constructive</span>
+            <p>Confidence: 78%<br>14 sources read</p>
+          </div>
+        </section>
+
+        <section class="dossier-register" aria-label="Research summary">
+          <div>
+            <span>BASE SIGNAL</span>
+            <strong>+0.47</strong>
+          </div>
+          <div>
+            <span>THESIS EFFECT</span>
+            <strong class="dossier-up">+0.14</strong>
+          </div>
+          <div>
+            <span>AS-OF DATE</span>
+            <strong>17 SEP</strong>
+          </div>
+          <div>
+            <span>RUN ID</span>
+            <strong>R-2049</strong>
+          </div>
+        </section>
+
+        <section id="evidence" class="dossier-evidence">
+          <div class="dossier-section-title">
+            <p class="dossier-label">READING THE EVIDENCE / 02</p>
+            <h2>What moved the view</h2>
+          </div>
+          <div class="dossier-signal-plot">
+            <div class="plot-label"><span>90D SIGNAL</span><span>+0.61</span></div>
+            <svg viewBox="0 0 680 118" preserveAspectRatio="none" role="img" aria-label="Apple sentiment signal rises over ninety days">
+              <path class="dossier-grid-line" d="M0 25H680M0 59H680M0 93H680"></path>
+              <path class="dossier-area" d="M0 100 L0 82 L55 85 L110 69 L165 75 L220 56 L275 61 L330 49 L385 64 L440 45 L495 52 L550 26 L605 34 L680 15 L680 100 Z"></path>
+              <path class="dossier-line" d="M0 82 L55 85 L110 69 L165 75 L220 56 L275 61 L330 49 L385 64 L440 45 L495 52 L550 26 L605 34 L680 15"></path>
+              <circle class="dossier-dot" cx="680" cy="15" r="4"></circle>
+            </svg>
+            <div class="plot-axis"><span>JUN</span><span>JUL</span><span>AUG</span><span>SEP</span></div>
+          </div>
+          <article class="dossier-clip dossier-clip-positive">
+            <div class="clip-index">01<br><span>POS</span></div>
+            <div>
+              <p class="clip-source">EARNINGS CALL / 12 SEP / HIGH RELEVANCE</p>
+              <blockquote>"Services revenue reached a new all-time high, while our installed base hit another record across every geographic segment."</blockquote>
+              <p class="clip-note">The signal aligns with the brief's preference for recurring cash flow and quality of earnings.</p>
+            </div>
+            <strong>+0.82</strong>
+          </article>
+          <article class="dossier-clip dossier-clip-neutral">
+            <div class="clip-index">02<br><span>NEU</span></div>
+            <div>
+              <p class="clip-source">SUPPLY-CHAIN NOTE / 09 SEP / MEDIUM RELEVANCE</p>
+              <blockquote>Channel inventory remains balanced, though mix expectations now depend more heavily on the premium handset cycle.</blockquote>
+              <p class="clip-note">No direct contradiction to the thesis. The source lowers certainty around the next quarter only.</p>
+            </div>
+            <strong>+0.08</strong>
+          </article>
+        </section>
+
+        <section id="thesis" class="dossier-thesis">
+          <div>
+            <p class="dossier-label">YOUR LENS / 03</p>
+            <h2>Long-term compounders,<br>not short-term stories.</h2>
+          </div>
+          <dl>
+            <div><dt>HORIZON</dt><dd>Long term</dd></div>
+            <div><dt>RISK</dt><dd>Medium</dd></div>
+            <div><dt>STYLE</dt><dd>Passive</dd></div>
+          </dl>
+          <button type="button">Edit investment thesis</button>
+        </section>
+
+        <section id="run" class="dossier-run">
+          <p class="dossier-label">LOCAL CONSOLE / 04</p>
+          <h2>Open another file</h2>
+          <form>
+            <label>COMPANY<input value="MSFT" aria-label="Company ticker"></label>
+            <label>AS-OF<input type="date" value="2026-09-17" aria-label="As-of date"></label>
+            <button type="button">Run research</button>
+          </form>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>
