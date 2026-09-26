@@ -2141,7 +2141,7 @@ features:
 
   - id: FEAT-036
     title: "Build reproducible prediction-evaluation reports"
-    status: implemented
+    status: in_review
     priority: high
     depends_on:
       - FEAT-002
