@@ -14,6 +14,7 @@ from sentiment_system.application.ports.repositories import (
     ChunkRepository,
     ChunkScoreRepository,
     DocumentRepository,
+    EvaluationReportRepository,
     ExperimentProvenanceRepository,
     ExperimentRunRepository,
     InvestmentThesisRepository,
@@ -23,6 +24,13 @@ from sentiment_system.application.ports.repositories import (
 )
 from sentiment_system.domain.accounts import UserAccount
 from sentiment_system.domain.documents import DocumentChunk, SourceDocument
+from sentiment_system.domain.evaluation import (
+    EvaluationExclusion,
+    EvaluationMetric,
+    EvaluationObservation,
+    EvaluationReport,
+    EvaluationVariant,
+)
 from sentiment_system.domain.investment_thesis import (
     InvestmentHorizon,
     InvestmentStyle,
@@ -554,6 +562,36 @@ class PostgresPredictionRepository(_PostgresRepository, PredictionRepository):
         return tuple(predictions)
 
 
+class PostgresEvaluationReportRepository(_PostgresRepository, EvaluationReportRepository):
+    """Persist append-only evaluation reports as immutable JSON audit records."""
+
+    def save(self, report: EvaluationReport) -> None:
+        with self._database.connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO evaluation_reports (
+                    report_id, created_at, corpus_manifest_version, market_snapshot_version,
+                    observations, exclusions, metrics
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (report_id) DO NOTHING
+                """,
+                (
+                    report.report_id,
+                    report.created_at,
+                    report.corpus_manifest_version,
+                    report.market_snapshot_version,
+                    Jsonb([_observation_json(item) for item in report.observations]),
+                    Jsonb([_exclusion_json(item) for item in report.exclusions]),
+                    Jsonb([_metric_json(item) for item in report.metrics]),
+                ),
+            )
+
+    def get(self, report_id: str) -> EvaluationReport | None:
+        with self._database.connect() as connection:
+            row = connection.execute("SELECT * FROM evaluation_reports WHERE report_id = %s", (report_id,)).fetchone()
+        return None if row is None else _evaluation_report_from_row(row)
+
+
 def _document_values(document: SourceDocument) -> tuple[object, ...]:
     return (
         document.document_id,
@@ -713,6 +751,97 @@ def _prediction_from_row(row: Mapping[str, Any], evidence_rows: list[Mapping[str
         run_id=row["run_id"],
         reasoning=row["reasoning"],
         user_id=None if row["user_id"] is None else str(row["user_id"]),
+    )
+
+
+def _observation_json(observation: EvaluationObservation) -> dict[str, object]:
+    return {
+        "company": observation.company,
+        "prediction_as_of": observation.prediction_as_of.isoformat(),
+        "entry_date": observation.entry_date.isoformat(),
+        "exit_date": observation.exit_date.isoformat(),
+        "forecast_horizon_days": observation.forecast_horizon_days,
+        "variant": observation.variant.value,
+        "benchmark_mode": observation.benchmark_mode,
+        "benchmark_symbol": observation.benchmark_symbol,
+        "used_spy_fallback": observation.used_spy_fallback,
+        "predicted_score": observation.predicted_score,
+        "subject_return": observation.subject_return,
+        "benchmark_return": observation.benchmark_return,
+        "excess_return": observation.excess_return,
+    }
+
+
+def _exclusion_json(exclusion: EvaluationExclusion) -> dict[str, object]:
+    return {
+        "company": exclusion.company,
+        "prediction_as_of": exclusion.prediction_as_of.isoformat(),
+        "forecast_horizon_days": exclusion.forecast_horizon_days,
+        "reason": exclusion.reason,
+    }
+
+
+def _metric_json(metric: EvaluationMetric) -> dict[str, object]:
+    return {
+        "variant": metric.variant.value,
+        "benchmark_mode": metric.benchmark_mode,
+        "forecast_horizon_days": metric.forecast_horizon_days,
+        "observation_count": metric.observation_count,
+        "directional_sample_size": metric.directional_sample_size,
+        "directional_hit_rate": metric.directional_hit_rate,
+        "spearman_correlation": metric.spearman_correlation,
+    }
+
+
+def _evaluation_report_from_row(row: Mapping[str, Any]) -> EvaluationReport:
+    return EvaluationReport(
+        report_id=row["report_id"],
+        created_at=row["created_at"],
+        corpus_manifest_version=row["corpus_manifest_version"],
+        market_snapshot_version=row["market_snapshot_version"],
+        observations=tuple(
+            EvaluationObservation(
+                company=item["company"],
+                prediction_as_of=date.fromisoformat(item["prediction_as_of"]),
+                entry_date=date.fromisoformat(item["entry_date"]),
+                exit_date=date.fromisoformat(item["exit_date"]),
+                forecast_horizon_days=item["forecast_horizon_days"],
+                variant=EvaluationVariant(item["variant"]),
+                benchmark_mode=item["benchmark_mode"],
+                benchmark_symbol=item["benchmark_symbol"],
+                used_spy_fallback=item["used_spy_fallback"],
+                predicted_score=float(item["predicted_score"]),
+                subject_return=float(item["subject_return"]),
+                benchmark_return=float(item["benchmark_return"]),
+                excess_return=float(item["excess_return"]),
+            )
+            for item in row["observations"]
+        ),
+        exclusions=tuple(
+            EvaluationExclusion(
+                company=item["company"],
+                prediction_as_of=date.fromisoformat(item["prediction_as_of"]),
+                forecast_horizon_days=item["forecast_horizon_days"],
+                reason=item["reason"],
+            )
+            for item in row["exclusions"]
+        ),
+        metrics=tuple(
+            EvaluationMetric(
+                variant=EvaluationVariant(item["variant"]),
+                benchmark_mode=item["benchmark_mode"],
+                forecast_horizon_days=item["forecast_horizon_days"],
+                observation_count=item["observation_count"],
+                directional_sample_size=item["directional_sample_size"],
+                directional_hit_rate=(
+                    None if item["directional_hit_rate"] is None else float(item["directional_hit_rate"])
+                ),
+                spearman_correlation=(
+                    None if item["spearman_correlation"] is None else float(item["spearman_correlation"])
+                ),
+            )
+            for item in row["metrics"]
+        ),
     )
 
 

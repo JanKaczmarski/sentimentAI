@@ -5,6 +5,7 @@ from typing import Protocol, runtime_checkable
 
 from sentiment_system.domain.accounts import UserAccount
 from sentiment_system.domain.documents import DocumentChunk, SourceDocument
+from sentiment_system.domain.evaluation import EvaluationReport
 from sentiment_system.domain.investment_thesis import InvestmentThesis
 from sentiment_system.domain.predictions import (
     CompanySentimentSnapshot,
@@ -118,6 +119,17 @@ class PredictionRepository(Protocol):
 
     def list_for_user(self, user_id: str) -> tuple[Prediction, ...]:
         """Return predictions owned by one user in deterministic order."""
+
+
+@runtime_checkable
+class EvaluationReportRepository(Protocol):
+    """Persist append-only reproducible market-outcome reports."""
+
+    def save(self, report: EvaluationReport) -> None:
+        """Store an evaluation report without replacing historical evidence."""
+
+    def get(self, report_id: str) -> EvaluationReport | None:
+        """Return one report by its stable identifier."""
 
 
 @runtime_checkable

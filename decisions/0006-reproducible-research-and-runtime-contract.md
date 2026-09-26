@@ -33,6 +33,35 @@ manifest rather than chosen after inspecting evaluation results.
 
 The 1-, 5-, 20-, 60-, and 252-trading-day forward horizons are included.
 
+## Evaluation Execution Rules
+
+- A stored prediction is evaluated from the first trading day strictly after its
+  `as_of` date. The forward return for horizon `h` is
+  `close[t+h] / close[t] - 1`, where `t` is that entry trading day.
+- Each prediction is evaluated only at its declared forecast horizon. Base
+  sentiment is deduplicated by company, as-of date, horizon, and scoring run;
+  personalized sentiment remains a separately reported variant.
+- Directional hit rate uses only non-neutral predicted scores and non-zero
+  excess returns. It reports both the eligible directional sample size and the
+  excluded neutral or zero-return count. Spearman correlation uses continuous
+  scores and returns with average ranks for ties.
+- The deterministic `keyword-baseline-v1` scores the prediction evidence set by
+  counting these case-insensitive phrases once each: positive `growth`,
+  `exceeded`, `beat`, `strong`, `record`, `increased`, `raised guidance`,
+  `momentum`, `outperformed`, `expansion`, `revenue growth`, `profit`, `upside`,
+  `optimistic`; negative `decline`, `missed`, `below`, `weak`, `loss`,
+  `decreased`, `lowered guidance`, `headwinds`, `underperformed`, `contraction`,
+  `revenue decline`, `impairment`, `downside`, `concerns`, `risk`. Its score is
+  `0.5 + (positive - negative) / (2 * (positive + negative))`, or neutral
+  `0.5` when no phrases match.
+- The `no-signal-v1` baseline is the constant neutral score `0.5`. Its
+  directional hit rate and Spearman correlation are undefined and reported as
+  such because it makes no directional claim and has no score variance.
+- Missing company or benchmark endpoints make the specific observation
+  incomplete. Reports persist its stable identifier and exclusion reason rather
+  than silently dropping it; the report identifies its complete-evaluation
+  boundary through these retained exclusions.
+
 ## Benchmark Protocol
 
 The acquisition manifest records the source-reported GICS sector for each
