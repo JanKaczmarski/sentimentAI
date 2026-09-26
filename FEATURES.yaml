@@ -2079,3 +2079,62 @@ features:
     completion_evidence: []
     implementation_notes:
       - "Sequenced deliberately last: it depends on the API surface from FEAT-030 through FEAT-033 existing before the console can call it, so it stays queued until those are complete."
+
+  - id: FEAT-035
+    title: "Load validated cached market-price snapshots"
+    status: implemented
+    priority: high
+    depends_on:
+      - FEAT-003
+    scope:
+      - "Implement a provider-independent MarketData adapter that reads an immutable CSV snapshot and its market_prices.json manifest without network access."
+      - "Verify the v1 manifest contract, direct-child CSV filenames, CSV SHA-256 hashes, and series metadata before exposing parsed historical close prices."
+      - "Parse Date and Close values into PricePoints and preserve the port's sorted, inclusive date-filtering behavior."
+    non_goals:
+      - "Evaluating predictions, selecting benchmark mappings, calculating returns, or changing FEAT-016's blocked status."
+      - "Calling provider APIs, acquiring market data, or adding a provider SDK or credentials."
+      - "Wiring the adapter into the runtime container before an evaluation use case consumes the MarketData port."
+    acceptance_criteria:
+      - id: AC-1
+        description: "A valid v1 CSV snapshot is loaded without network access only after its manifest schema, safe CSV filenames, and every declared CSV SHA-256 hash have been verified."
+      - id: AC-2
+        description: "Malformed manifests and CSVs, including unsafe filenames, hash mismatches, schema mismatches, invalid prices or dates, duplicate or non-ascending trading dates, and inconsistent series metadata, fail explicitly."
+      - id: AC-3
+        description: "The adapter implements MarketData and returns symbol-matched PricePoints in ascending trading-date order with inclusive start and end bounds."
+    architecture:
+      layers:
+        - adapters
+      ports:
+        - market_data
+    research_decisions:
+      - "docs/THESIS_DECISIONS.md#data-scope"
+      - "decisions/0002-market-data-and-evaluation-scope.md"
+      - "decisions/0008-local-cache-acquisition-contract.md"
+      - "decisions/0009-ingestion-and-evaluation-universe.md"
+    verification:
+      required_test_levels:
+        - unit
+        - contract
+        - integration
+      required_checks: *code_checks
+    blocked_reason: null
+    completion_evidence:
+      - acceptance_criterion: AC-1
+        evidence:
+          - "tests/unit/adapters/outbound/market_data/test_cached_files.py::test_cached_csv_market_data_verifies_snapshot_and_filters_prices_inclusively"
+          - "tests/unit/adapters/outbound/market_data/test_cached_files.py::test_cached_csv_market_data_rejects_a_csv_hash_mismatch"
+          - "tests/integration/test_cached_market_data.py::test_external_nasdaq_market_snapshot_is_hash_verified_and_queryable"
+          - "SENTIMENT_DATA_ROOT=../sentimentAI-data uv run pytest tests/integration/test_cached_market_data.py"
+      - acceptance_criterion: AC-2
+        evidence:
+          - "tests/unit/adapters/outbound/market_data/test_cached_files.py::test_cached_csv_market_data_rejects_invalid_csv_rows"
+          - "tests/unit/adapters/outbound/market_data/test_cached_files.py::test_cached_csv_market_data_rejects_unsafe_csv_filenames"
+          - "tests/unit/adapters/outbound/market_data/test_cached_files.py::test_cached_csv_market_data_rejects_inconsistent_series_metadata"
+          - "uv run pytest tests/unit/adapters/outbound/market_data/test_cached_files.py"
+      - acceptance_criterion: AC-3
+        evidence:
+          - "tests/contract/ports/test_cached_market_data.py::test_cached_csv_market_data_implements_market_data_port"
+          - "uv run pytest tests/contract/ports/test_cached_market_data.py"
+    implementation_notes:
+      - "This offline adapter is reusable FEAT-016 groundwork. It does not make the current development snapshot a final thesis evaluation dataset."
+      - "The adapter loads the complete validated snapshot in memory and intentionally remains unwired until a future evaluation use case consumes the MarketData port."
