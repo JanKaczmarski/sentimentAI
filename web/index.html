@@ -3,70 +3,146 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="Local browser console for the Sentiment System API">
-    <title>Sentiment System | Local Console</title>
+    <meta name="description" content="Local research terminal for the Sentiment System API">
+    <title>Sentiment System | Research Terminal</title>
     <link rel="stylesheet" href="/ui/styles.css">
   </head>
-  <body>
-    <div class="page-shell">
-      <header class="hero">
-        <div>
-          <p class="eyebrow">LOCAL TEST CONSOLE</p>
-          <h1>Sentiment System</h1>
-          <p class="hero-copy">A small browser workspace for the account, Investment Thesis, and deterministic POC pipeline.</p>
-        </div>
-        <span id="connection-state" class="status-pill">Session not configured</span>
-      </header>
+  <body class="terminal-page">
+    <header class="terminal-header">
+      <a class="terminal-logo" href="/ui/">SENTIMENT//SYS</a>
+      <nav aria-label="Terminal navigation">
+        <a class="active" href="#prediction-title">RESEARCH</a>
+        <a href="#thesis-title">INVESTOR BRIEF</a>
+        <a href="#account-title">ACCESS</a>
+      </nav>
+      <p id="connection-state" class="status-pill">Session not configured</p>
+    </header>
 
-      <main class="content-grid">
-        <section class="panel account-panel" aria-labelledby="account-title">
-          <div class="section-heading">
-            <div>
-              <p class="eyebrow">01 / ACCESS</p>
-              <h2 id="account-title">Create an account</h2>
-            </div>
-            <span class="step-number">01</span>
+    <main class="terminal-layout">
+      <aside class="terminal-watchlist">
+        <div class="terminal-pane-title">
+          <span>CACHED UNIVERSE / 07</span>
+          <span>LOCAL</span>
+        </div>
+        <a class="terminal-ticker active" href="#prediction-title">
+          <strong>AAPL</strong><span>READY</span><small>APPLE INC.</small>
+        </a>
+        <a class="terminal-ticker" href="#prediction-title">
+          <strong>MSFT</strong><span>READY</span><small>MICROSOFT CORP.</small>
+        </a>
+        <a class="terminal-ticker" href="#prediction-title">
+          <strong>NVDA</strong><span>READY</span><small>NVIDIA CORP.</small>
+        </a>
+        <a class="terminal-ticker" href="#prediction-title">
+          <strong>JPM</strong><span>READY</span><small>JPMORGAN CHASE</small>
+        </a>
+        <a class="terminal-ticker" href="#prediction-title">
+          <strong>XOM</strong><span>READY</span><small>EXXON MOBIL</small>
+        </a>
+        <a class="terminal-ticker" href="#prediction-title">
+          <strong>JNJ</strong><span>READY</span><small>JOHNSON &amp; JOHNSON</small>
+        </a>
+        <a class="terminal-ticker" href="#prediction-title">
+          <strong>AMAT</strong><span>READY</span><small>APPLIED MATERIALS</small>
+        </a>
+        <p class="terminal-watch-footer">SELECT A TICKER IN THE QUERY BAR TO RUN CACHED RESEARCH.</p>
+      </aside>
+
+      <section class="terminal-workspace" aria-labelledby="prediction-title">
+        <form id="batch-form" class="terminal-commandbar">
+          <label class="terminal-company-field">
+            <span>&gt;_</span>
+            <input id="batch-company" name="company" value="AAPL" list="research-companies" maxlength="10" autocomplete="off" aria-label="Research company" required>
+            <datalist id="research-companies">
+              <option value="AAPL"></option>
+              <option value="MSFT"></option>
+              <option value="NVDA"></option>
+              <option value="JPM"></option>
+              <option value="XOM"></option>
+              <option value="JNJ"></option>
+              <option value="AMAT"></option>
+            </datalist>
+          </label>
+          <label class="terminal-date-field">
+            <span>AS-OF</span>
+            <input id="batch-as-of" name="as_of" type="date" aria-label="As-of date" required>
+          </label>
+          <button id="batch-submit" type="submit">RUN RESEARCH</button>
+          <p id="batch-message" class="message" role="status" aria-live="polite">Cached sources only. Create an account before running a query.</p>
+        </form>
+
+        <section class="terminal-instrument">
+          <div>
+            <p class="terminal-eyebrow">RESEARCH OUTPUT / LOCAL PIPELINE</p>
+            <h1 id="prediction-title">Sentiment<br>research terminal</h1>
+            <p class="terminal-instrument-copy">Run a source-to-prediction workflow for an approved company, then inspect the personalized evidence trace.</p>
           </div>
-          <p class="muted">The API returns the key once. This console keeps it only for this browser session.</p>
-          <form id="account-form" class="stacked-form">
-            <label>
-              Email
-              <input id="account-email" name="email" type="email" autocomplete="email" placeholder="investor@example.com" required>
-            </label>
-            <label>
-              Username
-              <input id="account-username" name="username" autocomplete="username" placeholder="investor" required>
-            </label>
-            <button class="button button-primary" type="submit">Create account</button>
-          </form>
-          <div id="account-message" class="message" role="status" aria-live="polite"></div>
-          <div id="api-key-panel" class="key-panel" hidden>
-            <div>
-              <span class="field-caption">Current session key</span>
-              <code id="api-key-value"></code>
-            </div>
-            <button id="clear-session" class="button button-quiet" type="button">Clear</button>
+          <div class="terminal-instrument-status" aria-hidden="true">
+            <span>OUTPUT</span>
+            <strong>STANDBY</strong>
+            <i></i>
           </div>
         </section>
 
-        <section class="panel thesis-panel" aria-labelledby="thesis-title">
-          <div class="section-heading">
-            <div>
-              <p class="eyebrow">02 / PROFILE</p>
-              <h2 id="thesis-title">Investment Thesis</h2>
-            </div>
-            <span class="step-number">02</span>
+        <section id="prediction-placeholder" class="terminal-placeholder" aria-label="Pending research output">
+          <div class="terminal-placeholder-mark">//</div>
+          <div>
+            <p class="terminal-eyebrow">AWAITING QUERY</p>
+            <h2>Research has no<br>active snapshot.</h2>
           </div>
-          <p class="muted">Structure the investor preferences used by the personalization engine.</p>
-          <form id="thesis-form" class="stacked-form">
+          <p>Choose a company and as-of date above. The result will combine cached source scoring with your saved Investment Thesis.</p>
+        </section>
+
+        <section id="prediction-card" class="prediction-card" hidden aria-labelledby="prediction-snapshot-title">
+          <header class="terminal-result-header">
+            <div>
+              <p class="terminal-eyebrow">RESEARCH OUTPUT / COMPLETE</p>
+              <h2 id="prediction-snapshot-title">Prediction snapshot</h2>
+            </div>
+            <span id="prediction-run-id" class="run-id"></span>
+          </header>
+          <div class="prediction-grid">
+            <div class="prediction-stat">
+              <span>BASE SENTIMENT</span>
+              <strong id="prediction-base"></strong>
+            </div>
+            <div class="prediction-stat prediction-stat-highlight">
+              <span>PERSONALIZED</span>
+              <strong id="prediction-personalized"></strong>
+            </div>
+            <div class="prediction-stat">
+              <span>CONFIDENCE</span>
+              <strong id="prediction-confidence"></strong>
+            </div>
+          </div>
+          <div id="prediction-message" class="message" role="status" aria-live="polite"></div>
+          <div class="terminal-evidence-heading">
+            <span>TOP EVIDENCE / THESIS-WEIGHTED</span>
+            <span>EXCERPTS FROM THE RESEARCH TRACE</span>
+          </div>
+          <div id="prediction-evidence" class="evidence-list"></div>
+        </section>
+      </section>
+
+      <aside class="terminal-brief">
+        <section class="terminal-brief-section" aria-labelledby="thesis-title">
+          <div class="terminal-pane-title">
+            <span>INVESTOR BRIEF</span>
+            <span>01</span>
+          </div>
+          <div class="terminal-panel-copy">
+            <h2 id="thesis-title">Personalization lens</h2>
+            <p>Save the preferences used to personalize the research output.</p>
+          </div>
+          <form id="thesis-form" class="terminal-form">
             <label>
-              Companies
+              <span>COMPANIES</span>
               <input id="thesis-companies" name="companies" placeholder="AAPL, MSFT" required>
-              <span class="field-help">Use approved ticker symbols separated by commas.</span>
+              <small>APPROVED TICKERS, COMMA SEPARATED</small>
             </label>
-            <div class="form-row">
+            <div class="terminal-form-row">
               <label>
-                Risk tolerance
+                <span>RISK</span>
                 <select id="risk-tolerance" name="risk_tolerance">
                   <option value="low">Low</option>
                   <option value="medium" selected>Medium</option>
@@ -74,7 +150,7 @@
                 </select>
               </label>
               <label>
-                Horizon
+                <span>HORIZON</span>
                 <select id="investment-horizon" name="investment_horizon">
                   <option value="short_term">Short term</option>
                   <option value="long_term" selected>Long term</option>
@@ -82,104 +158,64 @@
               </label>
             </div>
             <label>
-              Investment style
+              <span>STYLE</span>
               <select id="investment-style" name="investment_style">
                 <option value="passive" selected>Passive</option>
                 <option value="active">Active</option>
               </select>
             </label>
             <label>
-              Description <span class="optional">optional</span>
+              <span>MANDATE <em>OPTIONAL</em></span>
               <textarea id="thesis-description" name="description" rows="3" placeholder="Prefer durable compounders."></textarea>
             </label>
-            <div class="form-actions">
-              <button id="thesis-submit" class="button button-primary" type="submit">Save thesis</button>
-              <button id="cancel-edit" class="button button-quiet" type="button" hidden>Cancel edit</button>
+            <div class="terminal-form-actions">
+              <button id="thesis-submit" type="submit">SAVE BRIEF</button>
+              <button id="cancel-edit" class="button-quiet" type="button" hidden>CANCEL</button>
             </div>
           </form>
           <div id="thesis-message" class="message" role="status" aria-live="polite"></div>
         </section>
 
-        <section class="panel wide-panel" aria-labelledby="saved-theses-title">
-          <div class="section-heading section-heading-inline">
-            <div>
-              <p class="eyebrow">03 / REVIEW</p>
-              <h2 id="saved-theses-title">Saved theses</h2>
-            </div>
-            <button id="refresh-theses" class="button button-quiet" type="button">Refresh</button>
+        <section class="terminal-brief-section terminal-saved-section" aria-labelledby="saved-theses-title">
+          <div class="terminal-pane-title">
+            <span id="saved-theses-title">SAVED BRIEFS</span>
+            <button id="refresh-theses" type="button">REFRESH</button>
           </div>
           <div id="thesis-list" class="thesis-list">
-            <div class="empty-state">Create an account to load saved theses.</div>
+            <div class="empty-state">Create an account to load saved briefs.</div>
           </div>
         </section>
 
-        <section class="panel wide-panel pipeline-panel" aria-labelledby="prediction-title">
-          <div class="section-heading">
-            <div>
-              <p class="eyebrow">04 / PIPELINE</p>
-              <h2 id="prediction-title">Run a local research prediction</h2>
-            </div>
-            <span class="step-number">04</span>
+        <section class="terminal-brief-section terminal-access-section" aria-labelledby="account-title">
+          <div class="terminal-pane-title">
+            <span id="account-title">SESSION ACCESS</span>
+            <span>LOCAL</span>
           </div>
-          <p class="muted">Run the cached source-to-prediction workflow for one research company, then inspect the evidence returned by the API.</p>
-          <form id="batch-form" class="stacked-form">
-            <div class="form-row">
-              <label>
-                Company
-                <input id="batch-company" name="company" value="AAPL" list="research-companies" maxlength="10" autocomplete="off" required>
-                <datalist id="research-companies">
-                  <option value="AAPL"></option>
-                  <option value="MSFT"></option>
-                  <option value="NVDA"></option>
-                  <option value="JPM"></option>
-                  <option value="XOM"></option>
-                  <option value="JNJ"></option>
-                  <option value="AMAT"></option>
-                </datalist>
-                <span class="field-help">Cached research companies: AAPL, MSFT, NVDA, JPM, XOM, JNJ, or AMAT.</span>
-              </label>
-              <label>
-                As-of date
-                <input id="batch-as-of" name="as_of" type="date" required>
-                <span class="field-help">Only documents available by this date are used.</span>
-              </label>
-            </div>
-            <div class="form-actions">
-              <button id="batch-submit" class="button button-primary" type="submit">Run batch</button>
-            </div>
+          <div class="terminal-panel-copy">
+            <p>Create a local account. The API key remains only in this browser session.</p>
+          </div>
+          <form id="account-form" class="terminal-form">
+            <label>
+              <span>EMAIL</span>
+              <input id="account-email" name="email" type="email" autocomplete="email" placeholder="investor@example.com" required>
+            </label>
+            <label>
+              <span>USERNAME</span>
+              <input id="account-username" name="username" autocomplete="username" placeholder="investor" required>
+            </label>
+            <button type="submit">CREATE ACCOUNT</button>
           </form>
-          <div id="batch-message" class="message" role="status" aria-live="polite"></div>
-          <div id="prediction-card" class="prediction-card" hidden>
-            <div class="section-heading section-heading-inline">
-              <div>
-                <p class="eyebrow">RESULT</p>
-                <h3>Prediction snapshot</h3>
-              </div>
-              <span id="prediction-run-id" class="run-id"></span>
-            </div>
-            <div class="prediction-grid">
-              <div class="prediction-stat">
-                <span class="field-caption">Base sentiment</span>
-                <strong id="prediction-base"></strong>
-              </div>
-              <div class="prediction-stat">
-                <span class="field-caption">Personalized sentiment</span>
-                <strong id="prediction-personalized"></strong>
-              </div>
-              <div class="prediction-stat">
-                <span class="field-caption">Confidence</span>
-                <strong id="prediction-confidence"></strong>
-              </div>
-            </div>
-            <div id="prediction-message" class="message" role="status" aria-live="polite"></div>
+          <div id="account-message" class="message" role="status" aria-live="polite"></div>
+          <div id="api-key-panel" class="key-panel" hidden>
             <div>
-              <span class="field-caption">Evidence</span>
-              <div id="prediction-evidence" class="evidence-list"></div>
+              <span>CURRENT SESSION KEY</span>
+              <code id="api-key-value"></code>
             </div>
+            <button id="clear-session" class="button-quiet" type="button">CLEAR</button>
           </div>
         </section>
-      </main>
-    </div>
+      </aside>
+    </main>
     <script src="/ui/app.js" defer></script>
   </body>
 </html>
