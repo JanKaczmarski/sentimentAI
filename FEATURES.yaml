@@ -2082,7 +2082,7 @@ features:
 
   - id: FEAT-035
     title: "Load validated cached market-price snapshots"
-    status: implemented
+    status: in_review
     priority: high
     depends_on:
       - FEAT-003
