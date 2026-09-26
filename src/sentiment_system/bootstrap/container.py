@@ -9,6 +9,7 @@ from sentiment_system.adapters.outbound.persistence.in_memory import (
     InMemoryChunkRepository,
     InMemoryChunkScoreRepository,
     InMemoryDocumentRepository,
+    InMemoryEvaluationReportRepository,
     InMemoryExperimentRunRepository,
     InMemoryInvestmentThesisRepository,
     InMemoryPredictionRepository,
@@ -21,6 +22,7 @@ from sentiment_system.adapters.outbound.persistence.postgres import (
     PostgresChunkScoreRepository,
     PostgresDatabase,
     PostgresDocumentRepository,
+    PostgresEvaluationReportRepository,
     PostgresExperimentRunRepository,
     PostgresInvestmentThesisRepository,
     PostgresPredictionRepository,
@@ -38,6 +40,7 @@ from sentiment_system.application.ports.repositories import (
     ChunkRepository,
     ChunkScoreRepository,
     DocumentRepository,
+    EvaluationReportRepository,
     ExperimentProvenanceRepository,
     ExperimentRunRepository,
     InvestmentThesisRepository,
@@ -48,6 +51,7 @@ from sentiment_system.application.ports.repositories import (
 from sentiment_system.application.ports.vector_store import VectorStore
 from sentiment_system.application.use_cases.aggregate_snapshots import AggregateSnapshots
 from sentiment_system.application.use_cases.create_account import CreateAccount
+from sentiment_system.application.use_cases.evaluate_predictions import GetEvaluationReport
 from sentiment_system.application.use_cases.generate_prediction import GeneratePrediction, ListPredictionHistory
 from sentiment_system.application.use_cases.index_chunks import IndexChunks
 from sentiment_system.application.use_cases.ingest_documents import IngestDocuments
@@ -82,6 +86,8 @@ class ApplicationContainer:
     experiment_run_repository: ExperimentRunRepository | None = None
     provenance_repository: ExperimentProvenanceRepository | None = None
     prediction_repository: PredictionRepository | None = None
+    evaluation_report_repository: EvaluationReportRepository | None = None
+    get_evaluation_report: GetEvaluationReport | None = None
     generate_prediction: GeneratePrediction | None = None
     list_prediction_history: ListPredictionHistory | None = None
     ingest_fixture_communication: IngestFixtureCommunication | None = None
@@ -115,6 +121,7 @@ def build_container() -> ApplicationContainer:
     experiment_run_repository: ExperimentRunRepository = InMemoryExperimentRunRepository()
     provenance_repository: ExperimentProvenanceRepository = InMemoryProvenanceRepository()
     prediction_repository: PredictionRepository = InMemoryPredictionRepository()
+    evaluation_report_repository: EvaluationReportRepository = InMemoryEvaluationReportRepository()
     embedding_config = EmbeddingConfig.from_env()
     embedding_provider = build_embedding_provider(embedding_config)
     data_root = os.getenv("SENTIMENT_DATA_ROOT")
@@ -139,6 +146,7 @@ def build_container() -> ApplicationContainer:
         experiment_run_repository = PostgresExperimentRunRepository(research_database)
         provenance_repository = PostgresProvenanceRepository(research_database)
         prediction_repository = PostgresPredictionRepository(research_database)
+        evaluation_report_repository = PostgresEvaluationReportRepository(research_database)
     vector_store: VectorStore = InMemoryVectorStore()
     index_chunks = IndexChunks(document_repository, embedding_provider, vector_store)
     if qdrant_url:
@@ -184,6 +192,8 @@ def build_container() -> ApplicationContainer:
         experiment_run_repository=experiment_run_repository,
         provenance_repository=provenance_repository,
         prediction_repository=prediction_repository,
+        evaluation_report_repository=evaluation_report_repository,
+        get_evaluation_report=GetEvaluationReport(evaluation_report_repository),
         generate_prediction=GeneratePrediction(
             account_repository,
             investment_thesis_repository,

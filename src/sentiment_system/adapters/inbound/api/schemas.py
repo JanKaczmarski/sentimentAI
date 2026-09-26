@@ -1,6 +1,6 @@
 """API request and response schemas kept separate from domain entities."""
 
-from datetime import date
+from datetime import date, datetime
 from typing import Literal
 from uuid import UUID
 
@@ -167,3 +167,54 @@ class PredictionHistoryResponse(ApiSchema):
     """Prediction history for one authenticated user."""
 
     predictions: tuple[PredictionResponse, ...]
+
+
+class EvaluationObservationResponse(ApiSchema):
+    """One auditable prediction-to-market outcome."""
+
+    company: str
+    prediction_as_of: date
+    entry_date: date
+    exit_date: date
+    forecast_horizon_days: int
+    variant: str
+    benchmark_mode: str
+    benchmark_symbol: str
+    used_spy_fallback: bool
+    predicted_score: float
+    subject_return: float
+    benchmark_return: float
+    excess_return: float
+
+
+class EvaluationExclusionResponse(ApiSchema):
+    """An incomplete evaluation outcome retained with its reason."""
+
+    company: str
+    prediction_as_of: date
+    forecast_horizon_days: int
+    reason: str
+
+
+class EvaluationMetricResponse(ApiSchema):
+    """One aggregate result for a variant, benchmark, and horizon."""
+
+    variant: str
+    benchmark_mode: str
+    forecast_horizon_days: int
+    observation_count: int
+    directional_sample_size: int
+    directional_hit_rate: float | None
+    spearman_correlation: float | None
+
+
+class EvaluationReportResponse(ApiSchema):
+    """Immutable reproducible market-outcome evaluation report."""
+
+    report_id: str
+    created_at: datetime
+    corpus_manifest_version: str
+    market_snapshot_version: str
+    observations: tuple[EvaluationObservationResponse, ...]
+    exclusions: tuple[EvaluationExclusionResponse, ...]
+    metrics: tuple[EvaluationMetricResponse, ...]

@@ -6,6 +6,7 @@ from uuid import UUID
 
 from sentiment_system.domain.accounts import UserAccount
 from sentiment_system.domain.documents import DocumentChunk, SourceDocument
+from sentiment_system.domain.evaluation import EvaluationReport
 from sentiment_system.domain.investment_thesis import InvestmentThesis
 from sentiment_system.domain.predictions import (
     CompanySentimentSnapshot,
@@ -196,6 +197,21 @@ class InMemoryPredictionRepository:
                 key=lambda item: (item.as_of, item.company, int(item.lookback_days), item.forecast_horizon_days),
             )
         )
+
+
+class InMemoryEvaluationReportRepository:
+    """Store append-only evaluation reports by their generated identifier."""
+
+    def __init__(self, reports: Iterable[EvaluationReport] = ()) -> None:
+        self._reports: dict[str, EvaluationReport] = {}
+        for report in reports:
+            self.save(report)
+
+    def save(self, report: EvaluationReport) -> None:
+        self._reports.setdefault(report.report_id, report)
+
+    def get(self, report_id: str) -> EvaluationReport | None:
+        return self._reports.get(report_id)
 
 
 class InMemoryProvenanceRepository:

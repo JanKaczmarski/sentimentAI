@@ -2138,3 +2138,69 @@ features:
     implementation_notes:
       - "This offline adapter is reusable FEAT-016 groundwork. It does not make the current development snapshot a final thesis evaluation dataset."
       - "The adapter loads the complete validated snapshot in memory and intentionally remains unwired until a future evaluation use case consumes the MarketData port."
+
+  - id: FEAT-036
+    title: "Build reproducible prediction-evaluation reports"
+    status: implemented
+    priority: high
+    depends_on:
+      - FEAT-002
+      - FEAT-003
+      - FEAT-008
+      - FEAT-014
+    scope:
+      - "Implement a provider-neutral evaluation use case that turns supplied stored predictions and cached prices into leakage-safe observations, exclusions, and metrics."
+      - "Persist append-only evaluation reports with their market and corpus scope references, expose stored reports through the local API, and support deterministic in-memory and PostgreSQL repositories."
+      - "Report base, personalized, keyword-baseline-v1, and no-signal-v1 variants separately for approved horizons, sector benchmarks, SPY fallback, and SPY sensitivity."
+    non_goals:
+      - "Selecting or executing the final thesis evaluation corpus, chronological split, or market-data manifest owned by blocked FEAT-015 and FEAT-016."
+      - "Treating the current development snapshot as final research evidence or tuning rules against it."
+      - "Acquiring market data, invoking an LLM, exact-price prediction, or changing prediction-generation behavior."
+    acceptance_criteria:
+      - id: AC-1
+        description: "Given a supplied immutable evaluation scope and cached MarketData, the use case aligns strictly after Prediction.as_of, calculates declared-horizon subject, sector-adjusted, and SPY-adjusted returns, and retains incomplete outcomes with reasons."
+      - id: AC-2
+        description: "Reports keep base, personalized, keyword-baseline-v1, and no-signal-v1 metrics separate, use the pre-registered directional and tie-aware Spearman rules, and preserve benchmark fallback and sensitivity provenance."
+      - id: AC-3
+        description: "Evaluation reports are append-only, round-trip through in-memory and PostgreSQL repositories, and are retrievable through a stable local API report identifier."
+    architecture:
+      layers:
+        - domain
+        - application
+        - adapters
+        - bootstrap
+      ports:
+        - market_data
+        - repositories
+    research_decisions:
+      - "docs/THESIS_DECISIONS.md#evaluation"
+      - "decisions/0006-reproducible-research-and-runtime-contract.md#evaluation-execution-rules"
+      - "decisions/0006-reproducible-research-and-runtime-contract.md#benchmark-protocol"
+    verification:
+      required_test_levels:
+        - unit
+        - contract
+        - integration
+      required_checks: *code_checks
+    blocked_reason: null
+    completion_evidence:
+      - acceptance_criterion: AC-1
+        evidence:
+          - "tests/unit/application/test_evaluate_predictions.py::test_evaluate_predictions_aligns_after_as_of_and_reports_all_variants"
+          - "tests/unit/application/test_evaluate_predictions.py::test_evaluate_predictions_uses_spy_when_the_sector_benchmark_is_unavailable"
+          - "tests/unit/application/test_evaluate_predictions.py::test_evaluate_predictions_retains_an_incomplete_horizon_as_an_exclusion"
+          - "uv run pytest tests/unit/application/test_evaluate_predictions.py"
+      - acceptance_criterion: AC-2
+        evidence:
+          - "tests/unit/application/test_evaluate_predictions.py::test_spearman_uses_average_ranks_for_tied_scores"
+          - "decisions/0006-reproducible-research-and-runtime-contract.md#evaluation-execution-rules"
+          - "uv run pytest tests/unit/application/test_evaluate_predictions.py"
+      - acceptance_criterion: AC-3
+        evidence:
+          - "tests/contract/ports/test_adapters.py::test_port_fakes_are_structurally_typed"
+          - "tests/integration/test_api.py::test_evaluation_reports_are_retrievable_by_stable_identifier"
+          - "tests/integration/test_postgres_persistence.py::test_postgres_migrates_and_preserves_auditable_research_history"
+          - "POSTGRES_TEST_DSN=postgresql://sentiment:sentiment@localhost:5432/sentiment uv run pytest tests/integration/test_postgres_persistence.py"
+    implementation_notes:
+      - "FEAT-036 supplies generic, testable evaluation/report infrastructure. FEAT-016 remains blocked until the final corpus and market manifests make a thesis-valid run possible."
+      - "The PostgreSQL round-trip integration test passed against the local Compose postgres service on 2026-09-26."

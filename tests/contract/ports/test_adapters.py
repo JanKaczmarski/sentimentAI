@@ -15,6 +15,7 @@ from sentiment_system.adapters.outbound.persistence.in_memory import (
     InMemoryChunkRepository,
     InMemoryChunkScoreRepository,
     InMemoryDocumentRepository,
+    InMemoryEvaluationReportRepository,
     InMemoryExperimentRunRepository,
     InMemoryInvestmentThesisRepository,
     InMemoryPredictionRepository,
@@ -34,6 +35,7 @@ from sentiment_system.application.ports.repositories import (
     ChunkRepository,
     ChunkScoreRepository,
     DocumentRepository,
+    EvaluationReportRepository,
     ExperimentProvenanceRepository,
     ExperimentRunRepository,
     InvestmentThesisRepository,
@@ -243,6 +245,7 @@ def test_qdrant_store_round_trips_payloads_and_applies_leakage_filters() -> None
     assert matches[0].chunk == chunk
     assert matches[0].company == "AAPL"
     assert isinstance(InMemoryMarketData(), MarketData)
+    assert isinstance(InMemoryEvaluationReportRepository(), EvaluationReportRepository)
 
 
 def test_fixture_source_filters_and_sorts_documents() -> None:
