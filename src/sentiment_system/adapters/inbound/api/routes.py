@@ -10,6 +10,10 @@ from sentiment_system.adapters.inbound.api.schemas import (
     AccountCreateResponse,
     BatchRunRequest,
     BatchRunResponse,
+    EvaluationExclusionResponse,
+    EvaluationMetricResponse,
+    EvaluationObservationResponse,
+    EvaluationReportResponse,
     FixtureCommunicationRequest,
     FixtureIngestionResponse,
     InvestmentThesisRequest,
@@ -25,6 +29,10 @@ from sentiment_system.application.use_cases.create_account import (
     AccountEmailInUseError,
     AccountUsernameInUseError,
     CreateAccount,
+)
+from sentiment_system.application.use_cases.evaluate_predictions import (
+    EvaluationReportNotFoundError,
+    GetEvaluationReport,
 )
 from sentiment_system.application.use_cases.generate_prediction import (
     GeneratePrediction,
@@ -100,6 +108,14 @@ def get_run_batch(request: Request) -> RunBatch:
     use_case = cast(RunBatch | None, request.app.state.container.run_batch)
     if use_case is None:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="batch service unavailable")
+    return use_case
+
+
+def get_evaluation_report(request: Request) -> GetEvaluationReport:
+    """Resolve the immutable evaluation-report reader from the container."""
+    use_case = cast(GetEvaluationReport | None, request.app.state.container.get_evaluation_report)
+    if use_case is None:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="evaluation service unavailable")
     return use_case
 
 
@@ -247,6 +263,63 @@ def get_prediction_history(
     except PredictionAccountNotFoundError as error:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="history not found") from error
     return PredictionHistoryResponse(predictions=tuple(_prediction_response(item) for item in predictions))
+
+
+@router.get("/evaluation/reports/{report_id}", response_model=EvaluationReportResponse, tags=["evaluation"])
+def get_evaluation_report_by_id(
+    report_id: str,
+    use_case: Annotated[GetEvaluationReport, Depends(get_evaluation_report)],
+) -> EvaluationReportResponse:
+    """Return one reproducible evaluation report by generated identifier."""
+    try:
+        report = use_case.execute(report_id)
+    except EvaluationReportNotFoundError as error:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
+    return EvaluationReportResponse(
+        report_id=report.report_id,
+        created_at=report.created_at,
+        corpus_manifest_version=report.corpus_manifest_version,
+        market_snapshot_version=report.market_snapshot_version,
+        observations=tuple(
+            EvaluationObservationResponse(
+                company=item.company,
+                prediction_as_of=item.prediction_as_of,
+                entry_date=item.entry_date,
+                exit_date=item.exit_date,
+                forecast_horizon_days=item.forecast_horizon_days,
+                variant=item.variant.value,
+                benchmark_mode=item.benchmark_mode,
+                benchmark_symbol=item.benchmark_symbol,
+                used_spy_fallback=item.used_spy_fallback,
+                predicted_score=item.predicted_score,
+                subject_return=item.subject_return,
+                benchmark_return=item.benchmark_return,
+                excess_return=item.excess_return,
+            )
+            for item in report.observations
+        ),
+        exclusions=tuple(
+            EvaluationExclusionResponse(
+                company=item.company,
+                prediction_as_of=item.prediction_as_of,
+                forecast_horizon_days=item.forecast_horizon_days,
+                reason=item.reason,
+            )
+            for item in report.exclusions
+        ),
+        metrics=tuple(
+            EvaluationMetricResponse(
+                variant=item.variant.value,
+                benchmark_mode=item.benchmark_mode,
+                forecast_horizon_days=item.forecast_horizon_days,
+                observation_count=item.observation_count,
+                directional_sample_size=item.directional_sample_size,
+                directional_hit_rate=item.directional_hit_rate,
+                spearman_correlation=item.spearman_correlation,
+            )
+            for item in report.metrics
+        ),
+    )
 
 
 @router.post(

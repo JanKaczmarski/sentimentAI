@@ -1,7 +1,7 @@
 """API integration tests using the application composition root."""
 
 import os
-from datetime import date
+from datetime import date, datetime, timezone
 from hashlib import sha256
 from uuid import uuid4
 
@@ -11,18 +11,21 @@ from fastapi.testclient import TestClient
 from sentiment_system.adapters.outbound.persistence.in_memory import (
     InMemoryChunkRepository,
     InMemoryDocumentRepository,
+    InMemoryEvaluationReportRepository,
     InMemoryInvestmentThesisRepository,
     InMemoryPredictionRepository,
     InMemorySnapshotRepository,
     InMemoryUserAccountRepository,
 )
 from sentiment_system.application.use_cases.create_account import CreateAccount
+from sentiment_system.application.use_cases.evaluate_predictions import GetEvaluationReport
 from sentiment_system.application.use_cases.generate_prediction import GeneratePrediction, ListPredictionHistory
 from sentiment_system.application.use_cases.ingest_fixture_communication import IngestFixtureCommunication
 from sentiment_system.application.use_cases.manage_investment_theses import ManageInvestmentTheses
 from sentiment_system.bootstrap.container import ApplicationContainer, build_container
 from sentiment_system.bootstrap.main import create_app
 from sentiment_system.domain.accounts import UserAccount
+from sentiment_system.domain.evaluation import EvaluationReport
 from sentiment_system.domain.predictions import CompanySentimentSnapshot, PredictionEvidence, SnapshotWindow
 from sentiment_system.domain.sentiment import SentimentScore
 
@@ -243,6 +246,43 @@ def test_prediction_history_and_fixture_ingestion_are_served_through_the_api() -
     assert ingestion.status_code == 201
     assert ingestion.json()["chunk_count"] == 1
     assert invalid.status_code == 422
+
+
+def test_evaluation_reports_are_retrievable_by_stable_identifier() -> None:
+    reports = InMemoryEvaluationReportRepository()
+    report = EvaluationReport(
+        report_id="evaluation-1",
+        created_at=datetime(2026, 9, 26, tzinfo=timezone.utc),
+        corpus_manifest_version="fixture-corpus-v1",
+        market_snapshot_version="fixture-prices-v1",
+        observations=(),
+        exclusions=(),
+        metrics=(),
+    )
+    reports.save(report)
+    client = TestClient(
+        create_app(
+            container=ApplicationContainer(
+                evaluation_report_repository=reports,
+                get_evaluation_report=GetEvaluationReport(reports),
+            )
+        )
+    )
+
+    response = client.get("/evaluation/reports/evaluation-1")
+    missing = client.get("/evaluation/reports/missing")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "report_id": "evaluation-1",
+        "created_at": "2026-09-26T00:00:00Z",
+        "corpus_manifest_version": "fixture-corpus-v1",
+        "market_snapshot_version": "fixture-prices-v1",
+        "observations": [],
+        "exclusions": [],
+        "metrics": [],
+    }
+    assert missing.status_code == 404
 
 
 def _snapshots() -> tuple[CompanySentimentSnapshot, ...]:

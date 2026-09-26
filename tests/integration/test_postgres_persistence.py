@@ -12,6 +12,7 @@ from sentiment_system.adapters.outbound.persistence.postgres import (
     PostgresChunkScoreRepository,
     PostgresDatabase,
     PostgresDocumentRepository,
+    PostgresEvaluationReportRepository,
     PostgresExperimentRunRepository,
     PostgresInvestmentThesisRepository,
     PostgresPredictionRepository,
@@ -21,6 +22,12 @@ from sentiment_system.adapters.outbound.persistence.postgres import (
 )
 from sentiment_system.domain.accounts import UserAccount
 from sentiment_system.domain.documents import DocumentChunk, SourceDocument
+from sentiment_system.domain.evaluation import (
+    EvaluationMetric,
+    EvaluationObservation,
+    EvaluationReport,
+    EvaluationVariant,
+)
 from sentiment_system.domain.investment_thesis import (
     InvestmentHorizon,
     InvestmentStyle,
@@ -167,6 +174,7 @@ def test_postgres_migrates_and_preserves_auditable_research_history() -> None:
     accounts = PostgresUserAccountRepository(database)
     theses = PostgresInvestmentThesisRepository(database)
     predictions = PostgresPredictionRepository(database)
+    evaluation_reports = PostgresEvaluationReportRepository(database)
 
     documents.save(document)
     chunks.save(chunk)
@@ -210,6 +218,42 @@ def test_postgres_migrates_and_preserves_auditable_research_history() -> None:
         user_id=str(account.user_id),
     )
     predictions.save(prediction)
+    report = EvaluationReport(
+        report_id=f"evaluation-{suffix}",
+        created_at=datetime(2025, 2, 2, tzinfo=timezone.utc),
+        corpus_manifest_version="fixture-corpus-v1",
+        market_snapshot_version="fixture-prices-v1",
+        observations=(
+            EvaluationObservation(
+                company="AAPL",
+                prediction_as_of=date(2025, 2, 1),
+                entry_date=date(2025, 2, 3),
+                exit_date=date(2025, 2, 4),
+                forecast_horizon_days=1,
+                variant=EvaluationVariant.BASE,
+                benchmark_mode="sector",
+                benchmark_symbol="XLK",
+                used_spy_fallback=False,
+                predicted_score=0.7,
+                subject_return=0.1,
+                benchmark_return=0.05,
+                excess_return=0.05,
+            ),
+        ),
+        exclusions=(),
+        metrics=(
+            EvaluationMetric(
+                variant=EvaluationVariant.BASE,
+                benchmark_mode="sector",
+                forecast_horizon_days=1,
+                observation_count=1,
+                directional_sample_size=1,
+                directional_hit_rate=1.0,
+                spearman_correlation=None,
+            ),
+        ),
+    )
+    evaluation_reports.save(report)
 
     assert documents.get(document.document_id) == document
     assert chunks.list_for_document(document.document_id) == (chunk,)
@@ -227,3 +271,4 @@ def test_postgres_migrates_and_preserves_auditable_research_history() -> None:
     stored_prediction = predictions.list_for_user(str(account.user_id))[0]
     assert stored_prediction == prediction
     assert [item.chunk_id for item in stored_prediction.evidence] == [chunk.chunk_id, f"{chunk.chunk_id}-older"]
+    assert evaluation_reports.get(report.report_id) == report
