@@ -20,8 +20,8 @@ from sentiment_system.domain.scoring import ChunkScoreRecord
 class DocumentRepository(Protocol):
     """Persist and query normalized source documents."""
 
-    def save(self, document: SourceDocument) -> None:
-        """Insert or replace a document by its stable identifier."""
+    def save(self, document: SourceDocument) -> SourceDocument:
+        """Persist immutably and return its canonical stored derivation/legacy identity."""
 
     def get(self, document_id: str) -> SourceDocument | None:
         """Return one document by identifier."""
@@ -34,8 +34,8 @@ class DocumentRepository(Protocol):
 class ChunkRepository(Protocol):
     """Persist and query document chunks."""
 
-    def save(self, chunk: DocumentChunk) -> None:
-        """Insert or replace a chunk by its stable identifier."""
+    def save(self, chunk: DocumentChunk) -> DocumentChunk:
+        """Insert an immutable chunk; identical writes are idempotent, conflicts fail."""
 
     def get(self, chunk_id: str) -> DocumentChunk | None:
         """Return one chunk by identifier."""

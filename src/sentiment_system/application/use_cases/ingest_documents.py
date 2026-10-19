@@ -3,13 +3,20 @@
 import re
 import unicodedata
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date
+from hashlib import sha256
 
 from bs4 import BeautifulSoup
 
 from sentiment_system.application.ports.document_sources import DocumentSource
 from sentiment_system.application.ports.repositories import ChunkRepository, DocumentRepository
+from sentiment_system.application.use_cases.sec_content import (
+    SEC_PARSER_VERSION,
+    _parts,
+    sec_html_to_text,
+    select_sec_content,
+)
 from sentiment_system.domain.documents import DocumentChunk, SourceDocument
 
 TokenCounter = Callable[[str], int]
@@ -63,23 +70,23 @@ class IngestDocuments:
             published_before=published_before,
         ):
             document = _normalize_document(source_document)
-            document_chunks = _chunk_document(
-                document,
-                processing_config_version=self._processing_config_version,
-                token_counter=self._token_counter,
+            document = self._document_repository.save(document)
+            document_chunks = (
+                _chunk_document(
+                    document,
+                    processing_config_version=self._processing_config_version,
+                    token_counter=self._token_counter,
+                )
+                if source_document.provenance is None or source_document.provenance.canonical_for_scoring
+                else ()
             )
-            self._document_repository.save(document)
             for chunk in document_chunks:
-                self._chunk_repository.save(chunk)
+                chunks.append(self._chunk_repository.save(chunk))
             documents.append(document)
-            chunks.extend(document_chunks)
 
         return IngestionResult(tuple(documents), tuple(chunks), self._processing_config_version)
 
 
-_SEC_DOCUMENT = re.compile(r"<DOCUMENT>(?P<body>.*?)</DOCUMENT>", re.IGNORECASE | re.DOTALL)
-_SEC_TYPE = re.compile(r"<TYPE>\s*(?P<document_type>[^\s<]+)", re.IGNORECASE)
-_SEC_TEXT = re.compile(r"<TEXT>(?P<text>.*?)</TEXT>", re.IGNORECASE | re.DOTALL)
 _SEC_XBRL = re.compile(r"<XBRL>.*?</XBRL>", re.IGNORECASE | re.DOTALL)
 _HTML_MARKUP = re.compile(r"<[A-Za-z][^>]*>")
 _PAGE_MARKER = re.compile(r"^(?:page\s+\d+|\d+\s+of\s+\d+)$", re.IGNORECASE)
@@ -88,27 +95,47 @@ _NAVIGATION_MARKER = re.compile(
 )
 _SENTENCE_END = re.compile(r"(?<=[.!?])\s+")
 _ABBREVIATIONS = {"e.g.", "i.e.", "etc.", "inc.", "ltd.", "co.", "corp.", "u.s.", "u.k."}
-_SEC_EXHIBIT_TYPES = {"ex-99.1", "ex-99.2"}
 _IGNORED_TAGS = {"head", "script", "style", "svg"}
 
 
 def _normalize_document(document: SourceDocument) -> SourceDocument:
-    return SourceDocument(
-        document_id=document.document_id,
-        source_id=document.source_id,
-        company=document.company,
-        source=document.source,
-        published_at=document.published_at,
-        document_type=document.document_type,
-        raw_content=document.raw_content,
-        cleaned_content=_clean_content(document.raw_content, source=document.source),
+    cleaned_content = document.cleaned_content
+    cleaning_version = SEC_PARSER_VERSION if document.source == "sec" else "source-cleaning-v1"
+    if document.provenance is None:
+        form = (
+            document.artifact.form
+            if document.artifact
+            else (document.document_type if document.document_type in {"10-K", "10-Q", "8-K"} else None)
+        )
+        raw_for_cleaning = document.raw_content
+        if (
+            document.source == "sec"
+            and form == "8-K"
+            and document.artifact
+            and "2.02" not in document.artifact.form_items
+        ):
+            main = [part for part in _parts(raw_for_cleaning) if part.document_type == "8-K"]
+            if len(main) != 1:
+                raise ContentQualityError("non-earnings 8-K must have exactly one main disclosure")
+            raw_for_cleaning = main[0].content
+            cleaning_version = "sec-main-disclosure-v1"
+        cleaned_content = _clean_content(raw_for_cleaning, source=document.source, form=form)
+    else:
+        _require_readable_content(document.raw_content, cleaned_content)
+    normalized = replace(
+        document,
+        cleaned_content=cleaned_content,
+        cleaning_version=(document.provenance.parser_version if document.provenance else cleaning_version),
     )
+    return replace(normalized, document_id=normalized.derivation_id)
 
 
-def _clean_content(raw_content: str, *, source: str = "") -> str:
-    extracted = _extract_sec_communication(raw_content) if source.casefold() == "sec" else raw_content
-    extracted = _SEC_XBRL.sub("", extracted)
-    extracted = _html_to_text(extracted)
+def _clean_content(raw_content: str, *, source: str = "", form: str | None = None) -> str:
+    is_sec = source.casefold() == "sec"
+    if is_sec:
+        extracted = sec_html_to_text(select_sec_content(raw_content, form=form).content)
+    else:
+        extracted = _html_to_text(_SEC_XBRL.sub("", raw_content))
     normalized = unicodedata.normalize("NFKC", extracted).replace("\r\n", "\n").replace("\r", "\n")
     paragraphs: list[str] = []
     current_lines: list[str] = []
@@ -129,23 +156,9 @@ def _clean_content(raw_content: str, *, source: str = "") -> str:
     counts: dict[str, int] = {}
     for paragraph in paragraphs:
         counts[paragraph] = counts.get(paragraph, 0) + 1
-    cleaned = "\n\n".join(paragraph for paragraph in paragraphs if counts[paragraph] < 3)
+    cleaned = "\n\n".join(paragraph for paragraph in paragraphs if is_sec or counts[paragraph] < 3)
     _require_readable_content(raw_content, cleaned)
     return cleaned
-
-
-def _extract_sec_communication(raw_content: str) -> str:
-    sections: list[tuple[str, str]] = []
-    for match in _SEC_DOCUMENT.finditer(raw_content):
-        body = match.group("body")
-        document_type_match = _SEC_TYPE.search(body)
-        text_match = _SEC_TEXT.search(body)
-        if document_type_match is not None and text_match is not None:
-            sections.append((document_type_match.group("document_type").casefold(), text_match.group("text")))
-    if not sections:
-        return raw_content
-    exhibits = [text for document_type, text in sections if document_type in _SEC_EXHIBIT_TYPES]
-    return "\n\n".join(exhibits or [text for _, text in sections])
 
 
 def _html_to_text(content: str) -> str:
@@ -193,7 +206,7 @@ def _chunk_document(
 
     return tuple(
         DocumentChunk(
-            chunk_id=f"{document.document_id}:chunk:{ordinal}",
+            chunk_id=f"{document.document_id}:chunks:{sha256(processing_config_version.encode()).hexdigest()}:chunk:{ordinal}",
             document_id=document.document_id,
             ordinal=ordinal,
             content=" ".join(group),

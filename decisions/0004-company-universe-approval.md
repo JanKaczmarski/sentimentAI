@@ -18,7 +18,8 @@ T, TDW, TSN, TTD, UNH, UUUU, V, VICI, WHR, ZM`.
 
 - This registry is the canonical active ingestion universe.
 - It does not expand or replace the six-company thesis and evaluation sample:
-  `AAPL`, `MSFT`, `NVDA`, `JPM`, `XOM`, and `JNJ`.
+  `AAPL`, `MSFT`, `NVDA`, `JPM`, `XOM`, and `JNJ` (the original sample;
+  superseded by `META`, `CRM`, `V`, `DIS`, `WHR`, `T` in decision 0014).
 - It does not approve database seeding, data downloading, benchmark mapping,
   source-specific identifiers, or Yahoo Finance exchange suffixes.
 - The registry stores the approved display name, market-routing value, and
