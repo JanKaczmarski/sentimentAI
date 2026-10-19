@@ -1,11 +1,11 @@
 """Tests for auditable source-document and chunk domain entities."""
 
 from dataclasses import FrozenInstanceError
-from datetime import date
+from datetime import date, datetime, timezone
 
 import pytest
 
-from sentiment_system.domain.documents import DocumentChunk, SourceDocument
+from sentiment_system.domain.documents import DocumentChunk, SourceDocument, SourceProvenance
 
 
 def _document(**overrides: object) -> SourceDocument:
@@ -30,6 +30,34 @@ def test_source_document_preserves_distinct_raw_and_cleaned_content() -> None:
     assert document.cleaned_content == "Cleaned source text."
     with pytest.raises(FrozenInstanceError):
         document.raw_content = "Modified source text."  # type: ignore[misc]
+
+
+def test_source_document_preserves_immutable_manifest_provenance() -> None:
+    provenance = SourceProvenance(
+        manifest_record_id="sec:acc-1",
+        source_url="https://www.sec.gov/Archives/edgar/data/320193/example.txt",
+        retrieved_at=datetime(2025, 1, 31, 12, tzinfo=timezone.utc),
+        raw_path="raw/sec/AAPL/example.txt",
+        raw_sha256="a" * 64,
+        cleaned_path="cleaned/sec/AAPL/example.txt",
+        cleaned_sha256="b" * 64,
+        parser_version="sec-filing-v1",
+        source_type="sec_filing",
+        form="8-K",
+        form_items=("2.02",),
+        content_group_id="AAPL:2025-Q1",
+        canonical_for_scoring=True,
+        evaluation_member=True,
+        sector="Information Technology",
+        sector_source_url="https://www.nasdaq.com/market-activity/stocks/aapl",
+        sector_retrieved_at=datetime(2025, 1, 31, 12, tzinfo=timezone.utc),
+    )
+
+    document = _document(manifest_version="thesis-v1-2025-09-24", provenance=provenance)
+
+    assert document.provenance == provenance
+    assert document.provenance.content_group_id == "AAPL:2025-Q1"
+    assert document.provenance.canonical_for_scoring is True
 
 
 @pytest.mark.parametrize(

@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "repository": "https://github.com/JanKaczmarski/sentimentAI-data",
+  "revision": "dcfab90df2178f551ab0f7824a4804f179094927",
+  "evaluation_manifest": {
+    "path": "data/evaluation/thesis-v2-current-cache-sec-form-aware-v2-market-v1/manifest.json",
+    "sha256": "20b1b7ace03ad6b3e3102436fc6378f0d89f99ebffa229c956edf84994aab32c"
+  }
+}

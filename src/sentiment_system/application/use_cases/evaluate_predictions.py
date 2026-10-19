@@ -3,13 +3,14 @@
 from collections import defaultdict
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timezone
 from math import sqrt
 from types import MappingProxyType
 from uuid import uuid4
 
-from sentiment_system.application.ports.market_data import MarketData, PricePoint
+from sentiment_system.application.ports.market_data import MarketData
 from sentiment_system.application.ports.repositories import EvaluationReportRepository
+from sentiment_system.application.use_cases.market_coverage import MarketOutcomeResolver
 from sentiment_system.domain.evaluation import (
     EvaluationExclusion,
     EvaluationMetric,
@@ -101,12 +102,13 @@ class EvaluatePredictions:
         observations: list[EvaluationObservation] = []
         exclusions: list[EvaluationExclusion] = []
         seen_base: set[tuple[str, date, int, str]] = set()
+        outcomes = MarketOutcomeResolver(self._market_data)
         for prediction in sorted(predictions, key=_prediction_sort_key):
             benchmark = scope.company_benchmarks.get(prediction.company)
             if benchmark is None:
                 exclusions.append(_exclusion(prediction, "company_not_in_evaluation_scope"))
                 continue
-            outcome = self._outcome(prediction, benchmark)
+            outcome = self._outcome(prediction, benchmark, outcomes)
             if isinstance(outcome, str):
                 exclusions.append(_exclusion(prediction, outcome))
                 continue
@@ -129,33 +131,26 @@ class EvaluatePredictions:
         self._reports.save(report)
         return report
 
-    def _outcome(self, prediction: Prediction, sector_benchmark: str) -> "_Outcome | str":
-        subject_prices = self._market_data.get_prices(prediction.company, start=prediction.as_of + timedelta(days=1))
-        if len(subject_prices) <= prediction.forecast_horizon_days:
-            return "subject_horizon_unavailable"
-        entry = subject_prices[0]
-        exit_point = subject_prices[prediction.forecast_horizon_days]
-        sector = _returns_for_dates(self._market_data.get_prices(sector_benchmark), entry, exit_point)
-        spy = _returns_for_dates(self._market_data.get_prices("SPY"), entry, exit_point)
-        if spy is None:
-            return "sp500_benchmark_unavailable"
-        subject_return = _return(entry.close, exit_point.close)
-        if sector is None:
-            sector = spy
-            sector_symbol = "SPY"
-            used_spy_fallback = True
-        else:
-            sector_symbol = sector_benchmark
-            used_spy_fallback = False
+    def _outcome(
+        self, prediction: Prediction, sector_benchmark: str, outcomes: MarketOutcomeResolver
+    ) -> "_Outcome | str":
+        outcome = outcomes.resolve(
+            prediction.company, prediction.as_of, prediction.forecast_horizon_days, sector_benchmark
+        )
+        if outcome.reason is not None:
+            return outcome.reason
+        assert outcome.entry_date is not None and outcome.exit_date is not None
+        assert outcome.subject_return is not None and outcome.sector_return is not None
+        assert outcome.sp500_return is not None and outcome.sector_symbol is not None
         return _Outcome(
             prediction=prediction,
-            entry_date=entry.trading_date,
-            exit_date=exit_point.trading_date,
-            subject_return=subject_return,
-            sector_symbol=sector_symbol,
-            sector_return=sector,
-            used_spy_fallback=used_spy_fallback,
-            sp500_return=spy,
+            entry_date=outcome.entry_date,
+            exit_date=outcome.exit_date,
+            subject_return=outcome.subject_return,
+            sector_symbol=outcome.sector_symbol,
+            sector_return=outcome.sector_return,
+            used_spy_fallback=outcome.used_spy_fallback,
+            sp500_return=outcome.sp500_return,
         )
 
 
@@ -260,17 +255,6 @@ def _keyword_score(prediction: Prediction) -> float:
     negative = sum(phrase in evidence for phrase in _NEGATIVE_KEYWORDS)
     total = positive + negative
     return 0.5 if total == 0 else 0.5 + (positive - negative) / (2 * total)
-
-
-def _returns_for_dates(prices: tuple[PricePoint, ...], entry: PricePoint, exit_point: PricePoint) -> float | None:
-    close_by_date = {point.trading_date: point.close for point in prices}
-    entry_close = close_by_date.get(entry.trading_date)
-    exit_close = close_by_date.get(exit_point.trading_date)
-    return None if entry_close is None or exit_close is None else _return(entry_close, exit_close)
-
-
-def _return(entry_close: float, exit_close: float) -> float:
-    return round(exit_close / entry_close - 1, 12)
 
 
 def _exclusion(prediction: Prediction, reason: str) -> EvaluationExclusion:

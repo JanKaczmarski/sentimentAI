@@ -37,14 +37,33 @@ specification.
 - Use five years of historical source data and a two-year held-out evaluation period.
 - The operational ingestion universe is the author-approved registry specified
   in `FEATURES.yaml` under `FEAT-018`.
-- The v1 thesis evaluation universe remains the six-company sample specified in
-  `decisions/0006-reproducible-research-and-runtime-contract.md`; broader
-  ingestion records are excluded from v1 evaluation unless a new decision and
-  manifest expand the sample.
+- The current thesis evaluation universe is `META`, `CRM`, `V`, `DIS`, `WHR`,
+  and `T`, replacing the original sample under
+  `decisions/0014-transcript-research-universe-and-historical-cache.md`.
+  Broader ingestion records are excluded from evaluation unless a new decision
+  and manifest expand the sample.
 - Text sources:
   - SEC EDGAR `10-K`, `10-Q`, and relevant `8-K` filings;
-  - official company investor-relations earnings releases.
-- Use cached Yahoo Finance historical prices for market evaluation, not necessarily as LLM text context.
+  - official company investor-relations earnings releases and full earnings-call
+    transcripts, retained as distinct document types.
+- The historical acquisition cache covers each company's full available IR span;
+  it is a superset from which the five-year research corpus is selected.
+- Decision `0015-corpus-contract-corrections.md` freezes 363 current-cache source
+  records for 2021-08-27–2026-08-27; development ends 2024-08-27 and the first
+  held-out publication is 2024-08-28. Sector assignments use actual downloaded
+  profiles with a separate assistant review and explicit vocabulary normalization.
+  Operational ingestion retains AMAT and out-of-window cached documents;
+   evaluation reads only the immutable research-manifest scope.
+- Decision `0017-operational-history-and-source-derivations.md` makes SEC history
+  manifests part of normal operational ingestion and preserves original PDF byte
+  hashes independently of extracted text. Stable source revisions, immutable
+  cleaning/chunking derivations and separate manifest memberships support
+  populated-database upgrades without changing historical evidence.
+- Use cached, provenance-recorded historical prices for market evaluation, not as LLM text context. Provider-specific acquisition may change without changing the provider-neutral CSV reader.
+- Decision `0018-frozen-market-snapshot-and-evaluation-coverage.md` freezes the
+  eleven-symbol Nasdaq snapshot `nasdaq_2026_10_18_research_v2`, original JSON
+  responses and provider-reported `Close` CSVs through 2026-10-16, linked to the
+  unchanged corrected corpus by `thesis-v2-current-cache-sec-form-aware-v2-market-v1`.
 - Use a fixture-based email/webhook-shaped adapter for company communications rather than private live email integration.
 - Keep raw and cleaned document representations and compare them experimentally.
 - Cleaning should remove clearly irrelevant boilerplate, navigation text, duplicated legal language, and formatting noise without discarding the raw source.
@@ -69,6 +88,12 @@ specification.
 - Use rank/Spearman correlation as the primary market metric and directional hit rate as a secondary metric.
 - Use the reproducible corpus, split, benchmark, and runtime contracts in
   `decisions/0006-reproducible-research-and-runtime-contract.md`.
+- The frozen bundle retains all 1,815 source/horizon availability entries,
+  including 735 held-out entries. There are 15 unavailable 60-day and 72
+  unavailable 252-day outcomes, all retained with explicit reasons. Coverage
+  is not a prediction-sampling schedule or a thesis performance result. Missing
+  future prices never change the source cutoff or split. Exact per-company
+  boundaries and benchmark routing are in the versioned manifest/coverage files.
 - Use the existing deterministic keyword heuristic as the text baseline.
 - Use a no-signal/market benchmark for return evaluation.
 - Use a small manual review as a secondary sanity check, not as unquestionable financial ground truth.
@@ -91,5 +116,4 @@ specification.
 
 ## Open Decisions
 
-- Final source records, final corpus cutoff, and final evaluation manifest contents.
 - Exact model/runtime choice for the optional local Llama backend.

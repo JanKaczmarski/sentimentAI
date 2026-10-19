@@ -22,11 +22,29 @@ class InMemoryDocumentRepository:
 
     def __init__(self, documents: Iterable[SourceDocument] = ()) -> None:
         self._documents: dict[str, SourceDocument] = {}
+        self._derivations: dict[str, str] = {}
         for document in documents:
             self.save(document)
 
-    def save(self, document: SourceDocument) -> None:
-        self._documents[document.document_id] = document
+    def save(self, document: SourceDocument) -> SourceDocument:
+        stored = self._documents.get(self._derivations.get(document.derivation_id, document.document_id))
+        if stored is not None and stored != document:
+            fields = (
+                "derivation_id",
+                "raw_content",
+                "published_at",
+                "company",
+                "source",
+                "source_id",
+                "document_type",
+                "cleaned_content",
+            )
+            if any(getattr(stored, field) != getattr(document, field) for field in fields):
+                raise ValueError("immutable document identity conflict")
+            return stored
+        self._documents.setdefault(document.document_id, document)
+        self._derivations[document.derivation_id] = document.document_id
+        return self._documents[document.document_id]
 
     def get(self, document_id: str) -> SourceDocument | None:
         return self._documents.get(document_id)
@@ -43,11 +61,22 @@ class InMemoryChunkRepository:
 
     def __init__(self, chunks: Iterable[DocumentChunk] = ()) -> None:
         self._chunks: dict[str, DocumentChunk] = {}
+        self._derivations: dict[tuple[str, str, int], str] = {}
         for chunk in chunks:
             self.save(chunk)
 
-    def save(self, chunk: DocumentChunk) -> None:
-        self._chunks[chunk.chunk_id] = chunk
+    def save(self, chunk: DocumentChunk) -> DocumentChunk:
+        if chunk.chunk_id in self._chunks and self._chunks[chunk.chunk_id] != chunk:
+            raise ValueError("immutable chunk identity conflict")
+        key = (chunk.document_id, chunk.processing_config_version, chunk.ordinal)
+        if key in self._derivations:
+            stored = self._chunks[self._derivations[key]]
+            if stored.content != chunk.content:
+                raise ValueError("immutable chunk derivation conflict")
+            return stored
+        self._chunks.setdefault(chunk.chunk_id, chunk)
+        self._derivations[key] = chunk.chunk_id
+        return self._chunks[chunk.chunk_id]
 
     def get(self, chunk_id: str) -> DocumentChunk | None:
         return self._chunks.get(chunk_id)

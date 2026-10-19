@@ -909,7 +909,7 @@ features:
 
   - id: FEAT-015
     title: "Acquire reproducible SEC and investor-relations corpus"
-    status: blocked
+    status: implemented
     priority: high
     depends_on:
       - FEAT-001
@@ -920,10 +920,12 @@ features:
       - FEAT-008
       - FEAT-018
     scope:
-      - "Acquire and cache supported SEC filings and official investor-relations earnings releases with reproducible manifests."
+      - "Acquire and cache supported SEC filings, official investor-relations earnings releases, and full earnings-call transcripts with reproducible manifests."
       - "Provide a source adapter that reads official SEC EDGAR and curated investor-relations cache manifests behind the document-source port."
+      - "Acquire the approved eleven-symbol market snapshot and freeze hash-linked source reconciliation, benchmark routing, and explicit forward-horizon coverage under decision 0018."
     non_goals:
       - "Private email integration or event-driven ingestion."
+      - "Executing the final thesis prediction/evaluation experiment or choosing its sampling schedule."
     acceptance_criteria:
       - id: AC-1
         description: "Cached records retain source identifiers, publication dates, raw text, cleaned text, and manifest version."
@@ -933,30 +935,84 @@ features:
         description: "Repeated acquisition is idempotent and does not duplicate historical evidence."
       - id: AC-4
         description: "The cache adapter validates supported source records and filters, preserves deterministic ordering, and requires no provider credential at runtime."
+      - id: AC-5
+        description: "A versioned META/CRM/V/DIS/WHR/T and XLC/XLK/XLF/XLY/SPY snapshot retains original responses, price CSVs, exact request/retrieval provenance and hashes, with deterministic offline replay and immutable reruns."
+      - id: AC-6
+        description: "An immutable evaluation manifest reconciles the corrected corpus against the unchanged frozen selection and pins all source/price artifacts, benchmark routing and complete/unavailable 1/5/20/60/252-day outcomes with explicit boundaries and exclusions."
     architecture:
       layers:
+        - domain
         - application
         - adapters
         - bootstrap
       ports:
         - document_sources
         - repositories
+        - market_data
     research_decisions:
       - "docs/THESIS_DECISIONS.md#data-scope"
       - "decisions/0008-local-cache-acquisition-contract.md"
       - "decisions/0009-ingestion-and-evaluation-universe.md"
+      - "decisions/0014-transcript-research-universe-and-historical-cache.md"
+      - "decisions/0015-corpus-contract-corrections.md"
+      - "decisions/0016-reviewed-cleaned-corpus-publication.md"
+      - "decisions/0017-operational-history-and-source-derivations.md"
+      - "decisions/0018-frozen-market-snapshot-and-evaluation-coverage.md"
     verification:
       required_test_levels:
         - unit
         - contract
         - integration
       required_checks: *code_checks
-    blocked_reason: "The current cache reader is only a partial previous-quarter implementation. The final five-year manifest, approved evaluation-universe membership, complete SEC/IR source coverage, publication-date handling, and acquisition/idempotency contract are not yet materialized."
-    completion_evidence: []
+    blocked_reason: null
+    completion_evidence:
+      - acceptance_criterion: AC-1
+        evidence:
+          - "tests/integration/test_cached_sources.py::test_external_final_corpus_is_hash_verified_complete_and_canonical"
+          - "tests/integration/test_cached_sources.py::test_external_cleaning_revision_preserves_frozen_evidence_and_ingests_reviewed_text"
+          - "External corrected corpus manifest SHA-256 e79cd741a308bbb5aebea4da845e05a8df0c6acaa26e4a206073644935f6a16b; publication.json retains 363 records, 243 re-cleaned SEC records and 120 unchanged transcripts."
+      - acceptance_criterion: AC-2
+        evidence:
+          - "tests/contract/ports/test_cached_corpus.py; tests/unit/adapters/outbound/test_sec_history_source.py; tests/unit/adapters/outbound/test_cached_sources.py"
+          - "tests/integration/test_cached_sources.py::test_external_sec_history_is_available_operationally_without_expanding_evaluation"
+      - acceptance_criterion: AC-3
+        evidence:
+          - "tests/unit/scripts/test_publish_cleaned_corpus.py; tests/unit/application/test_source_derivations.py; tests/integration/test_populated_corpus_upgrade.py"
+          - "tests/unit/scripts/test_publish_cleaned_corpus.py::test_cli_rerun_rejects_corruption_without_republishing; tests/integration/test_populated_corpus_upgrade.py::test_broad_pdf_then_frozen_membership_reuses_derivation_and_preserves_old_chunks"
+          - "tests/unit/scripts/test_download_nasdaq_historical.py::test_download_retains_replayable_raw_response_and_verifies_offline_reruns"
+          - "Real Nasdaq acquisition CLI rerun verified the existing snapshot offline without downloading or changing bytes."
+      - acceptance_criterion: AC-4
+        evidence:
+          - "tests/contract/ports/test_cached_corpus.py; tests/unit/adapters/outbound/test_cached_sources.py; tests/integration/test_cached_sources.py"
+          - "SENTIMENT_DATA_ROOT=../sentimentAI-data uv run pytest tests/integration/test_cached_sources.py tests/integration/test_research_history.py: 9 passed."
+      - acceptance_criterion: AC-5
+        evidence:
+          - "tests/unit/scripts/test_download_nasdaq_historical.py; tests/contract/ports/test_cached_market_data.py"
+          - "External data/market_prices/nasdaq_2026_10_18_research_v2/market_prices.json SHA-256 188658a7cfeb9f98afb959b04a3f8402f24051effb2ac8e9ab06d514d92f4f60: eleven raw JSON/CSV series, each 1290 rows from 2021-08-27 through 2026-10-16, with exact request/retrieval/checksum provenance."
+      - acceptance_criterion: AC-6
+        evidence:
+          - "tests/unit/application/test_market_coverage.py; tests/unit/scripts/test_freeze_evaluation_manifest.py; tests/integration/test_evaluation_artifacts.py"
+          - "research-data.lock.json pins sentimentAI-data revision dcfab90df2178f551ab0f7824a4804f179094927; tests/integration/test_evaluation_artifacts.py::test_pinned_data_revision_contains_complete_frozen_artifact_closure verifies committed reference closure. See docs/FEAT_015_DELIVERY.md for remote publication status."
+          - "External data/evaluation/thesis-v2-current-cache-sec-form-aware-v2-market-v1/manifest.json SHA-256 20b1b7ace03ad6b3e3102436fc6378f0d89f99ebffa229c956edf84994aab32c pins 1917 input files and 8 output artifacts."
+          - "Reconciliation preserves all 363 frozen source references/raw hashes and chronological boundaries; coverage retains 1815 source/horizon entries (735 held-out), with explicit 15 unavailable 60-day and 72 unavailable 252-day outcomes and per-company complete boundaries."
+          - "SENTIMENT_DATA_ROOT=../sentimentAI-data uv run pytest tests/integration/test_evaluation_artifacts.py tests/integration/test_cached_market_data.py: 4 passed, including independent price-endpoint checks and offline replay."
     implementation_notes:
       - "Existing cache-reader tests and encrypted-PDF support remain useful groundwork but do not prove the complete acquisition feature."
       - "The initial implementation uses official SEC EDGAR endpoints and manually curated official investor-relations downloads through an immutable local cache; sec-api.io and licensed providers are deferred to FEAT-021."
-      - "The final manifest must distinguish the FEAT-018 ingestion universe from the six-company v1 evaluation universe under decisions/0009-ingestion-and-evaluation-universe.md."
+      - "The final manifest must distinguish the FEAT-018 ingestion universe from the META/CRM/V/DIS/WHR/T evaluation universe under decision 0014; use a new manifest version for changed membership."
+      - "2026-10-17 author-approved increment: curate raw transcript PDFs and acquire all original 10-K/10-Q/8-K history from each company's earliest IR publication year, including historical indexes and Disney's predecessor CIK; persist coverage and gaps in the external data repository. Final transcript-inclusive immutable corpus selection remains outstanding."
+      - "Historical increment evidence: scripts/curate_earnings_calls.py, scripts/download_sec_history.py, scripts/research_inventory.py, tests/unit/scripts/test_research_history.py, and tests/integration/test_research_history.py. External inventory records 274 curated IR PDFs and 1336 SEC filings through 2026-10-17 with zero missing indexed filings; Salesforce FY2015 Q2-Q4 transcript gaps and rejected alternate links remain documented."
+      - "Dependency audit remediation within existing constraints: uv.lock updates pypdf to 6.21.1 and urllib3 to 2.8.0. The historical data is an acquisition superset and FEAT-015 remains in_progress."
+      - "2026-10-18 corpus-contract correction: freeze 363 eligible current-cache records as thesis-v2-current-cache (schema 2), cutoff 2026-08-27, window start 2021-08-27, development end 2024-08-27, first held-out publication 2024-08-28. Download and assistant-review six actual Stock Analysis profiles with pinned HTML/text evidence and explicit Technology normalization. Preserve the broad operational cache with original-byte revision deduplication and provide final-only evaluation access. Source corpus materialized offline; market-data manifest/horizon coverage remain outstanding, so FEAT-015 stays in_progress."
+      - "2026-10-18 author-approved SEC cleaning increment: retain complete main 10-K/10-Q and earnings-release/financial-supplement 8-K content. Add form-aware selection, preserve XBRL-wrapped bodies and repeated financial values, and use scoped linked/unlinked exhibit references to exclude presentations. scripts.review_sec_extraction exports configurable offline batches with source/output hashes and attachment decisions. Independent iterative review of 78 unique development filings found no remaining material text-selection/omission issue in the bounded sample; external incorporated sources, image-only data and table geometry remain explicit limits. Evidence: docs/SEC_EXTRACTION_REVIEW.md and external data/extraction_reviews/sec-v2-round5/findings-final.md. FEAT-015 remains in_progress."
+      - "2026-10-18 reviewed-cleaner publication: activate thesis-v2-current-cache-sec-form-aware-v2 while retaining the frozen thesis-v2-current-cache selection and all 741 predecessor files. Re-clean 243 SEC records with reviewed implementation fingerprints (242 changed hashes), preserve 120 transcript artifacts, verify 24 unique reviewed overlaps, and embed hash-pinned lineage/publication evidence. Version runtime document/chunk identities and add migration 0010 for cleaning-version coexistence. All 363 records and split dates are unchanged; AT&T 0000732717-22-000038 now matches reviewed hash 8fe4ec4d. Evidence: decision 0016, tests/unit/scripts/test_publish_cleaned_corpus.py, external publication.json, and real-cache/PostgreSQL integration coverage. FEAT-015 remains in_progress."
+      - "2026-10-18 resumed gap correction: validate explicit selection/sector inputs and complete existing artifacts on acquisition reruns without re-cleaning published corpora. Load original SEC history through operational ingestion with publication dates, original-byte revision deduplication, and frozen-only evaluation. Carry SourceArtifact PDF byte hashes through normalization/persistence; separate source revisions, cleaned derivations, manifest memberships and processing-versioned immutable chunks. Migration 0011 preserves historical IDs/evidence, corrects 0009 hashes from provenance, retains unknown legacy byte identity as NULL, and reuses equivalent legacy documents/chunks. Evidence: decision 0017; unit source-derivation/history and CLI rerun tests; adapter contracts; populated-schema upgrade/PDF round-trip regressions; real-cache history membership checks. Market-data/evaluation manifest and horizon work remain separate; FEAT-015 stays in_progress."
+      - "2026-10-18 final research-artifact increment (decision 0018): reused and completely verified the existing corrected publication; acquired the eleven-symbol Nasdaq snapshot through the last completed session 2026-10-16 with original responses and deterministic offline CSV replay; froze exact source/price references, full inventories, benchmark routing and all horizon outcomes without changing the source cutoff. Shared outcome alignment between coverage and existing prediction evaluation; actual thesis experiment execution remains FEAT-016."
+      - "TDD observed missing verifier/use-case/freezer imports before implementation; 32 focused tests then passed. Final suite with isolated temporary local PostgreSQL: 296 passed, 14 optional cases skipped; all 13 real-cache cases passed separately. Qdrant remains the only unconfigured optional infrastructure case. All formatting/import/lint/mypy/compilation/build/dependency-audit/governance/lock/diff gates passed. PostgreSQL was stopped after checks; existing application databases were preserved."
+      - "The first combined real-cache test invocation exceeded its 120-second timeout after the new evaluation checks passed; the broader cache/history cases passed when rerun with a 600-second timeout. The completed data bundle is input/availability evidence, not generated predictions, a sampling schedule or thesis metrics."
+      - "2026-10-19 delivery supersedes the earlier outstanding acquisition/market notes: decisions 0016-0018 resolve cleaned publication, operational history, source derivations and frozen market coverage. The source sample, split and bounded extraction review are unchanged."
+      - "2026-10-19 user authorized descriptive commits and pushes in both repositories. Added supported-source contract coverage, CLI corruption matrices, broad-PDF-to-frozen PostgreSQL transition coverage, and exact data-revision closure. Local real-cache suite: 311 passed, 9 PostgreSQL/Qdrant cases skipped for infrastructure CI. All standard local gates passed; no skipped infrastructure test is counted as local evidence."
+      - "Data commit dcfab90df2178f551ab0f7824a4804f179094927 is pinned locally; the remote push is currently denied to Jakub-Woszczek. Application pull-request/infrastructure CI and reviewed integration remain separate. See docs/FEAT_015_DELIVERY.md."
 
   - id: FEAT-016
     title: "Evaluate predictions against leakage-safe market outcomes"
@@ -1002,7 +1058,7 @@ features:
         - contract
         - integration
       required_checks: *code_checks
-    blocked_reason: "The evaluation implementation awaits FEAT-015's final immutable corpus and market-data manifest, including its cutoff and explicit six-company v1 evaluation membership. The split derivation and benchmark mapping are decided, but cannot be applied until those records exist."
+    blocked_reason: "FEAT-015 is locally implemented but not yet reviewed/integrated. Decision 0018 freezes the verified source/market bundle and explicit horizon coverage; FEAT-016 awaits completion of that dependency before actual thesis evaluation execution."
     completion_evidence: []
     implementation_notes: []
 
@@ -1734,7 +1790,7 @@ features:
 
   - id: FEAT-029
     title: "Run a functional six-company local prediction workflow"
-    status: in_review
+    status: complete
     priority: high
     depends_on:
       - FEAT-008
@@ -1837,7 +1893,7 @@ features:
 
   - id: FEAT-030
     title: "Ingest and index one company's documents on demand"
-    status: queued
+    status: ready
     priority: high
     depends_on:
       - FEAT-007
@@ -2082,7 +2138,7 @@ features:
 
   - id: FEAT-035
     title: "Load validated cached market-price snapshots"
-    status: in_review
+    status: complete
     priority: high
     depends_on:
       - FEAT-003
@@ -2141,7 +2197,7 @@ features:
 
   - id: FEAT-036
     title: "Build reproducible prediction-evaluation reports"
-    status: in_review
+    status: complete
     priority: high
     depends_on:
       - FEAT-002

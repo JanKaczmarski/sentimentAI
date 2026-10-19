@@ -31,7 +31,8 @@ rebuilt toward this design.
 ### Functional
 
 - Store investor accounts and company/group-specific Investment Theses.
-- Ingest and normalize SEC filings and official investor-relations releases.
+- Ingest and normalize SEC filings and official investor-relations releases and
+  full earnings-call transcripts for the current META/CRM/V/DIS/WHR/T sample.
 - Store historical market prices for evaluation.
 - Calculate sentiment and importance for individual document chunks.
 - Produce 30-, 90-, and 365-day company sentiment snapshots.
@@ -62,7 +63,7 @@ network services for the thesis.
 flowchart LR
     API[REST API] --> O[Orchestrator]
     Sources[SEC + IR releases] --> I[Data Ingest]
-    Prices[Yahoo Finance prices] --> E[Evaluation]
+    Prices[Cached market-price snapshots] --> E[Evaluation]
     O --> I
     I --> P[Processing and RAG]
     P --> S[Base Scoring]
@@ -90,14 +91,14 @@ Better view:
 | Base Scoring | Uses the LLM to score chunk polarity and general importance independently of users |
 | Sentiment Aggregator | Produces document and company/window scores from weighted chunk scores |
 | Investment Thesis Engine | Applies deterministic, documented personalization rules |
-| Evaluation | Joins signals with future market data and calculates research metrics |
+| Evaluation | Joins signals with future cached market data and calculates research metrics |
 | PostgreSQL | Stores users, theses, documents, scores, predictions, runs, and provenance |
 | Qdrant | Stores persistent embeddings and searchable chunk payloads |
 | Prometheus/Grafana | Exposes and visualizes batch, retrieval, LLM, and evaluation metrics |
 
 ## Data Flow
 
-1. Ingest SEC `10-K`, `10-Q`, relevant `8-K`, and official investor-relations earnings releases.
+1. Ingest SEC `10-K`, `10-Q`, relevant `8-K`, and official investor-relations earnings releases and call transcripts.
 2. Preserve the raw document and create a separately cleaned representation.
 3. Parse source, company, publication date, document type, and content metadata.
 4. Split documents into chunks and generate real local semantic embeddings.

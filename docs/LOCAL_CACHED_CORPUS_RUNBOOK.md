@@ -1,5 +1,10 @@
 # Local Cached-Corpus Workflow
 
+The current core research sample is **META, CRM, V, DIS, WHR, T**; see
+`RESEARCH_HISTORY_ACQUISITION.md` and the external inventory for current source
+coverage. The six-company functional snapshot described below is the original
+demonstration and remains useful historical verification evidence.
+
 This runbook starts the normal local application path using the external
 `sentimentAI-data` cache. The current functional snapshot covers `AAPL`, `MSFT`,
 `NVDA`, `JPM`, `XOM`, and `JNJ`; the cache also contains historical AMAT records
