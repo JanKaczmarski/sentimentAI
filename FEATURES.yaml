@@ -909,7 +909,7 @@ features:
 
   - id: FEAT-015
     title: "Acquire reproducible SEC and investor-relations corpus"
-    status: in_review
+    status: complete
     priority: high
     depends_on:
       - FEAT-001
@@ -1015,10 +1015,11 @@ features:
       - "Data commit dcfab90df2178f551ab0f7824a4804f179094927 is published to sentimentAI-data/main and pinned by research-data.lock.json. The initial permission denial was resolved by the author's access grant; git ls-remote confirmed the exact remote SHA. See docs/FEAT_015_DELIVERY.md."
       - "Delivery pull request: https://github.com/JanKaczmarski/sentimentAI/pull/54 targets develop. Exact-head PostgreSQL/Qdrant CI and explicit human merge approval remain required; the data publication blocker is closed."
       - "Infrastructure CI https://github.com/JanKaczmarski/sentimentAI/actions/runs/39207624266 passed on d0024f0910f9726b0e00116f456d767ca0c20d07: 307 passed, 14 external-data cases skipped. All eight PostgreSQL cases and Qdrant executed; all local real-cache cases passed (13 in the full suite plus the separately added committed-revision closure case). Exact-head CI remains required after later commits."
+      - "2026-10-19 audit confirmed PR #54 merged into develop at 3b1e3c46bc084318d83718c7bb0225d32b8cdd59, with final-head CI run 39210563422 successful on eb449a33e7fd562eee1abeaa49b1233bf5d40d10. Data revision dcfab90 is published. The earlier in_review status and outstanding integration notes are superseded."
 
   - id: FEAT-016
     title: "Evaluate predictions against leakage-safe market outcomes"
-    status: blocked
+    status: queued
     priority: high
     depends_on:
       - FEAT-002
@@ -1060,9 +1061,11 @@ features:
         - contract
         - integration
       required_checks: *code_checks
-    blocked_reason: "FEAT-015 is locally implemented but not yet reviewed/integrated. Decision 0018 freezes the verified source/market bundle and explicit horizon coverage; FEAT-016 awaits completion of that dependency before actual thesis evaluation execution."
+    blocked_reason: null
     completion_evidence: []
-    implementation_notes: []
+    implementation_notes:
+      - "2026-10-19 audit: FEAT-015 is integrated and its frozen source/market artifacts exist. Remaining dependency is FEAT-022. CachedCsvMarketData, load_evaluation_scope, and EvaluatePredictions exist, but the runtime only wires report retrieval; final-manifest-scoped prediction generation/evaluation execution and persisted research results remain outstanding."
+      - "The research runner must use only explicit frozen-manifest records, enforce the approved publication/as-of boundary, and record the experiment/sampling configuration before final execution. The ordinary operational cache union is not a valid substitute for research scope."
 
   - id: FEAT-017
     title: "Schedule batch runs and expose observability"
@@ -1080,8 +1083,11 @@ features:
       - FEAT-015
       - FEAT-016
       - FEAT-022
+      - FEAT-032
     scope:
       - "Wire daily scheduling, run state, Prometheus metrics, Grafana dashboards, and the composition root around the complete pipeline."
+      - "Provide configurable ingest/index, scoring, and batch/aggregation schedules with explicit timezone and lifecycle handling, reusing application workflows and the durable scoring enqueue path from FEAT-032."
+      - "Correlate stage success/failure logs with run IDs and provide pipeline/dependency readiness signals alongside the lightweight process health endpoint."
     non_goals:
       - "Authentication, production hardening, or Cyfronet deployment."
     acceptance_criteria:
@@ -1089,6 +1095,10 @@ features:
         description: "Scheduled batches record run outcomes and preserve execution provenance without duplicating investor-independent scoring."
       - id: AC-2
         description: "Prometheus and provisioned Grafana dashboards expose batch, document, chunk, exclusion, retrieval, LLM, and evaluation metrics."
+      - id: AC-3
+        description: "Configured ingest, score, and batch schedules start and stop with the runtime, use explicit timezone and overlap/misfire behavior, and invoke the same workflows as manual triggers without duplicate execution."
+      - id: AC-4
+        description: "Structured run/stage logs and readiness responses identify failed or unavailable dependencies without exposing credentials; failure paths and metrics are covered by integration checks."
     architecture:
       layers:
         - application
@@ -1113,7 +1123,10 @@ features:
       required_checks: *code_checks
     blocked_reason: null
     completion_evidence: []
-    implementation_notes: []
+    implementation_notes:
+      - "2026-10-19 audit: adapters/inbound/scheduler.py and adapters/outbound/observability/metrics.py contain only docstrings. /metrics exposes default process/Python collectors, not pipeline instrumentation. Prometheus scraping and a Grafana datasource exist, but no dashboards or dashboard provisioning exist. /health reports process liveness only."
+      - "User-requested cron-style ingest/scoring/batch automation and full thesis-pipeline observability are tracked here rather than duplicated as another feature. This does not approve a new live-data provider, mutation of frozen corpora, or an external tracing/logging service."
+      - "Coordinate scheduler ownership with FEAT-032; do not implement competing scoring workers. Live source acquisition currently runs through explicit scripts, and Compose mounts the research cache read-only."
 
   - id: FEAT-018
     title: "Define the company universe for ingestion"
@@ -1322,7 +1335,7 @@ features:
 
   - id: FEAT-022
     title: "Run the complete source-to-prediction pipeline"
-    status: queued
+    status: ready
     priority: critical
     depends_on:
       - FEAT-007
@@ -1338,6 +1351,7 @@ features:
     scope:
       - "Compose cached source loading, ingestion, indexing, provider-neutral scoring, aggregation, personalization, and persistence into one repeatable application workflow."
       - "Expose a manual batch trigger that can run the pipeline in deterministic development mode for local and CI end-to-end verification."
+      - "Require explicit durable PostgreSQL/Qdrant and cached-source configuration in research mode while retaining deliberate in-memory/fixture operation for development and tests."
     non_goals:
       - "Daily scheduling, production LLM provider integration, market-outcome evaluation, licensed providers, or production authentication."
     acceptance_criteria:
@@ -1347,6 +1361,8 @@ features:
         description: "One investor-independent scoring run serves multiple Investment Theses without another scoring call."
       - id: AC-3
         description: "Manual pipeline runs record run state, provenance, source lineage, and deterministic configuration, including failures."
+      - id: AC-4
+        description: "Research startup rejects missing durable persistence, vector-store, or cached-source configuration instead of silently using in-memory repositories, an in-memory vector store, or synthetic fixtures; the development/test path remains explicit and usable."
     architecture:
       layers:
         - application
@@ -1373,6 +1389,10 @@ features:
     completion_evidence: []
     implementation_notes:
       - "Deterministic scoring is the development and CI path; thesis-result generation must use real local embeddings and a production scoring provider covered by FEAT-023."
+      - "2026-10-19 audit: RunBatch and the manual API already compose ingest/index/score/aggregate, with prediction generation on a separate read. This is partial groundwork, not a missing implementation of every stage. The complete frozen-corpus workflow and integration evidence are still absent."
+      - "Confirmed configuration gap: APP_ENV=research with real provider settings but no DATABASE_URL, QDRANT_URL or SENTIMENT_DATA_ROOT still builds InMemoryDocumentRepository, InMemoryVectorStore and FixtureDocumentSource. Real PostgreSQL/Qdrant adapters exist; the missing behavior is enforcing research configuration."
+      - "RunBatch currently re-embeds and scores all eligible chunks for each new run; it has no durable per-chunk resume/deduplication. FEAT-030 owns embedding reuse and FEAT-032 owns resumable scoring. Scoring overwrites the parent run's intermediate state, so stage lifecycle/provenance must be coordinated rather than treating intermediate scoring completion as batch completion."
+      - "Indexing currently writes excluded=false before scoring and does not synchronize later soft-exclusion state into Qdrant payloads. Integration must preserve the approved exclusion semantics when retrieval is used, while PostgreSQL remains authoritative."
 
   - id: FEAT-023
     title: "Implement production LLM scoring and contextual RAG"
@@ -1416,6 +1436,9 @@ features:
     completion_evidence: []
     implementation_notes:
       - "Provider credentials remain runtime-only and production calls are not required for deterministic CI tests."
+      - "2026-10-19 audit: Ollama/OpenAI-compatible LocalLlamaLLMScorer is real and configured; groq.py is still a docstring and config accepts only deterministic/ollama. Contextual summaries and model-tokenizer budget enforcement are absent. Current calls set temperature=0 but not the declared 300-token completion limit."
+      - "Malformed responses are rejected, but failed raw responses are discarded before a score/provenance record is saved; ScoreChunks saves run provenance only after its entire loop succeeds. Complete failure/parse audit artifacts and provider/tokenizer/generation metadata remain required by AC-2/AC-3."
+      - "Coordinate contextual summaries and token budgeting with FEAT-031 rather than duplicating that implementation. The runtime currently counts whitespace-separated words for the 2,000-token chunk limit; the approved contract requires model-tokenizer counts and an identified tokenizer in provenance."
 
   - id: FEAT-024
     title: "Run a deterministic source-to-prediction POC"
@@ -1786,7 +1809,6 @@ features:
       - "The bounded demo uses two external AMAT records dated 2026-05-14: one SEC 8-K and one official investor-relations PDF; raw files remain outside application source control and are SHA-256 verified."
       - "The supervisor Compose profile uses Ollama nomic-embed-text for real local semantic embeddings because the host environment blocks Hugging Face model downloads through an untrusted proxy certificate; no TLS bypass or mock fallback was added."
       - "The default development path remains deterministic unless APP_ENV=research and explicit Ollama settings are selected; research mode rejects deterministic LLM scoring and mock embeddings."
-    implementation_notes:
       - "On macOS with the application in Compose and Ollama on the host, the configured provider URL should use host.docker.internal rather than localhost."
       - "The bounded demonstration is a functional supervisor milestone; FEAT-015, FEAT-022, FEAT-023, FEAT-016, and FEAT-017 remain necessary for the complete thesis system."
 
@@ -1943,7 +1965,8 @@ features:
       required_checks: *code_checks
     blocked_reason: null
     completion_evidence: []
-    implementation_notes: []
+    implementation_notes:
+      - "2026-10-19 audit: raw/cleaned persistence, sentence-aware chunking and embedding/indexing already exist through IngestDocuments, IndexChunks and the combined batch. Missing are the dedicated cached-company ingestion endpoint/use case and avoiding repeat embedding work. The current /companies/{company} endpoint is fixture-communication ingestion, not this workflow."
 
   - id: FEAT-031
     title: "Score chunks with document-level contextual RAG"
@@ -1993,6 +2016,7 @@ features:
     completion_evidence: []
     implementation_notes:
       - "The tokenizer used to enforce the 15,000-token input budget for the Ollama-served llama3.1:8b model still needs a concrete library choice (e.g. a Hugging Face tokenizer already available transitively via sentence-transformers, or a model-specific tokenizer); this is an implementation detail, not a new research decision, but must be resolved before the feature is marked ready."
+      - "2026-10-19 audit: ScoreChunks never supplies the existing context argument and no document-summary generation workflow is present. Supporting an optional context string in LocalLlamaLLMScorer alone does not implement contextual RAG."
 
   - id: FEAT-032
     title: "Run chunk scoring as a durable, resumable job"
@@ -2043,6 +2067,7 @@ features:
     completion_evidence: []
     implementation_notes:
       - "Default concurrency should be conservative (e.g. 1) given a single local Ollama instance; make it configurable rather than hard-coded so it can be raised against a multi-replica or hosted provider later."
+      - "2026-10-19 audit: /batch/run is a synchronous request; there is no enqueue/status endpoint, worker, persisted per-chunk checkpoint, lease, or process-restart resume path. Existing SDK retries do not provide durable job execution."
 
   - id: FEAT-033
     title: "Rank and de-duplicate prediction evidence with vector similarity"
@@ -2089,6 +2114,7 @@ features:
     completion_evidence: []
     implementation_notes:
       - "Scoped deliberately narrow: explainability/display only. A retrieval-bounded aggregation variant was considered and intentionally deferred pending an explicit decision update if the team later wants to pre-register and evaluate it."
+      - "2026-10-19 audit: QdrantVectorStore.search exists and is tested, but prediction/scoring composition does not invoke search. Current evidence is sorted by importance/recency only, with no semantic reranking, deduplication or ranking provenance."
 
   - id: FEAT-034
     title: "Update the local console UI for the ingest, score, and evidence-ranking flow"
@@ -2262,3 +2288,97 @@ features:
     implementation_notes:
       - "FEAT-036 supplies generic, testable evaluation/report infrastructure. FEAT-016 remains blocked until the final corpus and market manifests make a thesis-valid run possible."
       - "The PostgreSQL round-trip integration test passed against the local Compose postgres service on 2026-09-26."
+
+  - id: FEAT-037
+    title: "Connect a Cyfronet-hosted LLM inference API"
+    status: proposed
+    priority: medium
+    depends_on:
+      - FEAT-004
+      - FEAT-011
+      - FEAT-028
+    scope:
+      - "Add an explicitly selectable Cyfronet-hosted inference backend behind the existing LLM scoring port, reusing the OpenAI-compatible adapter where the actual service protocol permits it."
+      - "Configure endpoint, model, authentication, timeouts and supported request capabilities through runtime configuration, including Compose overrides."
+      - "Preserve investor-independent structured scoring, explicit provider failures and secret-free provider/model/request provenance without falling back to mock or local scoring."
+      - "Document an opt-in real-endpoint smoke check and how to obtain/configure the required access."
+    non_goals:
+      - "Deploying a model on an HPC cluster, SSH/Slurm job orchestration, or adding another infrastructure service."
+      - "Replacing the existing Ollama backend or silently changing the approved research model, prompts, corpus, split or personalization rules."
+      - "Storing provider tokens in source control or experiment artifacts."
+    acceptance_criteria:
+      - id: AC-1
+        description: "Explicit Cyfronet configuration builds the remote inference adapter through the existing LLMScorer boundary without provider types entering domain/application code."
+      - id: AC-2
+        description: "Successful responses satisfy the existing scoring schema; authentication, timeout, rate-limit, unsupported-capability and malformed-response failures remain explicit and never switch to another backend."
+      - id: AC-3
+        description: "Provider/model and available request/token/failure metadata are persisted without credentials; adapter contract tests use controlled responses and a documented opt-in live smoke check verifies the selected endpoint."
+      - id: AC-4
+        description: "Compose and local runtime can select the configured remote URL without a hardcoded host-local Ollama URL overriding it."
+    architecture:
+      layers:
+        - adapters
+        - bootstrap
+      ports:
+        - llm
+        - repositories
+    research_decisions:
+      - "docs/THESIS_DECISIONS.md#runtime-and-architecture"
+      - "decisions/0003-processing-and-scoring-configuration.md"
+    verification:
+      required_test_levels:
+        - unit
+        - contract
+        - integration
+      required_checks: *code_checks
+    blocked_reason: null
+    completion_evidence: []
+    implementation_notes:
+      - "Added from the author's 2026-10-19 system-audit request. Cyfronet is an optional inference connection, not a promotion of HPC deployment into core thesis scope."
+      - "Before readiness, confirm the actual API URL/protocol, access method, available model identifier, structured-output support and tokenizer. No Cyfronet request or model-policy choice has been made by this audit."
+
+  - id: FEAT-038
+    title: "Use chronological scoring history and latest completed snapshot runs"
+    status: proposed
+    priority: high
+    depends_on:
+      - FEAT-008
+      - FEAT-011
+      - FEAT-012
+      - FEAT-014
+    scope:
+      - "Order chunk-score history by explicit execution chronology rather than lexicographic run identifiers before applying the approved three-consecutive-low-importance rule."
+      - "Select the latest eligible completed snapshot run for a prediction by run chronology, preserving as-of/window constraints and stable deterministic tie-breaking."
+      - "Keep in-memory and PostgreSQL repository contracts consistent and preserve all historical source, score, snapshot and prediction records."
+    non_goals:
+      - "Changing the 0.05 threshold, required three-run streak, aggregation weights, personalization rules or frozen experiment inputs."
+      - "Retrospectively overwriting historical predictions or guessing chronological order from random UUIDs."
+      - "Implementing scheduling, a background worker, or semantic evidence reranking."
+    acceptance_criteria:
+      - id: AC-1
+        description: "A low/low/high/low execution history never excludes the final score, regardless of deliberately shuffled run-ID sort order; three consecutive eligible low scores do exclude it."
+      - id: AC-2
+        description: "When two completed runs have snapshots at the same as-of date, prediction selection uses the later executed eligible run regardless of its identifier, with deterministic ties and explicit treatment of unknown legacy chronology."
+      - id: AC-3
+        description: "Fake and real PostgreSQL tests prove chronological ordering and run eligibility, and prior scores, snapshots and evidence remain addressable and unchanged."
+    architecture:
+      layers:
+        - application
+        - adapters
+      ports:
+        - repositories
+    research_decisions:
+      - "docs/THESIS_DECISIONS.md#rag-and-scoring"
+      - "decisions/0005-aggregation-and-personalization-rules.md"
+      - "decisions/0006-reproducible-research-and-runtime-contract.md"
+    verification:
+      required_test_levels:
+        - unit
+        - contract
+        - integration
+      required_checks: *code_checks
+    blocked_reason: null
+    completion_evidence: []
+    implementation_notes:
+      - "2026-10-19 audit reproduced incorrect exclusion for execution order run-x low, run-y low, run-a high, run-z low: repositories sort by run_id and the final score is wrongly excluded. Existing monotonic run-1/run-2/run-3 tests miss this defect."
+      - "PostgresChunkScoreRepository.list_for_chunk and its in-memory counterpart sort run IDs. Snapshot repositories sort as_of/window/run_id, and GeneratePrediction reverses that derived run order without consulting run timestamps/status. This is corrective work beyond the completed basic scoring/prediction feature evidence."
