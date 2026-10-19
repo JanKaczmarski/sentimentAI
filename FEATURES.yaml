@@ -909,7 +909,7 @@ features:
 
   - id: FEAT-015
     title: "Acquire reproducible SEC and investor-relations corpus"
-    status: implemented
+    status: in_review
     priority: high
     depends_on:
       - FEAT-001
@@ -1013,6 +1013,7 @@ features:
       - "2026-10-19 delivery supersedes the earlier outstanding acquisition/market notes: decisions 0016-0018 resolve cleaned publication, operational history, source derivations and frozen market coverage. The source sample, split and bounded extraction review are unchanged."
       - "2026-10-19 user authorized descriptive commits and pushes in both repositories. Added supported-source contract coverage, CLI corruption matrices, broad-PDF-to-frozen PostgreSQL transition coverage, and exact data-revision closure. Local real-cache suite: 311 passed, 9 PostgreSQL/Qdrant cases skipped for infrastructure CI. All standard local gates passed; no skipped infrastructure test is counted as local evidence."
       - "Data commit dcfab90df2178f551ab0f7824a4804f179094927 is pinned locally; the remote push is currently denied to Jakub-Woszczek. Application pull-request/infrastructure CI and reviewed integration remain separate. See docs/FEAT_015_DELIVERY.md."
+      - "Delivery pull request: https://github.com/JanKaczmarski/sentimentAI/pull/54 targets develop. Exact-head PostgreSQL/Qdrant CI is required; the data push permission blocker must be resolved before integration."
 
   - id: FEAT-016
     title: "Evaluate predictions against leakage-safe market outcomes"

@@ -67,8 +67,12 @@ expanding its semantic or visual-fidelity claims.
 
 ## Remote verification and lifecycle
 
-Application CI and pull-request results are recorded after publication. Until
-remote checks pass, infrastructure verification is pending. FEAT-015 is locally
-implemented and is not complete until reviewed integration into `develop`.
+Pull request: <https://github.com/JanKaczmarski/sentimentAI/pull/54>, targeting
+`develop`. Until exact-head remote checks pass, infrastructure verification is
+pending. FEAT-015 is `in_review` and is not complete until reviewed integration.
 Neither a successful local test suite nor a local data commit proves publication
 or integration.
+
+The additional pinned-revision integration test passed separately after the
+full local suite. It confirms the exact Git commit contains the manifest and
+all 1,925 referenced input/output artifacts; the manifest itself is also checked.
