@@ -20,10 +20,20 @@ It pins all 1,917 inputs and eight output artifacts. The revision-closure
 integration test verifies that every referenced file exists in the Git commit,
 not only in an untracked local cache.
 
-**Publication blocker:** the commit currently exists locally; pushing to the
-data remote is denied to the authenticated `Jakub-Woszczek` account. The remote
-must receive this exact revision before another checkout can reproduce it.
-This is not recorded as a successful data push.
+**Published:** [the pinned data commit](https://github.com/JanKaczmarski/sentimentAI-data/commit/dcfab90df2178f551ab0f7824a4804f179094927)
+was pushed to `main` on 2026-10-19. `git ls-remote --heads origin main`
+confirmed the exact pinned revision. The initial permission denial was resolved
+after the author granted write access; the data publication blocker is closed.
+
+To reproduce in a separate workspace:
+
+```bash
+git clone https://github.com/JanKaczmarski/sentimentAI-data.git
+git -C sentimentAI-data checkout dcfab90df2178f551ab0f7824a4804f179094927
+```
+
+Set `SENTIMENT_DATA_ROOT` to that checkout and run the verifier/tests documented
+in `FINAL_CORPUS_ACQUISITION.md`.
 
 ## Acceptance evidence
 
@@ -85,3 +95,8 @@ or integration.
 The additional pinned-revision integration test passed separately after the
 full local suite. It confirms the exact Git commit contains the manifest and
 all 1,925 referenced input/output artifacts; the manifest itself is also checked.
+
+[CI run 39208004415](https://github.com/JanKaczmarski/sentimentAI/actions/runs/39208004415)
+also passed on documentation candidate `2242c352c50a3ac9f5c4427136446945b876022a`.
+The PR's current check rollup is the authority for the final head; integration
+into `develop` still requires human approval.
