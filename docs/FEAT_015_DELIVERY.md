@@ -68,8 +68,17 @@ expanding its semantic or visual-fidelity claims.
 ## Remote verification and lifecycle
 
 Pull request: <https://github.com/JanKaczmarski/sentimentAI/pull/54>, targeting
-`develop`. Until exact-head remote checks pass, infrastructure verification is
-pending. FEAT-015 is `in_review` and is not complete until reviewed integration.
+`develop`. [Infrastructure CI run 39207624266](https://github.com/JanKaczmarski/sentimentAI/actions/runs/39207624266)
+passed for candidate `d0024f0910f9726b0e00116f456d767ca0c20d07`: **307 passed,
+14 skipped**. All eight PostgreSQL cases (including five populated-upgrade/PDF
+transition cases) and the Qdrant case executed successfully. The 14 skips are
+external-cache cases because CI does not configure `SENTIMENT_DATA_ROOT`; those
+cases passed locally, including the separately added revision-closure test.
+Formatting, typing, compilation, build, dependency audit, Compose validation,
+governance, lockfile and diff checks also passed remotely. Later documentation
+commits must retain a successful check on their own exact PR head.
+
+FEAT-015 is `in_review` and is not complete until reviewed integration.
 Neither a successful local test suite nor a local data commit proves publication
 or integration.
 

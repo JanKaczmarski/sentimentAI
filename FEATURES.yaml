@@ -1014,6 +1014,7 @@ features:
       - "2026-10-19 user authorized descriptive commits and pushes in both repositories. Added supported-source contract coverage, CLI corruption matrices, broad-PDF-to-frozen PostgreSQL transition coverage, and exact data-revision closure. Local real-cache suite: 311 passed, 9 PostgreSQL/Qdrant cases skipped for infrastructure CI. All standard local gates passed; no skipped infrastructure test is counted as local evidence."
       - "Data commit dcfab90df2178f551ab0f7824a4804f179094927 is pinned locally; the remote push is currently denied to Jakub-Woszczek. Application pull-request/infrastructure CI and reviewed integration remain separate. See docs/FEAT_015_DELIVERY.md."
       - "Delivery pull request: https://github.com/JanKaczmarski/sentimentAI/pull/54 targets develop. Exact-head PostgreSQL/Qdrant CI is required; the data push permission blocker must be resolved before integration."
+      - "Infrastructure CI https://github.com/JanKaczmarski/sentimentAI/actions/runs/39207624266 passed on d0024f0910f9726b0e00116f456d767ca0c20d07: 307 passed, 14 external-data cases skipped. All eight PostgreSQL cases and Qdrant executed; all local real-cache cases passed (13 in the full suite plus the separately added committed-revision closure case). Exact-head CI remains required after later commits."
 
   - id: FEAT-016
     title: "Evaluate predictions against leakage-safe market outcomes"
