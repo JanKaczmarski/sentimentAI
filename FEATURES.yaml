@@ -1335,7 +1335,7 @@ features:
 
   - id: FEAT-022
     title: "Run the complete source-to-prediction pipeline"
-    status: implemented
+    status: in_review
     priority: critical
     depends_on:
       - FEAT-007
@@ -1426,7 +1426,7 @@ features:
       - "TDD observed missing runtime configuration contracts, same-day information leakage, missing frozen-source selection, missing audit metadata and loss of partial ingestion lineage before implementation. Added stage-failure, chronology, adapter and durable migration/API regressions."
       - "Verification: black/isort checks, ruff, mypy, compileall, uv build, pip-audit, required-doc/feature validation, uv lock --check and git diff --check passed. Standard full suite with isolated PostgreSQL and Qdrant: 379 passed, 15 external-cache cases skipped; all 15 passed separately (14 source/history/market/artifact checks plus full 363-record pipeline replay). Every one of the 394 tests was exercised across successful runs."
       - "The combined external-cache/full-suite invocation exceeded its 600-second tool limit; split explicit cache runs succeeded, including the final full-corpus replay in 227 seconds. PostgreSQL and Qdrant 1.19.0 used temporary isolated local services because Docker was unavailable; application databases and external research inputs were not changed."
-      - "FEAT-038's stale implemented status was reconciled against merged PR #56 and successful exact-head CI. FEAT-022 is locally implemented on feat/022-source-to-prediction and prepared for publication at the author's request; remote review remains pending. See docs/LOCAL_CACHED_CORPUS_RUNBOOK.md for the API/configuration/migration contract."
+      - "FEAT-038's stale implemented status was reconciled against merged PR #56 and successful exact-head CI. FEAT-022 is published in PR #57 targeting develop: https://github.com/JanKaczmarski/sentimentAI/pull/57. Exact-head remote CI and human review govern integration. See docs/LOCAL_CACHED_CORPUS_RUNBOOK.md for the API/configuration/migration contract."
 
   - id: FEAT-023
     title: "Implement production LLM scoring and contextual RAG"
