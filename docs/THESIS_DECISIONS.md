@@ -74,6 +74,11 @@ specification.
 - Generate importance with the LLM during the corpus batch; embeddings may narrow candidates but are not the authoritative importance value.
 - Exclude chunks below `0.05` after three consecutive low-importance batch scores.
 - Use soft exclusion rather than physical deletion so historical evidence remains auditable.
+- Order scoring executions by start time and use only completed prior runs for
+  the exclusion streak. The latest relevant run must be completed and have the
+  exact-date snapshots required by the thesis; otherwise prediction generation
+  is unavailable, with no older-run fallback. See
+  `decisions/0019-run-chronology-and-prediction-availability.md`.
 - Evaluate standard chunking and contextual RAG as separate variants.
 - Contextual RAG means generating a document summary and prepending it to its chunks.
 - Enforce a 15,000-token input budget per LLM request; select chunks by importance and retrieval score and record truncation.

@@ -116,9 +116,9 @@ def build_container() -> ApplicationContainer:
     investment_thesis_repository: InvestmentThesisRepository = InMemoryInvestmentThesisRepository()
     document_repository: DocumentRepository = InMemoryDocumentRepository()
     chunk_repository: ChunkRepository = InMemoryChunkRepository()
-    chunk_score_repository: ChunkScoreRepository = InMemoryChunkScoreRepository()
-    snapshot_repository: SnapshotRepository = InMemorySnapshotRepository()
     experiment_run_repository: ExperimentRunRepository = InMemoryExperimentRunRepository()
+    chunk_score_repository: ChunkScoreRepository = InMemoryChunkScoreRepository(runs=experiment_run_repository)
+    snapshot_repository: SnapshotRepository = InMemorySnapshotRepository()
     provenance_repository: ExperimentProvenanceRepository = InMemoryProvenanceRepository()
     prediction_repository: PredictionRepository = InMemoryPredictionRepository()
     evaluation_report_repository: EvaluationReportRepository = InMemoryEvaluationReportRepository()
@@ -199,6 +199,7 @@ def build_container() -> ApplicationContainer:
             investment_thesis_repository,
             snapshot_repository,
             prediction_repository,
+            experiment_run_repository,
         ),
         list_prediction_history=ListPredictionHistory(account_repository, prediction_repository),
         ingest_fixture_communication=IngestFixtureCommunication(document_repository, chunk_repository),

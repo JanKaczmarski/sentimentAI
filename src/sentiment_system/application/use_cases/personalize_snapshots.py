@@ -87,7 +87,7 @@ class PersonalizeSnapshots:
         available = {
             snapshot.window_days: snapshot
             for snapshot in self._snapshots.list_for_company(company, as_of=as_of)
-            if snapshot.run_id == run_id
+            if snapshot.run_id == run_id and snapshot.as_of == as_of
         }
         try:
             return available[windows[0]], available[windows[1]]

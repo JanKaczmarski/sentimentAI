@@ -61,7 +61,7 @@ def test_manual_batch_serves_multiple_theses_from_one_scoring_run() -> None:
             manage_investment_theses=ManageInvestmentTheses(accounts, theses),
             snapshot_repository=snapshots,
             prediction_repository=predictions,
-            generate_prediction=GeneratePrediction(accounts, theses, snapshots, predictions),
+            generate_prediction=GeneratePrediction(accounts, theses, snapshots, predictions, runs),
             run_batch=batch,
         )
     )
@@ -103,6 +103,20 @@ def test_manual_batch_serves_multiple_theses_from_one_scoring_run() -> None:
     assert first_prediction.json()["run_id"] == batch_response.json()["run_id"]
     assert second_prediction.json()["run_id"] == batch_response.json()["run_id"]
     assert scorer.calls == 1
+
+    historical_predictions = predictions.list_for_company("AAPL")
+    historical_snapshots = snapshots.list_for_company("AAPL")
+    scorer.fail = True
+    failed_batch = client.post("/batch/run", json={"company": "AAPL", "as_of": "2025-01-02"})
+    unavailable = client.get(
+        "/companies/AAPL/prediction",
+        params={"api_key": first_account["api_key"], "as_of": "2025-01-02", "forecast_horizon_days": 20},
+    )
+    assert failed_batch.status_code == 500
+    assert unavailable.status_code == 404
+    assert unavailable.json() == {"detail": "prediction snapshots unavailable"}
+    assert predictions.list_for_company("AAPL") == historical_predictions
+    assert snapshots.list_for_company("AAPL") == historical_snapshots
 
 
 def test_default_container_runs_the_small_development_poc(monkeypatch) -> None:
@@ -166,7 +180,10 @@ class CountingScorer(DeterministicLLMScorer):
     def __init__(self) -> None:
         super().__init__()
         self.calls = 0
+        self.fail = False
 
     def score_chunk(self, chunk: DocumentChunk, *, context: str = ""):
+        if self.fail:
+            raise RuntimeError("provider unavailable")
         self.calls += 1
         return super().score_chunk(chunk, context=context)
