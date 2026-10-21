@@ -23,7 +23,7 @@ from sentiment_system.application.ports.repositories import (
     UserAccountRepository,
 )
 from sentiment_system.domain.accounts import UserAccount
-from sentiment_system.domain.documents import DocumentChunk, SourceDocument
+from sentiment_system.domain.documents import DocumentChunk, SourceArtifact, SourceDocument, SourceProvenance
 from sentiment_system.domain.evaluation import (
     EvaluationExclusion,
     EvaluationMetric,
@@ -196,29 +196,67 @@ class PostgresInvestmentThesisRepository(_PostgresRepository, InvestmentThesisRe
 class PostgresDocumentRepository(_PostgresRepository, DocumentRepository):
     """Persist normalized source documents and their content hashes."""
 
-    def save(self, document: SourceDocument) -> None:
+    def save(self, document: SourceDocument) -> SourceDocument:
         with self._database.connect() as connection:
+            revision = document.source_revision_id
+            if revision is not None:
+                # Serialize one source revision, including first-time inserts, so
+                # concurrent ingestion cannot publish duplicate derivations.
+                connection.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))", (revision,))
+                connection.execute(
+                    "INSERT INTO source_revisions VALUES (%s, %s, %s, %s, %s) ON CONFLICT DO NOTHING",
+                    (revision, document.company, document.source, document.source_id, document.original_byte_sha256),
+                )
+                existing = connection.execute(
+                    "SELECT d.* FROM source_documents d JOIN document_derivations a USING (document_id) "
+                    "WHERE a.derivation_id = %s",
+                    (document.derivation_id,),
+                ).fetchone()
+                if existing is not None:
+                    stored = _document_from_row(existing)
+                    _require_same_document_content(stored, document)
+                    self._record_membership(connection, stored.document_id, document)
+                    return stored
             connection.execute(
                 """
                 INSERT INTO source_documents (
                     document_id, source_id, company, source, published_at,
                     document_type, raw_content, cleaned_content,
-                    raw_content_sha256, cleaned_content_sha256, manifest_version
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                ON CONFLICT (document_id) DO UPDATE SET
-                    source_id = EXCLUDED.source_id,
-                    company = EXCLUDED.company,
-                    source = EXCLUDED.source,
-                    published_at = EXCLUDED.published_at,
-                    document_type = EXCLUDED.document_type,
-                    raw_content = EXCLUDED.raw_content,
-                    cleaned_content = EXCLUDED.cleaned_content,
-                    raw_content_sha256 = EXCLUDED.raw_content_sha256,
-                    cleaned_content_sha256 = EXCLUDED.cleaned_content_sha256,
-                    manifest_version = EXCLUDED.manifest_version
+                    raw_content_sha256, source_raw_sha256, cleaned_content_sha256,
+                    manifest_version, manifest_provenance, source_artifact, cleaning_version, source_revision_id
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (document_id) DO NOTHING
                 """,
                 _document_values(document),
             )
+            stored = _document_from_row(
+                connection.execute(
+                    "SELECT * FROM source_documents WHERE document_id = %s",
+                    (document.document_id,),
+                ).fetchone()
+            )
+            _require_same_document_content(stored, document)
+            if revision is not None:
+                connection.execute(
+                    "INSERT INTO document_derivations VALUES (%s, %s) ON CONFLICT DO NOTHING",
+                    (document.derivation_id, stored.document_id),
+                )
+            self._record_membership(connection, stored.document_id, document)
+            return stored
+
+    @staticmethod
+    def _record_membership(connection: Any, document_id: str, document: SourceDocument) -> None:
+        provenance = _source_provenance_json(document.provenance)
+        connection.execute(
+            "INSERT INTO document_manifest_memberships VALUES (%s, %s, %s) ON CONFLICT DO NOTHING",
+            (document_id, document.manifest_version, Jsonb(provenance)),
+        )
+        existing = connection.execute(
+            "SELECT provenance FROM document_manifest_memberships WHERE document_id = %s AND manifest_version = %s",
+            (document_id, document.manifest_version),
+        ).fetchone()
+        if existing["provenance"] != provenance:
+            raise ValueError("immutable manifest membership conflict")
 
     def get(self, document_id: str) -> SourceDocument | None:
         with self._database.connect() as connection:
@@ -240,7 +278,7 @@ class PostgresDocumentRepository(_PostgresRepository, DocumentRepository):
 class PostgresChunkRepository(_PostgresRepository, ChunkRepository):
     """Persist stable document chunks and their processing configuration."""
 
-    def save(self, chunk: DocumentChunk) -> None:
+    def save(self, chunk: DocumentChunk) -> DocumentChunk:
         with self._database.connect() as connection:
             connection.execute(
                 """
@@ -248,12 +286,7 @@ class PostgresChunkRepository(_PostgresRepository, ChunkRepository):
                     chunk_id, document_id, ordinal, content, content_sha256,
                     processing_config_version
                 ) VALUES (%s, %s, %s, %s, %s, %s)
-                ON CONFLICT (chunk_id) DO UPDATE SET
-                    document_id = EXCLUDED.document_id,
-                    ordinal = EXCLUDED.ordinal,
-                    content = EXCLUDED.content,
-                    content_sha256 = EXCLUDED.content_sha256,
-                    processing_config_version = EXCLUDED.processing_config_version
+                ON CONFLICT DO NOTHING
                 """,
                 (
                     chunk.chunk_id,
@@ -264,6 +297,22 @@ class PostgresChunkRepository(_PostgresRepository, ChunkRepository):
                     chunk.processing_config_version,
                 ),
             )
+            stored = connection.execute(
+                "SELECT * FROM chunks WHERE chunk_id = %s OR "
+                "(document_id = %s AND processing_config_version = %s AND ordinal = %s) ORDER BY chunk_id",
+                (chunk.chunk_id, chunk.document_id, chunk.processing_config_version, chunk.ordinal),
+            ).fetchall()
+            if len(stored) != 1:
+                raise ValueError("immutable chunk identity conflict")
+            canonical = _chunk_from_row(stored[0])
+            if (canonical.document_id, canonical.ordinal, canonical.content, canonical.processing_config_version) != (
+                chunk.document_id,
+                chunk.ordinal,
+                chunk.content,
+                chunk.processing_config_version,
+            ):
+                raise ValueError("immutable chunk identity conflict")
+            return canonical
 
     def get(self, chunk_id: str) -> DocumentChunk | None:
         with self._database.connect() as connection:
@@ -310,6 +359,11 @@ class PostgresExperimentRunRepository(_PostgresRepository, ExperimentRunReposito
             row = connection.execute("SELECT * FROM experiment_runs WHERE run_id = %s", (run_id,)).fetchone()
         return None if row is None else _run_from_row(row)
 
+    def list_runs(self) -> tuple[ExperimentRun, ...]:
+        with self._database.connect() as connection:
+            rows = connection.execute("SELECT * FROM experiment_runs ORDER BY started_at, run_id").fetchall()
+        return tuple(_run_from_row(row) for row in rows)
+
 
 class PostgresProvenanceRepository(_PostgresRepository, ExperimentProvenanceRepository):
     """Persist secret-free provider and processing artifacts by run."""
@@ -323,7 +377,18 @@ class PostgresProvenanceRepository(_PostgresRepository, ExperimentProvenanceRepo
                     model_provider, model_name, prompt, raw_response,
                     parsed_output, thesis_parameters, created_at
                 ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                ON CONFLICT (run_id) DO NOTHING
+                ON CONFLICT (run_id) DO UPDATE SET
+                    input_source = EXCLUDED.input_source,
+                    input_version = EXCLUDED.input_version,
+                    processing_config = EXCLUDED.processing_config,
+                    model_provider = EXCLUDED.model_provider,
+                    model_name = EXCLUDED.model_name,
+                    prompt = EXCLUDED.prompt,
+                    raw_response = EXCLUDED.raw_response,
+                    parsed_output = EXCLUDED.parsed_output,
+                    thesis_parameters = EXCLUDED.thesis_parameters,
+                    created_at = EXCLUDED.created_at
+                WHERE experiment_provenance.processing_config->>'status' = 'started'
                 """,
                 (
                     provenance.run_id,
@@ -378,7 +443,13 @@ class PostgresChunkScoreRepository(_PostgresRepository, ChunkScoreRepository):
     def list_for_chunk(self, chunk_id: str) -> tuple[ChunkScoreRecord, ...]:
         with self._database.connect() as connection:
             rows = connection.execute(
-                "SELECT * FROM chunk_scores WHERE chunk_id = %s ORDER BY run_id", (chunk_id,)
+                """
+                SELECT scores.* FROM chunk_scores AS scores
+                LEFT JOIN experiment_runs AS runs ON runs.run_id = scores.run_id
+                WHERE scores.chunk_id = %s
+                ORDER BY runs.started_at NULLS FIRST, scores.run_id
+                """,
+                (chunk_id,),
             ).fetchall()
         return tuple(_score_from_row(row) for row in rows)
 
@@ -473,9 +544,10 @@ class PostgresPredictionRepository(_PostgresRepository, PredictionRepository):
                 INSERT INTO predictions (
                     company, as_of, lookback_days, forecast_horizon_days, user_id,
                     base_score, base_label, personalized_score, personalized_label,
-                    base_confidence, personalized_confidence, confidence, reasoning, run_id
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                ON CONFLICT (company, as_of, lookback_days, forecast_horizon_days, run_id) DO UPDATE SET
+                    base_confidence, personalized_confidence, confidence, reasoning, run_id,
+                    prediction_id, rule_version, run_metadata, thesis_parameters
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (prediction_id) DO UPDATE SET
                     user_id = EXCLUDED.user_id,
                     base_score = EXCLUDED.base_score,
                     base_label = EXCLUDED.base_label,
@@ -484,7 +556,10 @@ class PostgresPredictionRepository(_PostgresRepository, PredictionRepository):
                     personalized_label = EXCLUDED.personalized_label,
                     personalized_confidence = EXCLUDED.personalized_confidence,
                     confidence = EXCLUDED.confidence,
-                    reasoning = EXCLUDED.reasoning
+                    reasoning = EXCLUDED.reasoning,
+                    rule_version = EXCLUDED.rule_version,
+                    run_metadata = EXCLUDED.run_metadata,
+                    thesis_parameters = EXCLUDED.thesis_parameters
                 """,
                 (
                     prediction.company,
@@ -501,6 +576,10 @@ class PostgresPredictionRepository(_PostgresRepository, PredictionRepository):
                     prediction.confidence,
                     prediction.reasoning,
                     prediction.run_id,
+                    prediction.prediction_id,
+                    prediction.rule_version,
+                    _jsonb(prediction.run_metadata),
+                    _jsonb(prediction.thesis_parameters),
                 ),
             )
             for rank, evidence in enumerate(prediction.evidence, start=1):
@@ -509,8 +588,8 @@ class PostgresPredictionRepository(_PostgresRepository, PredictionRepository):
                     INSERT INTO prediction_evidence (
                         company, as_of, lookback_days, forecast_horizon_days, run_id,
                         evidence_rank, chunk_id, published_at, sentiment_score,
-                        sentiment_label, sentiment_confidence, importance_score, excerpt
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        sentiment_label, sentiment_confidence, importance_score, excerpt, prediction_id
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     ON CONFLICT DO NOTHING
                     """,
                     (
@@ -527,6 +606,7 @@ class PostgresPredictionRepository(_PostgresRepository, PredictionRepository):
                         evidence.sentiment.confidence,
                         evidence.importance_score,
                         evidence.excerpt,
+                        prediction.prediction_id,
                     ),
                 )
 
@@ -542,7 +622,7 @@ class PostgresPredictionRepository(_PostgresRepository, PredictionRepository):
         if as_of is not None:
             query += " AND as_of <= %s"
             parameters += (as_of,)
-        query += " ORDER BY as_of, company, lookback_days, forecast_horizon_days, run_id"
+        query += " ORDER BY as_of, company, lookback_days, forecast_horizon_days, run_id, prediction_id"
         with self._database.connect() as connection:
             rows = connection.execute(query, parameters).fetchall()
             predictions = []
@@ -552,11 +632,10 @@ class PostgresPredictionRepository(_PostgresRepository, PredictionRepository):
                     SELECT chunk_id, published_at, sentiment_score, sentiment_label,
                            sentiment_confidence, importance_score, excerpt
                     FROM prediction_evidence
-                    WHERE company = %s AND as_of = %s AND lookback_days = %s
-                      AND forecast_horizon_days = %s AND run_id = %s
+                    WHERE prediction_id = %s
                     ORDER BY evidence_rank
                     """,
-                    (row["company"], row["as_of"], row["lookback_days"], row["forecast_horizon_days"], row["run_id"]),
+                    (row["prediction_id"],),
                 ).fetchall()
                 predictions.append(_prediction_from_row(row, evidence_rows))
         return tuple(predictions)
@@ -603,8 +682,13 @@ def _document_values(document: SourceDocument) -> tuple[object, ...]:
         document.raw_content,
         document.cleaned_content,
         _content_hash(document.raw_content),
+        _source_raw_hash(document),
         _content_hash(document.cleaned_content),
         document.manifest_version,
+        Jsonb(_source_provenance_json(document.provenance)),
+        Jsonb(_artifact_json(document.artifact)),
+        document.provenance.parser_version if document.provenance else document.cleaning_version,
+        document.source_revision_id,
     )
 
 
@@ -633,6 +717,44 @@ def _content_hash(content: str) -> str:
     return sha256(content.encode("utf-8")).hexdigest()
 
 
+def _source_raw_hash(document: SourceDocument) -> str | None:
+    return document.original_byte_sha256
+
+
+def _require_same_document_content(stored: SourceDocument, incoming: SourceDocument) -> None:
+    fields = ("company", "source", "source_id", "published_at", "document_type", "raw_content", "cleaned_content")
+    if any(getattr(stored, field) != getattr(incoming, field) for field in fields):
+        raise ValueError("immutable document identity/content conflict")
+    if stored.original_byte_sha256 != incoming.original_byte_sha256:
+        raise ValueError("immutable document original-byte identity conflict")
+
+
+def _artifact_json(artifact: SourceArtifact | None) -> dict[str, object]:
+    if artifact is None:
+        return {}
+    return {
+        "sha256": artifact.sha256,
+        "path": artifact.path,
+        "source_url": artifact.source_url,
+        "retrieved_at": artifact.retrieved_at.isoformat() if artifact.retrieved_at else None,
+        "form": artifact.form,
+        "form_items": list(artifact.form_items),
+    }
+
+
+def _artifact_from_json(value: Any) -> SourceArtifact | None:
+    if value == {}:
+        return None
+    return SourceArtifact(
+        sha256=value["sha256"],
+        path=value["path"],
+        source_url=value["source_url"],
+        retrieved_at=datetime.fromisoformat(value["retrieved_at"]) if value["retrieved_at"] else None,
+        form=value["form"],
+        form_items=tuple(value["form_items"]),
+    )
+
+
 def _document_from_row(row: Mapping[str, Any]) -> SourceDocument:
     return SourceDocument(
         document_id=row["document_id"],
@@ -644,7 +766,97 @@ def _document_from_row(row: Mapping[str, Any]) -> SourceDocument:
         raw_content=row["raw_content"],
         cleaned_content=row["cleaned_content"],
         manifest_version=row["manifest_version"],
+        provenance=_source_provenance_from_json(row["manifest_provenance"]),
+        artifact=_artifact_from_json(row["source_artifact"]),
+        cleaning_version=row["cleaning_version"],
     )
+
+
+def _source_provenance_json(provenance: SourceProvenance | None) -> dict[str, object]:
+    if provenance is None:
+        return {}
+    return {
+        "manifest_record_id": provenance.manifest_record_id,
+        "source_url": provenance.source_url,
+        "retrieved_at": provenance.retrieved_at.isoformat(),
+        "raw_path": provenance.raw_path,
+        "raw_sha256": provenance.raw_sha256,
+        "cleaned_path": provenance.cleaned_path,
+        "cleaned_sha256": provenance.cleaned_sha256,
+        "parser_version": provenance.parser_version,
+        "source_type": provenance.source_type,
+        "form": provenance.form,
+        "form_items": list(provenance.form_items),
+        "content_group_id": provenance.content_group_id,
+        "canonical_for_scoring": provenance.canonical_for_scoring,
+        "evaluation_member": provenance.evaluation_member,
+        "sector": provenance.sector,
+        "sector_source_url": provenance.sector_source_url,
+        "sector_retrieved_at": provenance.sector_retrieved_at.isoformat(),
+    }
+
+
+def _source_provenance_from_json(value: object) -> SourceProvenance | None:
+    if value == {}:
+        return None
+    if not isinstance(value, dict):
+        raise ValueError("stored document provenance must be an object")
+    return SourceProvenance(
+        manifest_record_id=_provenance_string(value, "manifest_record_id"),
+        source_url=_provenance_string(value, "source_url"),
+        retrieved_at=_provenance_timestamp(value, "retrieved_at"),
+        raw_path=_provenance_string(value, "raw_path"),
+        raw_sha256=_provenance_string(value, "raw_sha256"),
+        cleaned_path=_provenance_string(value, "cleaned_path"),
+        cleaned_sha256=_provenance_string(value, "cleaned_sha256"),
+        parser_version=_provenance_string(value, "parser_version"),
+        source_type=_provenance_string(value, "source_type"),
+        form=_provenance_optional_string(value, "form"),
+        form_items=_provenance_string_list(value, "form_items"),
+        content_group_id=_provenance_string(value, "content_group_id"),
+        canonical_for_scoring=_provenance_boolean(value, "canonical_for_scoring"),
+        evaluation_member=_provenance_boolean(value, "evaluation_member"),
+        sector=_provenance_string(value, "sector"),
+        sector_source_url=_provenance_string(value, "sector_source_url"),
+        sector_retrieved_at=_provenance_timestamp(value, "sector_retrieved_at"),
+    )
+
+
+def _provenance_string(value: dict[str, object], key: str) -> str:
+    item = value.get(key)
+    if not isinstance(item, str) or not item.strip():
+        raise ValueError(f"stored document provenance field {key} is required")
+    return item
+
+
+def _provenance_optional_string(value: dict[str, object], key: str) -> str | None:
+    item = value.get(key)
+    if item is None:
+        return None
+    if not isinstance(item, str) or not item.strip():
+        raise ValueError(f"stored document provenance field {key} must be a non-empty string or null")
+    return item
+
+
+def _provenance_string_list(value: dict[str, object], key: str) -> tuple[str, ...]:
+    item = value.get(key)
+    if not isinstance(item, list) or any(not isinstance(part, str) or not part.strip() for part in item):
+        raise ValueError(f"stored document provenance field {key} must be a string list")
+    return tuple(item)
+
+
+def _provenance_boolean(value: dict[str, object], key: str) -> bool:
+    item = value.get(key)
+    if not isinstance(item, bool):
+        raise ValueError(f"stored document provenance field {key} must be a boolean")
+    return item
+
+
+def _provenance_timestamp(value: dict[str, object], key: str) -> datetime:
+    try:
+        return datetime.fromisoformat(_provenance_string(value, key))
+    except ValueError as error:
+        raise ValueError(f"stored document provenance field {key} must be an ISO timestamp") from error
 
 
 def _chunk_from_row(row: Mapping[str, Any]) -> DocumentChunk:
@@ -751,6 +963,10 @@ def _prediction_from_row(row: Mapping[str, Any], evidence_rows: list[Mapping[str
         run_id=row["run_id"],
         reasoning=row["reasoning"],
         user_id=None if row["user_id"] is None else str(row["user_id"]),
+        prediction_id=row["prediction_id"],
+        rule_version=row["rule_version"],
+        run_metadata=row["run_metadata"],
+        thesis_parameters=row["thesis_parameters"],
     )
 
 

@@ -54,17 +54,22 @@ from sentiment_system.application.use_cases.create_account import CreateAccount
 from sentiment_system.application.use_cases.evaluate_predictions import GetEvaluationReport
 from sentiment_system.application.use_cases.generate_prediction import GeneratePrediction, ListPredictionHistory
 from sentiment_system.application.use_cases.index_chunks import IndexChunks
+from sentiment_system.application.use_cases.ingest_company_documents import IngestCompanyDocuments
 from sentiment_system.application.use_cases.ingest_documents import IngestDocuments
 from sentiment_system.application.use_cases.ingest_fixture_communication import IngestFixtureCommunication
 from sentiment_system.application.use_cases.manage_investment_theses import ManageInvestmentTheses
 from sentiment_system.application.use_cases.run_batch import RunBatch
 from sentiment_system.application.use_cases.score_chunks import ScoreChunks
+from sentiment_system.application.use_cases.synchronize_chunk_exclusions import SynchronizeChunkExclusions
 from sentiment_system.bootstrap.config import (
     EmbeddingConfig,
     LLMConfig,
+    RuntimeConfig,
+    RuntimeConfigurationError,
     build_embedding_provider,
     build_llm_scorer,
 )
+from sentiment_system.domain.research import FINAL_CORPUS_VERSION
 
 
 @dataclass(frozen=True, slots=True)
@@ -92,6 +97,7 @@ class ApplicationContainer:
     list_prediction_history: ListPredictionHistory | None = None
     ingest_fixture_communication: IngestFixtureCommunication | None = None
     run_batch: RunBatch | None = None
+    ingest_company_documents: IngestCompanyDocuments | None = None
 
 
 _POC_DOCUMENTS = (
@@ -112,27 +118,36 @@ def build_container() -> ApplicationContainer:
 
     Services are added here as their application use cases are implemented.
     """
+    runtime = RuntimeConfig.from_env()
     account_repository: UserAccountRepository = InMemoryUserAccountRepository()
     investment_thesis_repository: InvestmentThesisRepository = InMemoryInvestmentThesisRepository()
     document_repository: DocumentRepository = InMemoryDocumentRepository()
     chunk_repository: ChunkRepository = InMemoryChunkRepository()
-    chunk_score_repository: ChunkScoreRepository = InMemoryChunkScoreRepository()
-    snapshot_repository: SnapshotRepository = InMemorySnapshotRepository()
     experiment_run_repository: ExperimentRunRepository = InMemoryExperimentRunRepository()
+    chunk_score_repository: ChunkScoreRepository = InMemoryChunkScoreRepository(runs=experiment_run_repository)
+    snapshot_repository: SnapshotRepository = InMemorySnapshotRepository()
     provenance_repository: ExperimentProvenanceRepository = InMemoryProvenanceRepository()
     prediction_repository: PredictionRepository = InMemoryPredictionRepository()
     evaluation_report_repository: EvaluationReportRepository = InMemoryEvaluationReportRepository()
     embedding_config = EmbeddingConfig.from_env()
     embedding_provider = build_embedding_provider(embedding_config)
-    data_root = os.getenv("SENTIMENT_DATA_ROOT")
+    embedding_configuration: dict[str, object] = {
+        "backend": embedding_config.backend,
+        "model": "deterministic-sha256-v1" if embedding_config.backend == "mock" else embedding_config.model_name,
+        "encoding_version": "embedding-v1",
+    }
+    data_root = runtime.data_root
     document_source: DocumentSource
     document_source = (
         CachedCorpusDocumentSource(Path(data_root)) if data_root else FixtureDocumentSource(_POC_DOCUMENTS)
     )
+    if runtime.research_mode and not document_source.fetch_documents():
+        raise RuntimeConfigurationError("SENTIMENT_DATA_ROOT contains no supported cached source documents")
     llm_config = LLMConfig.from_env()
     llm_scorer = build_llm_scorer(llm_config)
-    database_url = os.getenv("DATABASE_URL")
-    qdrant_url = os.getenv("QDRANT_URL")
+    scoring_model = "deterministic-sha256-v1" if llm_config.backend == "deterministic" else llm_config.model_name
+    database_url = runtime.database_url
+    qdrant_url = runtime.qdrant_url
     research_database = None
     if database_url:
         research_database = PostgresDatabase(database_url)
@@ -148,13 +163,27 @@ def build_container() -> ApplicationContainer:
         prediction_repository = PostgresPredictionRepository(research_database)
         evaluation_report_repository = PostgresEvaluationReportRepository(research_database)
     vector_store: VectorStore = InMemoryVectorStore()
-    index_chunks = IndexChunks(document_repository, embedding_provider, vector_store)
+    index_chunks = IndexChunks(
+        document_repository,
+        embedding_provider,
+        vector_store,
+        scores=chunk_score_repository,
+        runs=experiment_run_repository,
+        embedding_configuration=embedding_configuration,
+    )
     if qdrant_url:
         vector_store = QdrantVectorStore(
             url=qdrant_url,
             collection_name=os.getenv("QDRANT_COLLECTION") or "sentiment_chunks",
         )
-        index_chunks = IndexChunks(document_repository, embedding_provider, vector_store)
+        index_chunks = IndexChunks(
+            document_repository,
+            embedding_provider,
+            vector_store,
+            scores=chunk_score_repository,
+            runs=experiment_run_repository,
+            embedding_configuration=embedding_configuration,
+        )
     ingest_documents = IngestDocuments(
         document_source,
         document_repository,
@@ -162,13 +191,29 @@ def build_container() -> ApplicationContainer:
         processing_config_version="processing-v2",
         token_counter=lambda value: len(value.split()),
     )
+    frozen_ingestion = None
+    frozen_manifest: dict[str, object] = {}
+    if isinstance(document_source, CachedCorpusDocumentSource) and document_source.manifest_sha256:
+        assert data_root is not None
+        frozen_source = CachedCorpusDocumentSource(data_root, scope="frozen")
+        frozen_ingestion = IngestDocuments(
+            frozen_source,
+            document_repository,
+            chunk_repository,
+            processing_config_version="processing-v2",
+            token_counter=lambda value: len(value.split()),
+        )
+        frozen_manifest = {
+            "source_manifest_version": FINAL_CORPUS_VERSION,
+            "source_manifest_sha256": frozen_source.manifest_sha256,
+        }
     score_chunks = ScoreChunks(
         llm_scorer,
         chunk_score_repository,
         provenance_repository,
         experiment_run_repository,
         provider=llm_config.backend,
-        model_name=llm_config.model_name,
+        model_name=scoring_model,
     )
     aggregate_snapshots = AggregateSnapshots(
         document_repository,
@@ -199,17 +244,34 @@ def build_container() -> ApplicationContainer:
             investment_thesis_repository,
             snapshot_repository,
             prediction_repository,
+            experiment_run_repository,
         ),
         list_prediction_history=ListPredictionHistory(account_repository, prediction_repository),
         ingest_fixture_communication=IngestFixtureCommunication(document_repository, chunk_repository),
+        ingest_company_documents=IngestCompanyDocuments(
+            ingest_documents,
+            index_chunks,
+            experiment_run_repository,
+            provenance=provenance_repository,
+            embedding_configuration=embedding_configuration,
+            frozen_ingestion=frozen_ingestion,
+            frozen_manifest=frozen_manifest,
+            input_source="cached_corpus" if data_root else "development_fixture",
+        ),
         run_batch=RunBatch(
             ingest_documents,
             index_chunks,
             score_chunks,
             aggregate_snapshots,
             experiment_run_repository,
+            provenance=provenance_repository,
+            exclusion_sync=SynchronizeChunkExclusions(chunk_score_repository, vector_store),
+            frozen_ingestion=frozen_ingestion,
+            frozen_manifest=frozen_manifest,
+            embedding_configuration=embedding_configuration,
+            input_source="cached_corpus" if data_root else "development_fixture",
             scoring_prompt=getattr(llm_scorer, "prompt", None),
             scoring_provider=llm_config.backend,
-            scoring_model=llm_config.model_name,
+            scoring_model=scoring_model,
         ),
     )

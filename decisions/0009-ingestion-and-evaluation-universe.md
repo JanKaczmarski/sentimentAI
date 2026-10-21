@@ -14,9 +14,9 @@ changing the research population.
 - The FEAT-018 registry is the operational ingestion universe. Source adapters
   and market-data routing may load records for any active symbol in that
   registry.
-- The v1 thesis evaluation universe remains the six-company sample from
-  `decisions/0006-reproducible-research-and-runtime-contract.md`: `AAPL`,
-  `MSFT`, `NVDA`, `JPM`, `XOM`, and `JNJ`.
+- The current thesis evaluation universe is `META`, `CRM`, `V`, `DIS`, `WHR`,
+  and `T`, under `decisions/0014-transcript-research-universe-and-historical-cache.md`,
+  superseding the original six-company selection in decision 0006.
 - The final v1 research manifest must explicitly identify the six evaluation
   companies. Records for other FEAT-018 companies may remain in the cache but
   are excluded from v1 evaluation reports.

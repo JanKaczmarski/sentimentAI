@@ -1,6 +1,6 @@
 """Port for indexing and retrieving embedded document chunks."""
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date
 from math import isfinite
@@ -19,6 +19,7 @@ class EmbeddedChunk:
     published_at: date
     embedding: Embedding
     excluded: bool = False
+    embedding_fingerprint: str | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.chunk, DocumentChunk):
@@ -30,6 +31,22 @@ class EmbeddedChunk:
         _validate_embedding(self.embedding)
         if not isinstance(self.excluded, bool):
             raise ValueError("excluded must be a boolean")
+        if self.embedding_fingerprint is not None and (
+            not isinstance(self.embedding_fingerprint, str) or not self.embedding_fingerprint.strip()
+        ):
+            raise ValueError("embedding_fingerprint must be non-empty when provided")
+
+
+@dataclass(frozen=True, slots=True)
+class IndexedChunk:
+    """Stored point identity for compatibility checks without returning its vector."""
+
+    chunk: DocumentChunk
+    company: str
+    published_at: date
+    embedding_fingerprint: str | None
+    dimension: int
+    excluded: bool
 
 
 @dataclass(frozen=True, slots=True)
@@ -74,6 +91,12 @@ class VectorStore(Protocol):
 
     def search(self, query: VectorQuery) -> tuple[VectorMatch, ...]:
         """Return the highest-scoring matching chunks first."""
+
+    def set_excluded(self, exclusions: Mapping[str, bool]) -> None:
+        """Update exclusion payloads by chunk ID without replacing embeddings."""
+
+    def get_indexed(self, chunk_ids: Sequence[str]) -> Mapping[str, IndexedChunk]:
+        """Return existing points by chunk ID, including excluded and legacy points."""
 
 
 def _validate_embedding(embedding: Embedding) -> None:

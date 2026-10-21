@@ -3,7 +3,7 @@
 from collections.abc import Callable, Sequence
 from datetime import datetime, timezone
 
-from sentiment_system.application.ports.llm import LLMScorer
+from sentiment_system.application.ports.llm import ChunkScoringResult, LLMScorer
 from sentiment_system.application.ports.repositories import (
     ChunkScoreRepository,
     ExperimentProvenanceRepository,
@@ -42,8 +42,10 @@ class ScoreChunks:
 
     def execute(self, chunks: Sequence[DocumentChunk], *, run_id: str, prompt: str) -> int:
         """Persist one score per chunk and return the number processed."""
-        started_at = self._now()
+        parent = self._runs.get(run_id)
+        started_at = parent.started_at if parent is not None else self._now()
         configuration = {
+            **(parent.configuration if parent is not None else {}),
             "provider": self._provider,
             "model": self._model_name,
             "input_source": self._input_source,
@@ -52,70 +54,139 @@ class ScoreChunks:
             "soft_exclusion_threshold": 0.05,
             "soft_exclusion_consecutive_runs": 3,
         }
-        self._runs.save(
-            ExperimentRun(
-                run_id=run_id,
-                run_type="scoring",
-                status="started",
-                started_at=started_at,
-                configuration=configuration,
+        # A batch owns its lifecycle until aggregation has also succeeded.
+        owns_run = parent is None or parent.run_type != "batch"
+        if owns_run:
+            self._runs.save(
+                ExperimentRun(
+                    run_id=run_id,
+                    run_type="scoring",
+                    status="started",
+                    started_at=started_at,
+                    configuration=configuration,
+                )
             )
-        )
+        try:
+            count = self._score_chunks(chunks, run_id=run_id, prompt=prompt, started_at=started_at)
+        except Exception as error:
+            if owns_run:
+                self._runs.save(
+                    ExperimentRun(
+                        run_id=run_id,
+                        run_type="scoring",
+                        status="failed",
+                        started_at=started_at,
+                        completed_at=self._now(),
+                        configuration={**configuration, "error_type": type(error).__name__},
+                    )
+                )
+            raise
+        if owns_run:
+            self._runs.save(
+                ExperimentRun(
+                    run_id=run_id,
+                    run_type="scoring",
+                    status="completed",
+                    started_at=started_at,
+                    completed_at=self._now(),
+                    configuration={**configuration, "chunk_count": count},
+                )
+            )
+        return count
+
+    def _score_chunks(self, chunks: Sequence[DocumentChunk], *, run_id: str, prompt: str, started_at: datetime) -> int:
+        prior_runs = {
+            run.run_id: run
+            for run in self._runs.list_runs()
+            if run.status == "completed"
+            and run.run_type in {"scoring", "batch"}
+            and (run.started_at, run.run_id) < (started_at, run_id)
+            and run.run_id != run_id
+        }
 
         raw_responses: list[str] = []
         parsed_outputs: dict[str, object] = {}
         for chunk in chunks:
-            result = self._scorer.score_chunk(chunk)
+            try:
+                result = self._score_one(chunk, run_id=run_id, prompt=prompt, prior_runs=prior_runs)
+            except Exception as error:
+                self._save_provenance(
+                    run_id,
+                    prompt,
+                    raw_responses,
+                    parsed_outputs,
+                    {"chunk_count": len(chunks), "failed_chunk_id": chunk.chunk_id, "error_type": type(error).__name__},
+                )
+                raise
             raw_responses.append(result.raw_response)
             parsed_outputs[chunk.chunk_id] = dict(result.parsed_output)
-            previous = self._scores.list_for_chunk(chunk.chunk_id)
-            low_scores = sum(1 for item in previous[-2:] if item.importance_score < 0.05)
-            self._scores.save(
-                ChunkScoreRecord(
-                    chunk_id=chunk.chunk_id,
-                    run_id=run_id,
-                    sentiment=result.sentiment,
-                    importance_score=result.importance_score,
-                    excluded=result.importance_score < 0.05 and low_scores >= 2,
-                    prompt=prompt,
-                    raw_response=result.raw_response,
-                    parsed_output=result.parsed_output,
-                    token_usage=(
-                        {
-                            "prompt_tokens": result.token_usage.prompt_tokens,
-                            "completion_tokens": result.token_usage.completion_tokens,
-                            "truncated": result.truncated,
-                        }
-                        if result.token_usage is not None
-                        else {}
-                    ),
-                )
-            )
 
-        completed_at = self._now()
+        self._save_provenance(run_id, prompt, raw_responses, parsed_outputs, {"chunk_count": len(chunks)})
+        return len(chunks)
+
+    def _score_one(
+        self,
+        chunk: DocumentChunk,
+        *,
+        run_id: str,
+        prompt: str,
+        prior_runs: dict[str, ExperimentRun],
+    ) -> ChunkScoringResult:
+        result = self._scorer.score_chunk(chunk)
+        previous = sorted(
+            (score for score in self._scores.list_for_chunk(chunk.chunk_id) if score.run_id in prior_runs),
+            key=lambda score: (prior_runs[score.run_id].started_at, score.run_id),
+        )
+        low_scores = sum(1 for item in previous[-2:] if item.importance_score < 0.05)
+        self._scores.save(
+            ChunkScoreRecord(
+                chunk_id=chunk.chunk_id,
+                run_id=run_id,
+                sentiment=result.sentiment,
+                importance_score=result.importance_score,
+                excluded=result.importance_score < 0.05 and low_scores >= 2,
+                prompt=prompt,
+                raw_response=result.raw_response,
+                parsed_output=result.parsed_output,
+                token_usage=(
+                    {
+                        "prompt_tokens": result.token_usage.prompt_tokens,
+                        "completion_tokens": result.token_usage.completion_tokens,
+                        "truncated": result.truncated,
+                    }
+                    if result.token_usage is not None
+                    else {}
+                ),
+            )
+        )
+        return result
+
+    def _save_provenance(
+        self,
+        run_id: str,
+        prompt: str,
+        raw_responses: list[str],
+        parsed_outputs: dict[str, object],
+        processing_config: dict[str, object],
+    ) -> None:
+        existing = self._provenance.get(run_id)
         self._provenance.save(
             ExperimentProvenance(
                 run_id=run_id,
-                input_source=self._input_source,
-                input_version=self._input_version,
-                processing_config={"chunk_count": len(chunks)},
+                input_source=existing.input_source if existing else self._input_source,
+                input_version=existing.input_version if existing else self._input_version,
+                processing_config={
+                    **(existing.processing_config if existing else {}),
+                    "soft_exclusion_threshold": 0.05,
+                    "soft_exclusion_consecutive_runs": 3,
+                    **processing_config,
+                },
                 model_provider=self._provider,
                 model_name=self._model_name,
                 prompt=prompt,
                 raw_response="\n".join(raw_responses),
                 parsed_output=parsed_outputs,
                 thesis_parameters={},
-                created_at=completed_at,
+                created_at=self._now(),
             )
         )
-        self._runs.save(
-            ExperimentRun(
-                run_id=run_id,
-                run_type="scoring",
-                status="completed",
-                started_at=started_at,
-                completed_at=completed_at,
-                configuration={**configuration, "chunk_count": len(chunks)},
-            )
-        )
-        return len(chunks)

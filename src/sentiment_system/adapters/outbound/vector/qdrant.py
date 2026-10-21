@@ -7,7 +7,7 @@ from uuid import NAMESPACE_URL, uuid5
 
 from qdrant_client import QdrantClient, models
 
-from sentiment_system.application.ports.vector_store import EmbeddedChunk, VectorMatch, VectorQuery
+from sentiment_system.application.ports.vector_store import EmbeddedChunk, IndexedChunk, VectorMatch, VectorQuery
 from sentiment_system.domain.documents import DocumentChunk
 
 
@@ -58,6 +58,56 @@ class QdrantVectorStore:
         )
         return tuple(_match_from_point(point) for point in response.points)
 
+    def set_excluded(self, exclusions: Mapping[str, bool]) -> None:
+        """Synchronize authoritative score state without embedding another time."""
+        if not exclusions:
+            return
+        ids = {chunk_id: str(uuid5(NAMESPACE_URL, f"sentiment-system/chunk/{chunk_id}")) for chunk_id in exclusions}
+        found = self._client.retrieve(
+            collection_name=self._collection_name,
+            ids=list(ids.values()),
+            with_payload=False,
+            with_vectors=False,
+        )
+        if {str(point.id) for point in found} != set(ids.values()):
+            raise ValueError("indexed chunk unavailable during exclusion synchronization")
+        for excluded in (False, True):
+            points = [ids[chunk_id] for chunk_id, value in exclusions.items() if value is excluded]
+            if points:
+                self._client.set_payload(
+                    collection_name=self._collection_name,
+                    payload={"excluded": excluded},
+                    points=models.PointIdsList(points=[point for point in points]),
+                    wait=True,
+                )
+
+    def get_indexed(self, chunk_ids: Sequence[str]) -> Mapping[str, IndexedChunk]:
+        """Inspect actual durable points, including legacy points without a fingerprint."""
+        if not chunk_ids or not self._client.collection_exists(self._collection_name):
+            return {}
+        points = self._client.retrieve(
+            collection_name=self._collection_name,
+            ids=[str(uuid5(NAMESPACE_URL, f"sentiment-system/chunk/{chunk_id}")) for chunk_id in chunk_ids],
+            with_payload=True,
+            with_vectors=True,
+        )
+        result = {}
+        for point in points:
+            payload = point.payload
+            if not isinstance(payload, Mapping):
+                raise ValueError("Qdrant point is missing its chunk payload")
+            chunk = _chunk_from_payload(payload)
+            fingerprint = payload.get("embedding_fingerprint")
+            result[chunk.chunk_id] = IndexedChunk(
+                chunk=chunk,
+                company=_payload_string(payload, "company"),
+                published_at=date.fromisoformat(_payload_string(payload, "published_at")),
+                embedding_fingerprint=fingerprint if isinstance(fingerprint, str) else None,
+                dimension=len(point.vector) if isinstance(point.vector, list) else 0,
+                excluded=_payload_bool(payload, "excluded"),
+            )
+        return result
+
     def _ensure_collection(self, dimension: int) -> None:
         if not self._client.collection_exists(self._collection_name):
             self._client.create_collection(
@@ -83,6 +133,7 @@ def _payload(embedded: EmbeddedChunk) -> dict[str, Any]:
         "published_at": embedded.published_at.isoformat(),
         "published_at_ordinal": embedded.published_at.toordinal(),
         "excluded": embedded.excluded,
+        "embedding_fingerprint": embedded.embedding_fingerprint,
     }
 
 
@@ -107,17 +158,21 @@ def _match_from_point(point: Any) -> VectorMatch:
     if not isinstance(payload, Mapping):
         raise ValueError("Qdrant point is missing its chunk payload")
     return VectorMatch(
-        chunk=DocumentChunk(
-            chunk_id=_payload_string(payload, "chunk_id"),
-            document_id=_payload_string(payload, "document_id"),
-            ordinal=_payload_int(payload, "ordinal"),
-            content=_payload_string(payload, "content"),
-            processing_config_version=_payload_string(payload, "processing_config_version"),
-        ),
+        chunk=_chunk_from_payload(payload),
         company=_payload_string(payload, "company"),
         published_at=date.fromisoformat(_payload_string(payload, "published_at")),
         score=float(point.score),
         excluded=_payload_bool(payload, "excluded"),
+    )
+
+
+def _chunk_from_payload(payload: Mapping[str, Any]) -> DocumentChunk:
+    return DocumentChunk(
+        chunk_id=_payload_string(payload, "chunk_id"),
+        document_id=_payload_string(payload, "document_id"),
+        ordinal=_payload_int(payload, "ordinal"),
+        content=_payload_string(payload, "content"),
+        processing_config_version=_payload_string(payload, "processing_config_version"),
     )
 
 

@@ -1,6 +1,7 @@
 """Integration coverage for the PostgreSQL research-record adapter."""
 
 import os
+from dataclasses import replace
 from datetime import date, datetime, timezone
 from hashlib import sha256
 from uuid import uuid4
@@ -21,7 +22,7 @@ from sentiment_system.adapters.outbound.persistence.postgres import (
     PostgresUserAccountRepository,
 )
 from sentiment_system.domain.accounts import UserAccount
-from sentiment_system.domain.documents import DocumentChunk, SourceDocument
+from sentiment_system.domain.documents import DocumentChunk, SourceDocument, SourceProvenance
 from sentiment_system.domain.evaluation import (
     EvaluationMetric,
     EvaluationObservation,
@@ -42,6 +43,7 @@ from sentiment_system.domain.predictions import (
     PredictionEvidence,
     SnapshotWindow,
 )
+from sentiment_system.domain.research import FINAL_CORPUS_VERSION
 from sentiment_system.domain.scoring import ChunkScoreRecord
 from sentiment_system.domain.sentiment import PersonalizedSentiment, SentimentScore
 
@@ -272,3 +274,90 @@ def test_postgres_migrates_and_preserves_auditable_research_history() -> None:
     assert stored_prediction == prediction
     assert [item.chunk_id for item in stored_prediction.evidence] == [chunk.chunk_id, f"{chunk.chunk_id}-older"]
     assert evaluation_reports.get(report.report_id) == report
+
+
+@pytest.mark.integration
+def test_postgres_preserves_manifest_provenance_and_source_revisions() -> None:
+    dsn = os.getenv("POSTGRES_TEST_DSN")
+    if not dsn:
+        pytest.skip("POSTGRES_TEST_DSN is not configured")
+
+    database = PostgresDatabase(dsn)
+    database.migrate()
+    repository = PostgresDocumentRepository(database)
+    suffix = uuid4().hex
+
+    def document(*, revision: str, raw_content: str, raw_sha256: str) -> SourceDocument:
+        return SourceDocument(
+            document_id=f"sec:{suffix}:{revision}",
+            source_id=f"accession-{suffix}",
+            company="AAPL",
+            source="sec",
+            published_at=date(2025, 1, 30),
+            document_type="earnings_release",
+            raw_content=raw_content,
+            cleaned_content=raw_content,
+            manifest_version="thesis-v1-2025-09-24",
+            provenance=SourceProvenance(
+                manifest_record_id=f"sec:{suffix}:{revision}",
+                source_url="https://www.sec.gov/Archives/edgar/data/320193/example.txt",
+                retrieved_at=datetime(2025, 1, 31, tzinfo=timezone.utc),
+                raw_path=f"raw/sec/AAPL/{revision}.txt",
+                raw_sha256=raw_sha256,
+                cleaned_path=f"cleaned/sec/AAPL/{revision}.txt",
+                cleaned_sha256=raw_sha256,
+                parser_version="source-cleaning-v1",
+                source_type="sec_filing",
+                form="8-K",
+                form_items=("2.02",),
+                content_group_id=f"AAPL:{suffix}",
+                canonical_for_scoring=True,
+                evaluation_member=True,
+                sector="Information Technology",
+                sector_source_url="https://www.nasdaq.com/market-activity/stocks/aapl",
+                sector_retrieved_at=datetime(2025, 1, 31, tzinfo=timezone.utc),
+            ),
+        )
+
+    original = document(revision="original", raw_content="Original release.", raw_sha256="a" * 64)
+    revised = document(revision="revised", raw_content="Original release.", raw_sha256="b" * 64)
+    repository.save(original)
+    repository.save(original)
+    repository.save(revised)
+
+    stored = tuple(
+        document for document in repository.list_documents(company="AAPL") if document.source_id == original.source_id
+    )
+
+    assert stored == (original, revised)
+
+    # Identical original bytes may have multiple immutable cleaning versions.
+    assert original.provenance is not None
+    recleaned = replace(
+        original,
+        document_id=f"{FINAL_CORPUS_VERSION}:{original.document_id}",
+        cleaned_content="Reviewed release and complete financial supplement.",
+        manifest_version=FINAL_CORPUS_VERSION,
+        provenance=replace(
+            original.provenance,
+            parser_version="sec-form-aware-v2",
+            cleaned_sha256=sha256(b"Reviewed release and complete financial supplement.").hexdigest(),
+        ),
+    )
+    repository.save(recleaned)
+    repository.save(recleaned)
+    chunks = PostgresChunkRepository(database)
+    for item in (original, recleaned):
+        chunks.save(
+            DocumentChunk(
+                chunk_id=f"{item.document_id}:chunk:0",
+                document_id=item.document_id,
+                ordinal=0,
+                content=item.cleaned_content,
+                processing_config_version="processing-v1",
+            )
+        )
+    assert repository.get(original.document_id) == original
+    assert repository.get(recleaned.document_id) == recleaned
+    assert chunks.list_for_document(original.document_id)[0].content == original.cleaned_content
+    assert chunks.list_for_document(recleaned.document_id)[0].content == recleaned.cleaned_content

@@ -1,9 +1,10 @@
 """Deterministic in-memory repositories for local development and tests."""
 
 from collections.abc import Iterable
-from datetime import date
+from datetime import date, datetime, timezone
 from uuid import UUID
 
+from sentiment_system.application.ports.repositories import ExperimentRunRepository
 from sentiment_system.domain.accounts import UserAccount
 from sentiment_system.domain.documents import DocumentChunk, SourceDocument
 from sentiment_system.domain.evaluation import EvaluationReport
@@ -22,11 +23,29 @@ class InMemoryDocumentRepository:
 
     def __init__(self, documents: Iterable[SourceDocument] = ()) -> None:
         self._documents: dict[str, SourceDocument] = {}
+        self._derivations: dict[str, str] = {}
         for document in documents:
             self.save(document)
 
-    def save(self, document: SourceDocument) -> None:
-        self._documents[document.document_id] = document
+    def save(self, document: SourceDocument) -> SourceDocument:
+        stored = self._documents.get(self._derivations.get(document.derivation_id, document.document_id))
+        if stored is not None and stored != document:
+            fields = (
+                "derivation_id",
+                "raw_content",
+                "published_at",
+                "company",
+                "source",
+                "source_id",
+                "document_type",
+                "cleaned_content",
+            )
+            if any(getattr(stored, field) != getattr(document, field) for field in fields):
+                raise ValueError("immutable document identity conflict")
+            return stored
+        self._documents.setdefault(document.document_id, document)
+        self._derivations[document.derivation_id] = document.document_id
+        return self._documents[document.document_id]
 
     def get(self, document_id: str) -> SourceDocument | None:
         return self._documents.get(document_id)
@@ -43,11 +62,22 @@ class InMemoryChunkRepository:
 
     def __init__(self, chunks: Iterable[DocumentChunk] = ()) -> None:
         self._chunks: dict[str, DocumentChunk] = {}
+        self._derivations: dict[tuple[str, str, int], str] = {}
         for chunk in chunks:
             self.save(chunk)
 
-    def save(self, chunk: DocumentChunk) -> None:
-        self._chunks[chunk.chunk_id] = chunk
+    def save(self, chunk: DocumentChunk) -> DocumentChunk:
+        if chunk.chunk_id in self._chunks and self._chunks[chunk.chunk_id] != chunk:
+            raise ValueError("immutable chunk identity conflict")
+        key = (chunk.document_id, chunk.processing_config_version, chunk.ordinal)
+        if key in self._derivations:
+            stored = self._chunks[self._derivations[key]]
+            if stored.content != chunk.content:
+                raise ValueError("immutable chunk derivation conflict")
+            return stored
+        self._chunks.setdefault(chunk.chunk_id, chunk)
+        self._derivations[key] = chunk.chunk_id
+        return self._chunks[chunk.chunk_id]
 
     def get(self, chunk_id: str) -> DocumentChunk | None:
         return self._chunks.get(chunk_id)
@@ -60,17 +90,23 @@ class InMemoryChunkRepository:
 class InMemoryChunkScoreRepository:
     """Store append-only chunk scores by chunk and run identity."""
 
-    def __init__(self, scores: Iterable[ChunkScoreRecord] = ()) -> None:
-        self._scores: dict[tuple[str, str], ChunkScoreRecord] = {}
+    def __init__(self, scores: Iterable[ChunkScoreRecord] = (), *, runs: ExperimentRunRepository | None = None) -> None:
+        self._runs = runs
+        self._by_chunk: dict[str, dict[str, ChunkScoreRecord]] = {}
         for score in scores:
             self.save(score)
 
     def save(self, score: ChunkScoreRecord) -> None:
-        self._scores.setdefault((score.chunk_id, score.run_id), score)
+        self._by_chunk.setdefault(score.chunk_id, {}).setdefault(score.run_id, score)
 
     def list_for_chunk(self, chunk_id: str) -> tuple[ChunkScoreRecord, ...]:
-        scores = (score for score in self._scores.values() if score.chunk_id == chunk_id)
-        return tuple(sorted(scores, key=lambda item: item.run_id))
+        scores = self._by_chunk.get(chunk_id, {}).values()
+
+        def chronology(score: ChunkScoreRecord) -> tuple[datetime, str]:
+            run = self._runs.get(score.run_id) if self._runs is not None else None
+            return (run.started_at if run else datetime.min.replace(tzinfo=timezone.utc), score.run_id)
+
+        return tuple(sorted(scores, key=chronology))
 
 
 class InMemoryInvestmentThesisRepository:
@@ -151,20 +187,12 @@ class InMemoryPredictionRepository:
     """Store predictions by their deterministic prediction key."""
 
     def __init__(self, predictions: Iterable[Prediction] = ()) -> None:
-        self._predictions: dict[tuple[str, date, int, int, str, str | None], Prediction] = {}
+        self._predictions: dict[str, Prediction] = {}
         for prediction in predictions:
             self.save(prediction)
 
     def save(self, prediction: Prediction) -> None:
-        key = (
-            prediction.company,
-            prediction.as_of,
-            int(prediction.lookback_days),
-            prediction.forecast_horizon_days,
-            prediction.run_id,
-            prediction.user_id,
-        )
-        self._predictions[key] = prediction
+        self._predictions[prediction.prediction_id] = prediction
 
     def list_for_company(
         self,
@@ -185,6 +213,7 @@ class InMemoryPredictionRepository:
                     int(item.lookback_days),
                     item.forecast_horizon_days,
                     item.run_id,
+                    item.prediction_id,
                 ),
             )
         )
@@ -194,7 +223,14 @@ class InMemoryPredictionRepository:
         return tuple(
             sorted(
                 predictions,
-                key=lambda item: (item.as_of, item.company, int(item.lookback_days), item.forecast_horizon_days),
+                key=lambda item: (
+                    item.as_of,
+                    item.company,
+                    int(item.lookback_days),
+                    item.forecast_horizon_days,
+                    item.run_id,
+                    item.prediction_id,
+                ),
             )
         )
 
@@ -223,6 +259,9 @@ class InMemoryProvenanceRepository:
             self.save(item)
 
     def save(self, provenance: ExperimentProvenance) -> None:
+        existing = self._provenance.get(provenance.run_id)
+        if existing is not None and existing.processing_config.get("status") != "started":
+            return
         self._provenance[provenance.run_id] = provenance
 
     def get(self, run_id: str) -> ExperimentProvenance | None:
@@ -242,3 +281,6 @@ class InMemoryExperimentRunRepository:
 
     def get(self, run_id: str) -> ExperimentRun | None:
         return self._runs.get(run_id)
+
+    def list_runs(self) -> tuple[ExperimentRun, ...]:
+        return tuple(sorted(self._runs.values(), key=lambda run: (run.started_at, run.run_id)))

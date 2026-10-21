@@ -27,6 +27,7 @@ from sentiment_system.application.use_cases.ingest_documents import IngestDocume
 from sentiment_system.application.use_cases.manage_investment_theses import ManageInvestmentTheses
 from sentiment_system.application.use_cases.run_batch import RunBatch
 from sentiment_system.application.use_cases.score_chunks import ScoreChunks
+from sentiment_system.application.use_cases.synchronize_chunk_exclusions import SynchronizeChunkExclusions
 from sentiment_system.bootstrap.container import ApplicationContainer, build_container
 from sentiment_system.bootstrap.main import create_app
 from sentiment_system.domain.documents import DocumentChunk, SourceDocument
@@ -61,7 +62,7 @@ def test_manual_batch_serves_multiple_theses_from_one_scoring_run() -> None:
             manage_investment_theses=ManageInvestmentTheses(accounts, theses),
             snapshot_repository=snapshots,
             prediction_repository=predictions,
-            generate_prediction=GeneratePrediction(accounts, theses, snapshots, predictions),
+            generate_prediction=GeneratePrediction(accounts, theses, snapshots, predictions, runs),
             run_batch=batch,
         )
     )
@@ -102,7 +103,24 @@ def test_manual_batch_serves_multiple_theses_from_one_scoring_run() -> None:
     assert second_prediction.status_code == 200
     assert first_prediction.json()["run_id"] == batch_response.json()["run_id"]
     assert second_prediction.json()["run_id"] == batch_response.json()["run_id"]
+    assert first_prediction.json()["rule_version"] == "aggregation-personalization-v1"
+    assert first_prediction.json()["run_metadata"]["configuration"]["pipeline_version"] == "source-to-prediction-v2"
+    assert first_prediction.json()["thesis_parameters"]["investment_style"] == "passive"
     assert scorer.calls == 1
+
+    historical_predictions = predictions.list_for_company("AAPL")
+    historical_snapshots = snapshots.list_for_company("AAPL")
+    scorer.fail = True
+    failed_batch = client.post("/batch/run", json={"company": "AAPL", "as_of": "2025-01-02"})
+    unavailable = client.get(
+        "/companies/AAPL/prediction",
+        params={"api_key": first_account["api_key"], "as_of": "2025-01-02", "forecast_horizon_days": 20},
+    )
+    assert failed_batch.status_code == 500
+    assert unavailable.status_code == 404
+    assert unavailable.json() == {"detail": "prediction snapshots unavailable"}
+    assert predictions.list_for_company("AAPL") == historical_predictions
+    assert snapshots.list_for_company("AAPL") == historical_snapshots
 
 
 def test_default_container_runs_the_small_development_poc(monkeypatch) -> None:
@@ -129,12 +147,15 @@ def _batch(*, scorer, document_repository, chunk_repository, score_repository, r
         processing_config_version="processing-v1",
         token_counter=lambda value: len(value.split()),
     )
+    vectors = InMemoryVectorStore()
     return RunBatch(
         ingestion,
-        IndexChunks(document_repository, DeterministicEmbeddings(), InMemoryVectorStore()),
+        IndexChunks(document_repository, DeterministicEmbeddings(), vectors),
         ScoreChunks(scorer, score_repository, provenance, runs),
         AggregateSnapshots(document_repository, chunk_repository, score_repository, snapshots),
         runs,
+        provenance=provenance,
+        exclusion_sync=SynchronizeChunkExclusions(score_repository, vectors),
     )
 
 
@@ -166,7 +187,10 @@ class CountingScorer(DeterministicLLMScorer):
     def __init__(self) -> None:
         super().__init__()
         self.calls = 0
+        self.fail = False
 
     def score_chunk(self, chunk: DocumentChunk, *, context: str = ""):
+        if self.fail:
+            raise RuntimeError("provider unavailable")
         self.calls += 1
         return super().score_chunk(chunk, context=context)

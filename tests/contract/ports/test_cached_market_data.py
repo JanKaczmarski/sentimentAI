@@ -5,6 +5,9 @@ import json
 from datetime import date
 from pathlib import Path
 
+import httpx
+
+from scripts.download_nasdaq_historical import fetch_historical, verify_snapshot, write_snapshot
 from sentiment_system.adapters.outbound.market_data.cached_files import CachedCsvMarketData
 from sentiment_system.application.ports.market_data import MarketData, PricePoint
 
@@ -46,3 +49,41 @@ def test_cached_csv_market_data_implements_market_data_port(tmp_path: Path) -> N
 
     assert isinstance(adapter, MarketData)
     assert adapter.get_prices("AAPL") == (PricePoint("AAPL", date(2025, 1, 2), 102.0),)
+
+
+def test_raw_response_snapshot_remains_a_provider_neutral_offline_market_data_adapter(tmp_path, monkeypatch):
+    def serve(request):
+        return httpx.Response(
+            200,
+            json={
+                "status": {"rCode": 200},
+                "data": {
+                    "symbol": "META",
+                    "totalRecords": 1,
+                    "tradesTable": {
+                        "rows": [
+                            {
+                                "date": "01/02/2025",
+                                "open": "100",
+                                "high": "103",
+                                "low": "99",
+                                "close": "102",
+                                "volume": "N/A",
+                            }
+                        ]
+                    },
+                },
+            },
+        )
+
+    with httpx.Client(transport=httpx.MockTransport(serve)) as client:
+        series = fetch_historical(client, "META", start=date(2025, 1, 2), end=date(2025, 1, 2), asset_class="stocks")
+    output = tmp_path / "snapshot"
+    write_snapshot((series,), output_dir=output)
+    monkeypatch.setattr(
+        httpx.Client, "request", lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("network access"))
+    )
+    verify_snapshot(output)
+    adapter = CachedCsvMarketData(output)
+    assert isinstance(adapter, MarketData)
+    assert adapter.get_prices("META") == (PricePoint("META", date(2025, 1, 2), 102.0),)

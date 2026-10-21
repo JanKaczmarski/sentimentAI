@@ -313,15 +313,16 @@ def test_chunk_scores_are_append_only_by_chunk_and_run() -> None:
     assert [score.run_id for score in repository.list_for_chunk("chunk-1")] == ["run-1", "run-2"]
 
 
-def test_repositories_replace_by_stable_identity_and_filter_history() -> None:
+def test_document_repository_is_immutable_and_filters_history() -> None:
     repository = InMemoryDocumentRepository([_document()])
     replacement = _document("document-1", company="MSFT")
 
-    repository.save(replacement)
+    with pytest.raises(ValueError, match="immutable"):
+        repository.save(replacement)
 
-    assert repository.get("document-1") == replacement
-    assert repository.list_documents(company="AAPL") == ()
-    assert repository.list_documents(company="MSFT") == (replacement,)
+    assert repository.get("document-1") == _document()
+    assert repository.list_documents(company="AAPL") == (_document(),)
+    assert repository.list_documents(company="MSFT") == ()
 
 
 def test_user_account_repository_replaces_stable_identity_and_looks_up_all_unique_values() -> None:

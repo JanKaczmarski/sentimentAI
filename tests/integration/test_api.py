@@ -131,7 +131,7 @@ def test_strategy_endpoints_scope_crud_to_the_account_selected_by_api_key() -> N
     account = client.post("/user/account", json={"email": "investor@example.com", "username": "investor"})
     api_key = account.json()["api_key"]
     payload = {
-        "companies": ["aapl", "MSFT", "NVDA", "JPM", "XOM", "JNJ"],
+        "companies": ["meta", "CRM", "V", "DIS", "WHR", "T"],
         "risk_tolerance": "medium",
         "investment_horizon": "long_term",
         "investment_style": "passive",
@@ -141,7 +141,7 @@ def test_strategy_endpoints_scope_crud_to_the_account_selected_by_api_key() -> N
     created = client.post("/user/strategy", params={"api_key": api_key}, json=payload)
     thesis_id = created.json()["thesis_id"]
     listed = client.get("/user/strategy", params={"api_key": api_key})
-    by_company = client.get("/user/strategy/AAPL", params={"api_key": api_key})
+    by_company = client.get("/user/strategy/META", params={"api_key": api_key})
     updated = client.put(
         f"/user/strategy/{thesis_id}",
         params={"api_key": api_key},
@@ -157,7 +157,7 @@ def test_strategy_endpoints_scope_crud_to_the_account_selected_by_api_key() -> N
     assert created.json() == {"status": "success", "thesis_id": thesis_id}
     assert listed.status_code == 200
     assert listed.json()["theses"] == [
-        {"thesis_id": thesis_id, **payload, "companies": ["AAPL", "MSFT", "NVDA", "JPM", "XOM", "JNJ"]}
+        {"thesis_id": thesis_id, **payload, "companies": ["META", "CRM", "V", "DIS", "WHR", "T"]}
     ]
     assert by_company.status_code == 200
     assert by_company.json() == listed.json()
@@ -180,6 +180,20 @@ def test_strategy_endpoints_scope_crud_to_the_account_selected_by_api_key() -> N
 
 
 def test_prediction_history_and_fixture_ingestion_are_served_through_the_api() -> None:
+    from sentiment_system.adapters.outbound.persistence.in_memory import InMemoryExperimentRunRepository
+    from sentiment_system.domain.predictions import ExperimentRun
+
+    runs = InMemoryExperimentRunRepository(
+        [
+            ExperimentRun(
+                run_id="run-1",
+                run_type="scoring",
+                status="completed",
+                started_at=datetime(2025, 2, 1, tzinfo=timezone.utc),
+                completed_at=datetime(2025, 2, 1, 0, 1, tzinfo=timezone.utc),
+            )
+        ]
+    )
     accounts = InMemoryUserAccountRepository()
     theses = InMemoryInvestmentThesisRepository()
     snapshots = InMemorySnapshotRepository(_snapshots())
@@ -194,7 +208,7 @@ def test_prediction_history_and_fixture_ingestion_are_served_through_the_api() -
             manage_investment_theses=ManageInvestmentTheses(accounts, theses),
             snapshot_repository=snapshots,
             prediction_repository=predictions,
-            generate_prediction=GeneratePrediction(accounts, theses, snapshots, predictions),
+            generate_prediction=GeneratePrediction(accounts, theses, snapshots, predictions, runs),
             list_prediction_history=ListPredictionHistory(accounts, predictions),
             ingest_fixture_communication=IngestFixtureCommunication(documents, chunks),
         )

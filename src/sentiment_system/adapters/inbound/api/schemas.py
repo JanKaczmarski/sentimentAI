@@ -1,14 +1,16 @@
 """API request and response schemas kept separate from domain entities."""
 
 from datetime import date, datetime
-from typing import Literal
+from typing import Annotated, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field, field_validator
 
 from sentiment_system.domain.accounts import normalize_email, normalize_username
 from sentiment_system.domain.companies import APPROVED_COMPANY_REGISTRY
 from sentiment_system.domain.investment_thesis import InvestmentHorizon, InvestmentStyle, RiskTolerance
+
+ApprovedCompany = Annotated[str, AfterValidator(lambda company: APPROVED_COMPANY_REGISTRY.lookup(company).ticker)]
 
 
 class ApiSchema(BaseModel):
@@ -108,12 +110,34 @@ class BatchRunRequest(ApiSchema):
 
     company: str | None = None
     as_of: date | None = None
+    source_scope: Literal["operational", "frozen"] = "operational"
 
     @field_validator("company")
     @classmethod
     def validate_company(cls, company: str | None) -> str | None:
         """Normalize an optional company against the canonical registry."""
         return None if company is None else APPROVED_COMPANY_REGISTRY.lookup(company).ticker
+
+
+class CompanyIngestionRequest(ApiSchema):
+    """Date and explicit cached-source scope for one company's preparation."""
+
+    as_of: date | None = None
+    source_scope: Literal["operational", "frozen"] = "operational"
+
+
+class CompanyIngestionResponse(ApiSchema):
+    """Total selected data, embedding work and audit identity."""
+
+    status: Literal["completed"]
+    run_id: str
+    company: str
+    source_scope: Literal["operational", "frozen"]
+    document_count: int
+    chunk_count: int
+    indexed_chunk_count: int
+    embedded_chunk_count: int
+    reused_chunk_count: int
 
 
 class BatchRunResponse(ApiSchema):
@@ -127,6 +151,7 @@ class BatchRunResponse(ApiSchema):
     scored_chunk_count: int
     snapshot_count: int
     companies: tuple[str, ...]
+    source_scope: Literal["operational", "frozen"]
 
 
 class SentimentResponse(ApiSchema):
@@ -161,6 +186,10 @@ class PredictionResponse(ApiSchema):
     evidence: tuple[PredictionEvidenceResponse, ...]
     run_id: str
     user_id: str | None
+    prediction_id: str
+    rule_version: str | None
+    run_metadata: dict[str, object]
+    thesis_parameters: dict[str, object]
 
 
 class PredictionHistoryResponse(ApiSchema):

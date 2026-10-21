@@ -40,6 +40,61 @@ export SENTIMENT_DATA_ROOT=/path/to/sentimentAI-data
 The acquisition tools fail fast when this variable is not set, preventing
 research data from being written into the application repository by accident.
 
+### Final Corpus Acquisition
+
+The current research sample is **META, CRM, V, DIS, WHR, T**. Full historical
+SEC acquisition and IR transcript curation use the reproducible workflow in
+[`docs/RESEARCH_HISTORY_ACQUISITION.md`](docs/RESEARCH_HISTORY_ACQUISITION.md).
+The external data repository's `data/research_history/README.md` and
+`inventory.json` report actual files, date ranges, form counts, and gaps.
+The historical cache is the acquisition superset for final corpus selection.
+The frozen source selection is `thesis-v2-current-cache`: 363 eligible records from
+2021-08-27 through 2026-08-27, with held-out publications starting 2024-08-28.
+See decision [0015](decisions/0015-corpus-contract-corrections.md) for the derived
+split, downloaded/reviewed sector evidence and operational/evaluation separation.
+The active cleaned materialization is **`thesis-v2-current-cache-sec-form-aware-v2`**;
+[decision 0016](decisions/0016-reviewed-cleaned-corpus-publication.md) retains the
+original materialization, re-cleans all 243 SEC filings with the reviewed
+implementation, and preserves all 120 transcript artifacts unchanged.
+Operational ingestion also reads the full SEC history manifests. Stable original
+byte revisions and immutable cleaned/chunk derivations are separated under
+[decision 0017](decisions/0017-operational-history-and-source-derivations.md),
+including PDF hash preservation and populated-database migration 0011.
+The completed market/evaluation bundle is
+**`thesis-v2-current-cache-sec-form-aware-v2-market-v1`**, linking the unchanged
+corpus to eleven Nasdaq stock/ETF series through 2026-10-16, saved raw responses,
+hash-pinned provenance and all five horizons' complete/unavailable coverage.
+See [decision 0018](decisions/0018-frozen-market-snapshot-and-evaluation-coverage.md).
+
+Publish the cleaning revision from the existing frozen selection, predecessor
+corpus and saved extraction reviews (entirely offline):
+
+```bash
+export SENTIMENT_DATA_ROOT=/path/to/sentimentAI-data
+uv run python -m scripts.acquire_corpus
+uv run python -m scripts.freeze_evaluation_manifest --verify
+```
+
+See [`docs/FINAL_CORPUS_ACQUISITION.md`](docs/FINAL_CORPUS_ACQUISITION.md) for
+the sector download/review workflow and immutable corpus layout. Never commit `.env`, its
+`SEC_USER_AGENT` value, or acquired source material.
+
+The exact data Git revision is pinned in `research-data.lock.json`. See
+[`docs/FEAT_015_DELIVERY.md`](docs/FEAT_015_DELIVERY.md) for artifact identities,
+verification results, infrastructure checks, and publication status.
+
+The manual pipeline accepts `source_scope=operational` (the default broad cache)
+or `source_scope=frozen` (the approved immutable corpus). Both use documents
+published strictly before the requested `as_of`. See the
+[cached-corpus runbook](docs/LOCAL_CACHED_CORPUS_RUNBOOK.md#explicit-frozen-corpus-batch)
+for requests, research startup requirements, run/failure evidence, and verification.
+
+Use `POST /companies/{company}/ingest` to prepare one company's cached documents
+without scoring. It supports operational/frozen scope, returns total and
+embedded/reused chunk counts with a fresh audit run, and avoids repeat embedding
+calls for compatible points. See the
+[standalone ingestion workflow](docs/LOCAL_CACHED_CORPUS_RUNBOOK.md#prepare-one-company-without-scoring).
+
 The data repository contains raw source snapshots, market-price inputs, CIK
 metadata, and acquisition manifests. Do not commit credentials or private
 documents there.

@@ -13,6 +13,11 @@ manifest rather than chosen after inspecting evaluation results.
 
 ## Corpus And Chronological Split
 
+The original sample below is superseded by the author-approved
+`decisions/0014-transcript-research-universe-and-historical-cache.md`:
+the current sample is `META`, `CRM`, `V`, `DIS`, `WHR`, and `T`. The
+five-year/split derivation rules in this record continue to apply.
+
 - The research universe is the approved thesis sample: `AAPL`, `MSFT`, `NVDA`,
   `JPM`, `XOM`, and `JNJ`.
 - A corpus manifest is versioned and immutable. Each record contains company,
@@ -64,8 +69,11 @@ The 1-, 5-, 20-, 60-, and 252-trading-day forward horizons are included.
 
 ## Benchmark Protocol
 
-The acquisition manifest records the source-reported GICS sector for each
-research company at acquisition time. Sector returns use these fixed SPDR
+The acquisition manifest records the source-reported sector for each research
+company at acquisition time. Decision 0015 refines this to downloaded current
+provider labels, separately reviewed into the GICS-aligned vocabulary with
+explicit normalization; this is not a licensed or historical GICS feed.
+Sector returns use these fixed SPDR
 sector ETFs:
 
 | GICS sector | Benchmark |
