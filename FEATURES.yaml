@@ -1952,7 +1952,7 @@ features:
 
   - id: FEAT-030
     title: "Ingest and index one company's documents on demand"
-    status: implemented
+    status: in_review
     priority: high
     depends_on:
       - FEAT-007
@@ -2030,6 +2030,7 @@ features:
       - "TDD observed missing embedding-reuse constructor behavior, absent ingestion use case and HTTP 404 for the new route before implementation. Added meaningful unit, adapter, API, frozen-scope and durable-restart regressions."
       - "Verification passed: black/isort, ruff, mypy, pytest (399 passed with isolated real PostgreSQL and Qdrant), compileall, build, pip-audit (no known vulnerabilities), required-doc/feature validation, uv lock --check and git diff --check. The external WHR replay exceeded an initial 120-second limit; a longer explicit run passed in 313.55 seconds. Other optional external-cache tests were not repeated."
       - "Dimension-changing models fail explicitly against incompatible collections; use a separately configured collection. Mutable model aliases must remain stable for the declared identity. Per-batch counts are collected in memory and persisted at stage boundaries/failure; background checkpoint/resume and browser controls remain with FEAT-032/034."
+      - "Published for human review in PR #58 targeting develop: https://github.com/JanKaczmarski/sentimentAI/pull/58. Exact-head remote CI and explicit human approval govern integration."
 
   - id: FEAT-031
     title: "Score chunks with document-level contextual RAG"
