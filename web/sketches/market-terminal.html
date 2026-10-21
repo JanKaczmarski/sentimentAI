@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Market Terminal interface study for the Sentiment System.">
+    <title>Market Terminal | Sentiment System</title>
+    <link rel="stylesheet" href="sketches.css">
+  </head>
+  <body class="terminal-page">
+    <header class="terminal-header">
+      <a class="terminal-logo" href="index.html">SENTIMENT//SYS</a>
+      <nav aria-label="Terminal navigation">
+        <a class="active" href="#signals">SIGNALS</a>
+        <a href="#brief">INVESTOR BRIEF</a>
+        <a href="#run">RUN HISTORY</a>
+      </nav>
+      <p><span class="terminal-live-dot"></span>LOCAL API / READY</p>
+    </header>
+
+    <main class="terminal-layout">
+      <aside class="terminal-watchlist">
+        <div class="terminal-pane-title"><span>WATCHLIST / 06</span><button type="button">+</button></div>
+        <a class="terminal-ticker active" href="#aapl"><strong>AAPL</strong><span>+0.61</span><small>APPLE INC.</small></a>
+        <a class="terminal-ticker" href="#msft"><strong>MSFT</strong><span>+0.44</span><small>MICROSOFT CORP.</small></a>
+        <a class="terminal-ticker warning" href="#nvda"><strong>NVDA</strong><span>-0.12</span><small>NVIDIA CORP.</small></a>
+        <a class="terminal-ticker" href="#jpm"><strong>JPM</strong><span>+0.23</span><small>JPMORGAN CHASE</small></a>
+        <a class="terminal-ticker" href="#xom"><strong>XOM</strong><span>+0.18</span><small>EXXON MOBIL</small></a>
+        <a class="terminal-ticker" href="#jnj"><strong>JNJ</strong><span>+0.07</span><small>JOHNSON &amp; JOHNSON</small></a>
+        <div class="terminal-watch-footer">
+          <span>FILTER</span>
+          <button type="button">ALL SIGNALS</button>
+        </div>
+      </aside>
+
+      <section id="signals" class="terminal-workspace">
+        <header class="terminal-commandbar">
+          <label><span>&gt;_</span><input value="AAPL" aria-label="Company to research"></label>
+          <button type="button">RUN RESEARCH</button>
+          <p>AS-OF 2026-09-17 / CACHED SOURCES</p>
+        </header>
+
+        <section class="terminal-instrument" id="aapl">
+          <div class="terminal-instrument-name">
+            <p>RESEARCH OUTPUT / R-2049</p>
+            <h1>AAPL <span>Apple Inc.</span></h1>
+            <div class="terminal-tabs"><button class="selected" type="button">SENTIMENT</button><button type="button">EVIDENCE 14</button><button type="button">TRACE</button></div>
+          </div>
+          <div class="terminal-signal-value">
+            <p>PERSONALIZED SIGNAL</p>
+            <strong>+0.61</strong>
+            <span>CONSTRUCTIVE</span>
+          </div>
+        </section>
+
+        <section class="terminal-chart-row">
+          <div class="terminal-chart">
+            <div class="terminal-chart-topline"><span>SIGNAL TREND / 90 DAYS</span><span>HIGH +0.67 / LOW +0.24</span></div>
+            <svg viewBox="0 0 760 242" preserveAspectRatio="none" role="img" aria-label="Ninety-day Apple sentiment signal chart">
+              <path class="terminal-grid" d="M0 25H760M0 80H760M0 135H760M0 190H760M95 0V215M285 0V215M475 0V215M665 0V215"></path>
+              <path class="terminal-chart-fill" d="M0 215V154L48 148L96 162L143 119L190 129L238 102L285 133L333 104L380 113L428 90L475 123L523 72L570 83L618 53L665 65L713 32L760 42V215Z"></path>
+              <path class="terminal-chart-line" d="M0 154L48 148L96 162L143 119L190 129L238 102L285 133L333 104L380 113L428 90L475 123L523 72L570 83L618 53L665 65L713 32L760 42"></path>
+              <line class="terminal-last-line" x1="760" y1="0" x2="760" y2="215"></line>
+            </svg>
+            <div class="terminal-chart-axis"><span>JUN 19</span><span>JUL 17</span><span>AUG 14</span><span>SEP 17</span></div>
+          </div>
+          <div class="terminal-metrics">
+            <div><span>BASE</span><strong>+0.47</strong></div>
+            <div><span>THESIS ADJ.</span><strong class="terminal-positive">+0.14</strong></div>
+            <div><span>CONFIDENCE</span><strong>78%</strong></div>
+            <div><span>DOCUMENTS</span><strong>14</strong></div>
+          </div>
+        </section>
+
+        <section class="terminal-evidence">
+          <div class="terminal-pane-title"><span>TOP EVIDENCE / SORTED BY THESIS RELEVANCE</span><button type="button">VIEW ALL 14</button></div>
+          <article>
+            <span class="terminal-score positive">+0.82</span>
+            <div><h2>Services revenue establishes another all-time high</h2><p>EARNINGS CALL / 12 SEP 2026 / RECURRENT REVENUE</p></div>
+            <span class="terminal-weight">0.94</span>
+            <button type="button" aria-label="Open evidence">[+]</button>
+          </article>
+          <article>
+            <span class="terminal-score neutral">+0.08</span>
+            <div><h2>Premium handset mix remains the cycle's key variable</h2><p>SUPPLY-CHAIN NOTE / 09 SEP 2026 / PRODUCT CYCLE</p></div>
+            <span class="terminal-weight">0.63</span>
+            <button type="button" aria-label="Open evidence">[+]</button>
+          </article>
+          <article>
+            <span class="terminal-score positive">+0.56</span>
+            <div><h2>Capital returns retain priority after investment plan</h2><p>INVESTOR LETTER / 28 AUG 2026 / CAPITAL ALLOCATION</p></div>
+            <span class="terminal-weight">0.77</span>
+            <button type="button" aria-label="Open evidence">[+]</button>
+          </article>
+        </section>
+      </section>
+
+      <aside id="brief" class="terminal-brief">
+        <div class="terminal-pane-title"><span>INVESTOR BRIEF</span><button type="button">EDIT</button></div>
+        <p class="terminal-brief-intro">This is the lens used to rerank the research evidence.</p>
+        <section>
+          <span>MANDATE</span>
+          <p>Long-term compounders with durable cash generation.</p>
+        </section>
+        <section class="terminal-brief-grid">
+          <div><span>RISK</span><strong>MEDIUM</strong></div>
+          <div><span>HORIZON</span><strong>LONG</strong></div>
+          <div><span>STYLE</span><strong>PASSIVE</strong></div>
+          <div><span>THESIS</span><strong>01</strong></div>
+        </section>
+        <section class="terminal-brief-companies"><span>COMPANIES</span><p>AAPL / MSFT / V / COST</p></section>
+        <footer><span>LAST SAVED</span><time datetime="2026-09-17">17 SEP 2026, 09:42 UTC</time></footer>
+      </aside>
+    </main>
+  </body>
+</html>

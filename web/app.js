@@ -19,6 +19,7 @@ const batchForm = document.querySelector("#batch-form");
 const batchMessage = document.querySelector("#batch-message");
 const batchSubmit = document.querySelector("#batch-submit");
 const predictionCard = document.querySelector("#prediction-card");
+const predictionPlaceholder = document.querySelector("#prediction-placeholder");
 const predictionMessage = document.querySelector("#prediction-message");
 const predictionRunId = document.querySelector("#prediction-run-id");
 const predictionBase = document.querySelector("#prediction-base");
@@ -108,6 +109,7 @@ function formatSentiment(sentiment) {
 
 function renderPrediction(prediction) {
   predictionCard.hidden = false;
+  predictionPlaceholder.hidden = true;
   predictionRunId.textContent = `Run ${prediction.run_id}`;
   predictionBase.textContent = formatSentiment(prediction.base_sentiment);
   predictionPersonalized.textContent = formatSentiment(prediction.personalized_sentiment);
@@ -269,6 +271,7 @@ batchForm.addEventListener("submit", async (event) => {
   setMessage(batchMessage, "Running batch...");
   setMessage(predictionMessage, "");
   predictionCard.hidden = true;
+  predictionPlaceholder.hidden = false;
   batchSubmit.disabled = true;
   try {
     const { company, asOf } = readBatchForm();
@@ -290,6 +293,7 @@ batchForm.addEventListener("submit", async (event) => {
     setMessage(batchMessage, error.message, "error");
     setMessage(predictionMessage, "");
     predictionCard.hidden = true;
+    predictionPlaceholder.hidden = false;
   } finally {
     batchSubmit.disabled = false;
   }
