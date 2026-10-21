@@ -137,7 +137,7 @@ class ExperimentProvenanceRepository(Protocol):
     """Persist secret-free experiment provenance by run identifier."""
 
     def save(self, provenance: ExperimentProvenance) -> None:
-        """Insert or replace provenance by run identifier."""
+        """Insert/update explicitly started artifacts; retain finalized and legacy provenance."""
 
     def get(self, run_id: str) -> ExperimentProvenance | None:
         """Return provenance for one run."""

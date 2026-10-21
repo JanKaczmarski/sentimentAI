@@ -3,7 +3,7 @@
 import re
 import unicodedata
 from collections.abc import Callable
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from datetime import date
 from hashlib import sha256
 
@@ -29,6 +29,7 @@ class IngestionResult:
     documents: tuple[SourceDocument, ...]
     chunks: tuple[DocumentChunk, ...]
     processing_config_version: str
+    source_documents: tuple[SourceDocument, ...] = field(default=(), compare=False)
 
 
 class ContentQualityError(ValueError):
@@ -61,9 +62,11 @@ class IngestDocuments:
         company: str | None = None,
         published_after: date | None = None,
         published_before: date | None = None,
+        on_document: Callable[[IngestionResult], None] | None = None,
     ) -> IngestionResult:
         documents: list[SourceDocument] = []
         chunks: list[DocumentChunk] = []
+        source_documents: list[SourceDocument] = []
         for source_document in self._source.fetch_documents(
             company=company,
             published_after=published_after,
@@ -80,11 +83,18 @@ class IngestDocuments:
                 if source_document.provenance is None or source_document.provenance.canonical_for_scoring
                 else ()
             )
-            for chunk in document_chunks:
-                chunks.append(self._chunk_repository.save(chunk))
+            stored_chunks = tuple(self._chunk_repository.save(chunk) for chunk in document_chunks)
+            chunks.extend(stored_chunks)
             documents.append(document)
+            source_documents.append(source_document)
+            if on_document is not None:
+                on_document(
+                    IngestionResult((document,), stored_chunks, self._processing_config_version, (source_document,))
+                )
 
-        return IngestionResult(tuple(documents), tuple(chunks), self._processing_config_version)
+        return IngestionResult(
+            tuple(documents), tuple(chunks), self._processing_config_version, tuple(source_documents)
+        )
 
 
 _SEC_XBRL = re.compile(r"<XBRL>.*?</XBRL>", re.IGNORECASE | re.DOTALL)

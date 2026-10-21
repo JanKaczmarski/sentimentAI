@@ -2,6 +2,7 @@
 
 from datetime import date
 from hashlib import sha256
+from typing import Literal
 
 from sentiment_system.application.ports.repositories import (
     ExperimentRunRepository,
@@ -61,6 +62,7 @@ class GeneratePrediction:
         company: str,
         as_of: date,
         forecast_horizon_days: int,
+        source_scope: Literal["operational", "frozen"] | None = None,
     ) -> Prediction:
         if forecast_horizon_days not in self._ALLOWED_HORIZONS:
             raise InvalidForecastHorizonError("forecast_horizon_days must be one of 1, 5, 20, 60, or 252")
@@ -82,6 +84,7 @@ class GeneratePrediction:
             run
             for run in self._runs.list_runs()
             if run.run_type in {"batch", "scoring"}
+            and (source_scope is None or run.configuration.get("source_scope") == source_scope)
             and (
                 run.run_id in snapshot_run_ids
                 or (
@@ -113,6 +116,36 @@ class GeneratePrediction:
                 f"{thesis.investment_style.value} investment-style weighting."
             ),
             user_id=str(account.user_id),
+            rule_version=result.rule_version,
+            thesis_parameters={
+                "thesis_id": thesis.thesis_id,
+                "companies": thesis.companies,
+                "risk_tolerance": thesis.risk_tolerance.value,
+                "investment_horizon": thesis.investment_horizon.value,
+                "investment_style": thesis.investment_style.value,
+            },
+            run_metadata={
+                "run_type": latest.run_type,
+                "status": latest.status,
+                "started_at": latest.started_at.isoformat(),
+                "completed_at": latest.completed_at.isoformat() if latest.completed_at else None,
+                "configuration": {
+                    key: latest.configuration[key]
+                    for key in (
+                        "pipeline_version",
+                        "source_scope",
+                        "source_manifest_version",
+                        "source_manifest_sha256",
+                        "processing_config_version",
+                        "provider",
+                        "model",
+                        "embedding",
+                        "publication_rule",
+                        "rule_version",
+                    )
+                    if key in latest.configuration
+                },
+            },
         )
         self._predictions.save(prediction)
         return prediction

@@ -63,6 +63,11 @@ def test_generate_prediction_persists_user_scoped_evidence_and_history() -> None
     assert result.user_id == str(account.user_id)
     assert result.personalized_sentiment.score == 0.54
     assert len(result.evidence) == 2
+    assert result.rule_version == "aggregation-personalization-v1"
+    assert result.run_metadata["status"] == "completed"
+    assert result.thesis_parameters["investment_style"] == "passive"
+    assert result.thesis_parameters["companies"] == ("AAPL",)
+    assert result.prediction_id
     assert predictions.list_for_company("AAPL") == (result,)
 
 
@@ -150,6 +155,36 @@ def test_latest_run_uses_start_time_not_id_or_completion_time() -> None:
     newer = _run("run-a", 2)
     use_case, _ = _prediction_case(_snapshots(thesis_run="run-z") + _snapshots(thesis_run="run-a"), [newer, older])
     assert _execute(use_case).run_id == "run-a"
+
+
+def test_explicit_frozen_scope_never_selects_operational_snapshots_or_falls_back():
+    frozen = replace(
+        _run("frozen", 1), configuration={"as_of": "2025-02-01", "company": "AAPL", "source_scope": "frozen"}
+    )
+    operational = replace(
+        _run("operational", 2), configuration={"as_of": "2025-02-01", "company": "AAPL", "source_scope": "operational"}
+    )
+    use_case, _ = _prediction_case(
+        _snapshots(thesis_run="frozen") + _snapshots(thesis_run="operational"), [frozen, operational]
+    )
+    assert (
+        use_case.execute(
+            api_key="key", company="AAPL", as_of=date(2025, 2, 1), forecast_horizon_days=20, source_scope="frozen"
+        ).run_id
+        == "frozen"
+    )
+    failed = replace(
+        frozen,
+        run_id="failed-frozen",
+        started_at=operational.started_at + timedelta(hours=1),
+        status="failed",
+        completed_at=None,
+    )
+    use_case, _ = _prediction_case(_snapshots(thesis_run="frozen"), [frozen, operational, failed])
+    with pytest.raises(PredictionUnavailableError):
+        use_case.execute(
+            api_key="key", company="AAPL", as_of=date(2025, 2, 1), forecast_horizon_days=20, source_scope="frozen"
+        )
 
 
 @pytest.mark.parametrize(

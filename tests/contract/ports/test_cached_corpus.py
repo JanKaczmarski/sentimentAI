@@ -115,6 +115,11 @@ def test_operational_history_union_deduplicates_revisions_and_keeps_evaluation_f
     documents = source.fetch_documents()
     assert len(documents) == 3
     assert len(source.fetch_evaluation_documents()) == 1
+    frozen = CachedCorpusDocumentSource(tmp_path, scope="frozen")
+    assert frozen.fetch_documents() == source.fetch_evaluation_documents()
+    assert frozen.fetch_documents(company="AMAT") == ()
+    assert frozen.fetch_documents(published_before=date(2025, 1, 30)) == ()
+    assert frozen.manifest_sha256
     assert next(d for d in documents if d.original_byte_sha256 == hashlib.sha256(b"SEC release").hexdigest()).provenance
     assert len(source.fetch_documents(published_before=date(2020, 1, 1))) == 1
     assert len(source.fetch_documents(published_after=date(2020, 1, 1))) == 2
@@ -122,6 +127,13 @@ def test_operational_history_union_deduplicates_revisions_and_keeps_evaluation_f
     payload["documents"].reverse()
     manifest.write_text(json.dumps(payload))
     assert CachedCorpusDocumentSource(tmp_path).fetch_documents() == documents
+
+
+def test_frozen_source_fails_instead_of_falling_back_when_manifest_is_absent(tmp_path):
+    from sentiment_system.adapters.outbound.sources.cached import CacheManifestError
+
+    with pytest.raises(CacheManifestError, match="frozen corpus"):
+        CachedCorpusDocumentSource(tmp_path, scope="frozen")
 
 
 def test_final_cached_corpus_implements_document_source_with_exclusive_filters(tmp_path: Path, sector_bundle) -> None:

@@ -377,7 +377,18 @@ class PostgresProvenanceRepository(_PostgresRepository, ExperimentProvenanceRepo
                     model_provider, model_name, prompt, raw_response,
                     parsed_output, thesis_parameters, created_at
                 ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                ON CONFLICT (run_id) DO NOTHING
+                ON CONFLICT (run_id) DO UPDATE SET
+                    input_source = EXCLUDED.input_source,
+                    input_version = EXCLUDED.input_version,
+                    processing_config = EXCLUDED.processing_config,
+                    model_provider = EXCLUDED.model_provider,
+                    model_name = EXCLUDED.model_name,
+                    prompt = EXCLUDED.prompt,
+                    raw_response = EXCLUDED.raw_response,
+                    parsed_output = EXCLUDED.parsed_output,
+                    thesis_parameters = EXCLUDED.thesis_parameters,
+                    created_at = EXCLUDED.created_at
+                WHERE experiment_provenance.processing_config->>'status' = 'started'
                 """,
                 (
                     provenance.run_id,
@@ -533,9 +544,10 @@ class PostgresPredictionRepository(_PostgresRepository, PredictionRepository):
                 INSERT INTO predictions (
                     company, as_of, lookback_days, forecast_horizon_days, user_id,
                     base_score, base_label, personalized_score, personalized_label,
-                    base_confidence, personalized_confidence, confidence, reasoning, run_id
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                ON CONFLICT (company, as_of, lookback_days, forecast_horizon_days, run_id) DO UPDATE SET
+                    base_confidence, personalized_confidence, confidence, reasoning, run_id,
+                    prediction_id, rule_version, run_metadata, thesis_parameters
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (prediction_id) DO UPDATE SET
                     user_id = EXCLUDED.user_id,
                     base_score = EXCLUDED.base_score,
                     base_label = EXCLUDED.base_label,
@@ -544,7 +556,10 @@ class PostgresPredictionRepository(_PostgresRepository, PredictionRepository):
                     personalized_label = EXCLUDED.personalized_label,
                     personalized_confidence = EXCLUDED.personalized_confidence,
                     confidence = EXCLUDED.confidence,
-                    reasoning = EXCLUDED.reasoning
+                    reasoning = EXCLUDED.reasoning,
+                    rule_version = EXCLUDED.rule_version,
+                    run_metadata = EXCLUDED.run_metadata,
+                    thesis_parameters = EXCLUDED.thesis_parameters
                 """,
                 (
                     prediction.company,
@@ -561,6 +576,10 @@ class PostgresPredictionRepository(_PostgresRepository, PredictionRepository):
                     prediction.confidence,
                     prediction.reasoning,
                     prediction.run_id,
+                    prediction.prediction_id,
+                    prediction.rule_version,
+                    _jsonb(prediction.run_metadata),
+                    _jsonb(prediction.thesis_parameters),
                 ),
             )
             for rank, evidence in enumerate(prediction.evidence, start=1):
@@ -569,8 +588,8 @@ class PostgresPredictionRepository(_PostgresRepository, PredictionRepository):
                     INSERT INTO prediction_evidence (
                         company, as_of, lookback_days, forecast_horizon_days, run_id,
                         evidence_rank, chunk_id, published_at, sentiment_score,
-                        sentiment_label, sentiment_confidence, importance_score, excerpt
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        sentiment_label, sentiment_confidence, importance_score, excerpt, prediction_id
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     ON CONFLICT DO NOTHING
                     """,
                     (
@@ -587,6 +606,7 @@ class PostgresPredictionRepository(_PostgresRepository, PredictionRepository):
                         evidence.sentiment.confidence,
                         evidence.importance_score,
                         evidence.excerpt,
+                        prediction.prediction_id,
                     ),
                 )
 
@@ -602,7 +622,7 @@ class PostgresPredictionRepository(_PostgresRepository, PredictionRepository):
         if as_of is not None:
             query += " AND as_of <= %s"
             parameters += (as_of,)
-        query += " ORDER BY as_of, company, lookback_days, forecast_horizon_days, run_id"
+        query += " ORDER BY as_of, company, lookback_days, forecast_horizon_days, run_id, prediction_id"
         with self._database.connect() as connection:
             rows = connection.execute(query, parameters).fetchall()
             predictions = []
@@ -612,11 +632,10 @@ class PostgresPredictionRepository(_PostgresRepository, PredictionRepository):
                     SELECT chunk_id, published_at, sentiment_score, sentiment_label,
                            sentiment_confidence, importance_score, excerpt
                     FROM prediction_evidence
-                    WHERE company = %s AND as_of = %s AND lookback_days = %s
-                      AND forecast_horizon_days = %s AND run_id = %s
+                    WHERE prediction_id = %s
                     ORDER BY evidence_rank
                     """,
-                    (row["company"], row["as_of"], row["lookback_days"], row["forecast_horizon_days"], row["run_id"]),
+                    (row["prediction_id"],),
                 ).fetchall()
                 predictions.append(_prediction_from_row(row, evidence_rows))
         return tuple(predictions)
@@ -944,6 +963,10 @@ def _prediction_from_row(row: Mapping[str, Any], evidence_rows: list[Mapping[str
         run_id=row["run_id"],
         reasoning=row["reasoning"],
         user_id=None if row["user_id"] is None else str(row["user_id"]),
+        prediction_id=row["prediction_id"],
+        rule_version=row["rule_version"],
+        run_metadata=row["run_metadata"],
+        thesis_parameters=row["thesis_parameters"],
     )
 
 

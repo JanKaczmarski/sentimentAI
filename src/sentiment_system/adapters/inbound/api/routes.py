@@ -1,9 +1,10 @@
 """HTTP routes for accounts, Investment Theses, predictions, history, and batches."""
 
 from datetime import date
-from typing import Annotated, cast
+from typing import Annotated, Literal, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.encoders import jsonable_encoder
 
 from sentiment_system.adapters.inbound.api.schemas import (
     AccountCreateRequest,
@@ -235,6 +236,7 @@ def get_prediction(
     use_case: Annotated[GeneratePrediction, Depends(get_generate_prediction)],
     forecast_horizon_days: int = 20,
     as_of: date | None = None,
+    source_scope: Literal["operational", "frozen"] | None = None,
 ) -> PredictionResponse:
     """Generate and return the latest personalized prediction for a company."""
     try:
@@ -243,6 +245,7 @@ def get_prediction(
             company=company,
             as_of=as_of or date.today(),
             forecast_horizon_days=forecast_horizon_days,
+            source_scope=source_scope,
         )
     except (PredictionAccountNotFoundError, PredictionThesisNotFoundError, PredictionUnavailableError) as error:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
@@ -353,7 +356,9 @@ def run_batch(
 ) -> BatchRunResponse:
     """Trigger one manual batch without investor-specific scoring."""
     try:
-        result = use_case.execute(as_of=request.as_of or date.today(), company=request.company)
+        result = use_case.execute(
+            as_of=request.as_of or date.today(), company=request.company, source_scope=request.source_scope
+        )
     except BatchExecutionError as error:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -368,6 +373,7 @@ def run_batch(
         scored_chunk_count=result.scored_chunk_count,
         snapshot_count=result.snapshot_count,
         companies=result.companies,
+        source_scope=result.source_scope,
     )
 
 
@@ -405,4 +411,8 @@ def _prediction_response(prediction: Prediction) -> PredictionResponse:
         ),
         run_id=prediction.run_id,
         user_id=prediction.user_id,
+        prediction_id=prediction.prediction_id,
+        rule_version=prediction.rule_version,
+        run_metadata=jsonable_encoder(prediction.run_metadata),
+        thesis_parameters=jsonable_encoder(prediction.thesis_parameters),
     )

@@ -1,10 +1,12 @@
 """Auditable sentiment snapshots, predictions, and experiment provenance."""
 
+import json
 import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime
 from enum import IntEnum
+from hashlib import sha256
 from math import isfinite
 from types import MappingProxyType
 
@@ -88,6 +90,10 @@ class Prediction:
     run_id: str
     reasoning: str | None = None
     user_id: str | None = None
+    prediction_id: str = ""
+    rule_version: str | None = None
+    run_metadata: Mapping[str, object] = MappingProxyType({})
+    thesis_parameters: Mapping[str, object] = MappingProxyType({})
 
     def __post_init__(self) -> None:
         _require_non_empty_string("company", self.company)
@@ -111,6 +117,23 @@ class Prediction:
             raise ValueError("reasoning must be a string")
         if self.user_id is not None:
             _require_non_empty_string("user_id", self.user_id)
+        if self.rule_version is not None:
+            _require_non_empty_string("rule_version", self.rule_version)
+        object.__setattr__(self, "run_metadata", _freeze_secret_free_mapping(self.run_metadata))
+        object.__setattr__(self, "thesis_parameters", _freeze_secret_free_mapping(self.thesis_parameters))
+        if self.prediction_id == "":
+            identity = [
+                self.company,
+                self.as_of.isoformat(),
+                int(self.lookback_days),
+                self.forecast_horizon_days,
+                self.run_id,
+                self.user_id,
+                self.rule_version,
+                _plain_value(self.thesis_parameters),
+            ]
+            object.__setattr__(self, "prediction_id", sha256(json.dumps(identity, sort_keys=True).encode()).hexdigest())
+        _require_non_empty_string("prediction_id", self.prediction_id)
 
     @property
     def sources(self) -> tuple[PredictionEvidence, ...]:
@@ -244,6 +267,14 @@ def _freeze_value(value: object) -> object:
         return _freeze_secret_free_mapping(value)
     if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
         return tuple(_freeze_value(item) for item in value)
+    return value
+
+
+def _plain_value(value: object) -> object:
+    if isinstance(value, Mapping):
+        return {key: _plain_value(item) for key, item in value.items()}
+    if isinstance(value, tuple):
+        return [_plain_value(item) for item in value]
     return value
 
 

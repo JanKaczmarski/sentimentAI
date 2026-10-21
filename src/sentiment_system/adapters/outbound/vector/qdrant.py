@@ -58,6 +58,29 @@ class QdrantVectorStore:
         )
         return tuple(_match_from_point(point) for point in response.points)
 
+    def set_excluded(self, exclusions: Mapping[str, bool]) -> None:
+        """Synchronize authoritative score state without embedding another time."""
+        if not exclusions:
+            return
+        ids = {chunk_id: str(uuid5(NAMESPACE_URL, f"sentiment-system/chunk/{chunk_id}")) for chunk_id in exclusions}
+        found = self._client.retrieve(
+            collection_name=self._collection_name,
+            ids=list(ids.values()),
+            with_payload=False,
+            with_vectors=False,
+        )
+        if {str(point.id) for point in found} != set(ids.values()):
+            raise ValueError("indexed chunk unavailable during exclusion synchronization")
+        for excluded in (False, True):
+            points = [ids[chunk_id] for chunk_id, value in exclusions.items() if value is excluded]
+            if points:
+                self._client.set_payload(
+                    collection_name=self._collection_name,
+                    payload={"excluded": excluded},
+                    points=models.PointIdsList(points=[point for point in points]),
+                    wait=True,
+                )
+
     def _ensure_collection(self, dimension: int) -> None:
         if not self._client.collection_exists(self._collection_name):
             self._client.create_collection(

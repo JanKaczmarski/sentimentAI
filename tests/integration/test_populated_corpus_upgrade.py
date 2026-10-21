@@ -135,7 +135,10 @@ def test_populated_upgrade_preserves_pdf_identity_scores_and_chunk_lineage(tmp_p
         documents, chunks = PostgresDocumentRepository(upgraded), PostgresChunkRepository(upgraded)
         with upgraded.connect() as connection:
             assert connection.execute("SELECT * FROM chunk_scores").fetchall() == before
-            assert connection.execute("SELECT * FROM prediction_evidence").fetchall() == evidence_before
+            evidence_after = connection.execute("SELECT * FROM prediction_evidence").fetchall()
+            # Forward migrations may add audit identity columns. Every preexisting
+            # value must still match exactly, including source IDs and excerpts.
+            assert [{key: row[key] for key in evidence_before[0]} for row in evidence_after] == evidence_before
             assert (
                 connection.execute("SELECT * FROM company_sentiment_snapshot_evidence").fetchall() == snapshots_before
             )

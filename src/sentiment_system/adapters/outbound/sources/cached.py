@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from io import BytesIO
 from pathlib import Path, PurePosixPath
-from typing import Any, cast
+from typing import Any, Literal, cast
 from urllib.parse import urlparse
 
 from pypdf import PdfReader
@@ -46,9 +46,18 @@ class CacheManifestError(ValueError):
 class CachedCorpusDocumentSource:
     """Load immutable local SEC and curated IR documents without network access."""
 
-    def __init__(self, root: Path) -> None:
+    def __init__(self, root: Path, *, scope: Literal["operational", "frozen"] = "operational") -> None:
+        if scope not in {"operational", "frozen"}:
+            raise CacheManifestError("source scope must be operational or frozen")
         self._root = root
         self._evaluation_documents = self._load_final_corpus() or ()
+        manifest = root / "data" / "corpora" / _FINAL_MANIFEST_VERSION / "manifest.json"
+        self.manifest_sha256 = hashlib.sha256(manifest.read_bytes()).hexdigest() if manifest.is_file() else None
+        if scope == "frozen":
+            if not self._evaluation_documents:
+                raise CacheManifestError("frozen corpus manifest and documents are required")
+            self._documents = self._evaluation_documents
+            return
         # Preserve the broad operational cache. Prefer frozen lineage only for the
         # exact same source revision; a different revision remains separate evidence.
         documents: dict[tuple[str, str, str, str], SourceDocument] = {}

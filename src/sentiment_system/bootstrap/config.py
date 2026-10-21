@@ -3,7 +3,9 @@
 import os
 from collections.abc import Mapping
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Literal, cast
+from urllib.parse import urlparse
 
 from sentiment_system.adapters.outbound.embeddings.local import LocalSentenceTransformerEmbeddings
 from sentiment_system.adapters.outbound.embeddings.mock import DeterministicEmbeddings
@@ -15,6 +17,48 @@ from sentiment_system.application.ports.llm import LLMScorer
 
 EmbeddingBackend = Literal["local", "mock", "ollama"]
 LLMBackend = Literal["deterministic", "ollama"]
+
+
+class RuntimeConfigurationError(ValueError):
+    """Raised before adapter construction when runtime dependencies are invalid."""
+
+
+@dataclass(frozen=True, slots=True)
+class RuntimeConfig:
+    """Durable research dependencies, with deliberate development fallbacks."""
+
+    research_mode: bool
+    database_url: str | None
+    qdrant_url: str | None
+    data_root: Path | None
+
+    @classmethod
+    def from_env(cls, environ: Mapping[str, str] | None = None) -> "RuntimeConfig":
+        values = os.environ if environ is None else environ
+        research = values.get("APP_ENV", "development").strip().casefold() in {"research", "production"}
+        settings = {key: values.get(key, "").strip() for key in ("DATABASE_URL", "QDRANT_URL", "SENTIMENT_DATA_ROOT")}
+        if research:
+            missing = [key for key, value in settings.items() if not value]
+            if missing:
+                raise RuntimeConfigurationError(f"Research mode requires {', '.join(missing)}")
+            database = urlparse(settings["DATABASE_URL"])
+            if (
+                database.scheme not in {"postgresql", "postgres"}
+                or not database.hostname
+                or not database.path.strip("/")
+            ):
+                raise RuntimeConfigurationError("DATABASE_URL must identify a PostgreSQL database")
+            vector = urlparse(settings["QDRANT_URL"])
+            if vector.scheme not in {"http", "https"} or not vector.hostname:
+                raise RuntimeConfigurationError("QDRANT_URL must identify a persistent Qdrant server")
+            if not Path(settings["SENTIMENT_DATA_ROOT"]).is_dir():
+                raise RuntimeConfigurationError("SENTIMENT_DATA_ROOT must be an existing cache directory")
+        return cls(
+            research_mode=research,
+            database_url=settings["DATABASE_URL"] or None,
+            qdrant_url=settings["QDRANT_URL"] or None,
+            data_root=Path(settings["SENTIMENT_DATA_ROOT"]) if settings["SENTIMENT_DATA_ROOT"] else None,
+        )
 
 
 class EmbeddingConfigurationError(ValueError):

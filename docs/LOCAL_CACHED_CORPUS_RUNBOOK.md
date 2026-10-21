@@ -32,6 +32,16 @@ normal cached-corpus settings:
 
 No special source manifest or company-specific environment variable is needed.
 
+Research/production startup requires `DATABASE_URL`, `QDRANT_URL`, and
+`SENTIMENT_DATA_ROOT`. PostgreSQL and Qdrant must identify durable servers; the
+cache directory must exist and contain supported source records. Missing settings
+fail startup before database migration or fixture fallback. Compose supplies the
+server URLs automatically. Direct `uv` startup needs all three settings.
+
+For deliberate fixture/in-memory development, set `APP_ENV=development`,
+`LLM_BACKEND=deterministic`, and `EMBEDDING_BACKEND=mock`, and leave those three
+dependency settings unset. This mode is suitable for workflow tests.
+
 ## Start The Application
 
 Run from the application repository:
@@ -70,6 +80,87 @@ This is a local cached-corpus workflow, not the final five-year thesis corpus,
 held-out evaluation manifest, live SEC/IR acquisition service, or market-outcome
 evaluation. The cache preserves source identifiers, publication dates, raw
 content, and source hashes for reproducibility.
+
+## Explicit Frozen-Corpus Batch
+
+`POST /batch/run` accepts `source_scope`, defaulting to `operational` for the
+normal broad cached-company workflow. Select `frozen` explicitly to load only
+the active immutable `thesis-v2-current-cache-sec-form-aware-v2` manifest:
+
+```json
+{
+  "company": "META",
+  "as_of": "2026-08-28",
+  "source_scope": "frozen"
+}
+```
+
+Omitting `company` processes all companies in that scope. Frozen mode fails and
+records a failed run if its manifest is unavailable; it never falls back to the
+broad cache or development fixtures. Frozen loading does not read unrelated
+operational history. Original/cleaned checksums and manifest evidence are
+verified by the existing cache reader.
+
+All batches use **publication strictly before `as_of`**. An August 28 snapshot
+may use August 27 documents; an August 27 snapshot may not. The frozen source
+cutoff and held-out split remain unchanged.
+
+Read a prediction with the same `as_of` and `source_scope=frozen`, for example
+`GET /companies/META/prediction?api_key=...&as_of=2026-08-28&source_scope=frozen`.
+The optional prediction scope prevents selecting operational runs when a frozen
+experiment is requested. Within that scope, FEAT-038 still requires the latest
+relevant run to be completed with both exact-date thesis windows. There is no
+older-run fallback. Without the optional scope, the existing latest-relevant-run
+selection considers both scopes.
+
+The response and stored history include `prediction_id`, `rule_version`,
+`run_metadata`, and the structured `thesis_parameters`. The hash-based prediction
+identity includes the account, scoring run, forecast settings, rule version and
+thesis parameters. Multiple investors and changed theses can reuse one scoring
+run while retaining independent historical results.
+
+## Run Records And Failure Evidence
+
+Batches record ingestion, indexing, scoring, aggregation, and exclusion-sync
+stage timestamps/status, counts, processing version, source IDs/checksums/chunk
+lineage, embedding/scoring identities, and the frozen manifest version/hash.
+The batch retains ownership of run completion through every stage.
+
+Failures return HTTP 500 with the run ID. Stored failure evidence identifies the
+stage and exception type, completed ingestion lineage, and successful scoring
+outputs. Exception messages and connection strings are not stored. Finalized and
+legacy provenance is retained; only explicitly active provenance can be updated.
+Provider-specific malformed/failed raw-response capture remains FEAT-023.
+
+Indexing preserves the last completed score's exclusion state. After successful
+scoring/aggregation, payload-only vector updates synchronize exclusion or recovery
+without embedding a second time. PostgreSQL remains authoritative; a vector-sync
+failure fails the batch and makes that latest run unavailable for prediction.
+
+Migration `0012_prediction_audit_identity.sql` preserves existing prediction
+values/evidence and attaches opaque legacy identities. It leaves unknown legacy
+rule/configuration metadata empty instead of inventing provenance. It then permits
+independent investor/thesis predictions and stores new audit metadata.
+
+## Workflow Verification
+
+The regular `uv run pytest` loop remains Docker-free. Deterministic providers
+exercise the complete pipeline, and infrastructure tests run only when their
+explicit test settings are supplied. Full external-corpus replay is opt-in:
+
+```bash
+SENTIMENT_DATA_ROOT=../sentimentAI-data uv run pytest tests/integration/test_frozen_pipeline.py
+```
+
+That test processes all 363 actual frozen source records with development-only
+deterministic providers, creates 18 snapshots and serves predictions for two
+investors. It verifies orchestration, not research sentiment quality or market
+performance. Production scoring/tokenizer compliance and actual evaluation remain
+in their dedicated features.
+
+Explicit durable integration uses `POSTGRES_TEST_DSN` and `QDRANT_TEST_URL` with
+`tests/integration/test_pipeline_persistence.py`; it creates isolated database
+schemas and vector collections and cleans up its own artifacts.
 
 ## Stop Services
 
