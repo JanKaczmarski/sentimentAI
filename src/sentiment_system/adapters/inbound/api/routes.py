@@ -1,5 +1,6 @@
 """HTTP routes for accounts, Investment Theses, predictions, history, and batches."""
 
+from dataclasses import asdict
 from datetime import date
 from typing import Annotated, Literal, cast
 
@@ -9,8 +10,11 @@ from fastapi.encoders import jsonable_encoder
 from sentiment_system.adapters.inbound.api.schemas import (
     AccountCreateRequest,
     AccountCreateResponse,
+    ApprovedCompany,
     BatchRunRequest,
     BatchRunResponse,
+    CompanyIngestionRequest,
+    CompanyIngestionResponse,
     EvaluationExclusionResponse,
     EvaluationMetricResponse,
     EvaluationObservationResponse,
@@ -42,6 +46,10 @@ from sentiment_system.application.use_cases.generate_prediction import (
     PredictionAccountNotFoundError,
     PredictionThesisNotFoundError,
     PredictionUnavailableError,
+)
+from sentiment_system.application.use_cases.ingest_company_documents import (
+    IngestCompanyDocuments,
+    IngestionExecutionError,
 )
 from sentiment_system.application.use_cases.ingest_fixture_communication import IngestFixtureCommunication
 from sentiment_system.application.use_cases.manage_investment_theses import (
@@ -109,6 +117,14 @@ def get_run_batch(request: Request) -> RunBatch:
     use_case = cast(RunBatch | None, request.app.state.container.run_batch)
     if use_case is None:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="batch service unavailable")
+    return use_case
+
+
+def get_company_ingestion(request: Request) -> IngestCompanyDocuments:
+    """Resolve standalone source preparation from the composition root."""
+    use_case = cast(IngestCompanyDocuments | None, request.app.state.container.ingest_company_documents)
+    if use_case is None:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="ingestion service unavailable")
     return use_case
 
 
@@ -375,6 +391,22 @@ def run_batch(
         companies=result.companies,
         source_scope=result.source_scope,
     )
+
+
+@router.post("/companies/{company}/ingest", response_model=CompanyIngestionResponse, tags=["ingestion"])
+def ingest_company_documents(
+    company: ApprovedCompany,
+    request: CompanyIngestionRequest,
+    use_case: Annotated[IngestCompanyDocuments, Depends(get_company_ingestion)],
+) -> CompanyIngestionResponse:
+    """Synchronously prepare one company's cached documents without scoring."""
+    try:
+        result = use_case.execute(
+            company=company, as_of=request.as_of or date.today(), source_scope=request.source_scope
+        )
+    except IngestionExecutionError as error:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(error)) from error
+    return CompanyIngestionResponse(status="completed", **asdict(result))
 
 
 def _prediction_response(prediction: Prediction) -> PredictionResponse:

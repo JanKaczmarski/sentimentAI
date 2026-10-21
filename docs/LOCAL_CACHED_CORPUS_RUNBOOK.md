@@ -119,6 +119,56 @@ identity includes the account, scoring run, forecast settings, rule version and
 thesis parameters. Multiple investors and changed theses can reuse one scoring
 run while retaining independent historical results.
 
+## Prepare One Company Without Scoring
+
+`POST /companies/{company}/ingest` synchronously prepares cached documents without
+scoring, creating snapshots or requiring an Investment Thesis. For example:
+
+```bash
+curl --fail-with-body http://localhost:8000/companies/META/ingest \
+  -H 'Content-Type: application/json' \
+  -d '{"as_of":"2026-08-28","source_scope":"frozen"}'
+```
+
+`source_scope` defaults to `operational`; `as_of` defaults to today. Both scopes
+require publication strictly before the date. Frozen scope never falls back to
+operational sources. The source adapter reads its cache snapshot at startup;
+restart the application after publishing additional cached source files.
+
+The HTTP 200 response contains `status`, a fresh `run_id`, canonical `company`,
+`source_scope`, and these counts:
+
+| Field | Meaning |
+|---|---|
+| `document_count` | Total selected documents, including existing documents |
+| `chunk_count` | Total resulting chunks, including existing chunks |
+| `indexed_chunk_count` | Total confirmed indexed chunks, including reused vectors |
+| `embedded_chunk_count` | Chunks newly embedded and indexed during this attempt |
+| `reused_chunk_count` | Compatible vector points reused without an embedding call |
+
+Repeat the request to verify that `embedded_chunk_count` becomes zero and
+`reused_chunk_count` equals `indexed_chunk_count`. Every request has a distinct
+audit run; underlying documents/chunks/points retain their identities. Approved
+companies without eligible sources return zero counts. Unsupported tickers or
+invalid request fields return HTTP 422. Preparation failures return HTTP 500
+with `ingestion run failed: <run_id>` and persist the failed stage/exception type.
+An explicit retry reuses confirmed prior indexing batches and repairs missing
+points. Inspect run/provenance repositories for audit artifacts; this feature
+does not add a status-polling endpoint.
+
+Existing points without embedding-configuration fingerprints are re-indexed
+once. Compatibility requires matching source/chunk content and the configured
+embedding identity; a model change cannot silently reuse old vectors. A changed
+model dimension requires a separately configured Qdrant collection, since the
+application never deletes/recreates an incompatible collection. Keep mutable
+model aliases stable for a declared identity. See
+[decision 0020](../decisions/0020-on-demand-company-ingestion-and-embedding-reuse.md).
+
+The combined `/batch/run` also reuses compatible embeddings while still executing
+scoring and aggregation. Preparation alone produces no new prediction, and its
+newer run does not hide an existing prediction. The browser still exposes the
+combined batch action until FEAT-034 adds separate controls.
+
 ## Run Records And Failure Evidence
 
 Batches record ingestion, indexing, scoring, aggregation, and exclusion-sync

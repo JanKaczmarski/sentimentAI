@@ -36,6 +36,27 @@ class ContentQualityError(ValueError):
     """Raised when a source document has no sufficiently readable content."""
 
 
+def source_lineage(result: IngestionResult) -> list[dict[str, object]]:
+    """Describe verified source and derived identities for an ingestion/batch audit."""
+    return [
+        {
+            "document_id": document.document_id,
+            "source_id": source.source_id,
+            "company": source.company,
+            "source": source.source,
+            "published_at": source.published_at.isoformat(),
+            "original_byte_sha256": source.original_byte_sha256,
+            "raw_text_sha256": sha256(source.raw_content.encode()).hexdigest(),
+            "cleaned_sha256": sha256(document.cleaned_content.encode()).hexdigest(),
+            "cleaning_version": document.cleaning_version,
+            "manifest_version": source.manifest_version,
+            "manifest_record_id": source.provenance.manifest_record_id if source.provenance else None,
+            "chunk_ids": [chunk.chunk_id for chunk in result.chunks if chunk.document_id == document.document_id],
+        }
+        for source, document in zip(result.source_documents, result.documents, strict=True)
+    ]
+
+
 class IngestDocuments:
     """Normalize fixture documents, create chunks, and persist both values."""
 

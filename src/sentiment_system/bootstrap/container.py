@@ -54,6 +54,7 @@ from sentiment_system.application.use_cases.create_account import CreateAccount
 from sentiment_system.application.use_cases.evaluate_predictions import GetEvaluationReport
 from sentiment_system.application.use_cases.generate_prediction import GeneratePrediction, ListPredictionHistory
 from sentiment_system.application.use_cases.index_chunks import IndexChunks
+from sentiment_system.application.use_cases.ingest_company_documents import IngestCompanyDocuments
 from sentiment_system.application.use_cases.ingest_documents import IngestDocuments
 from sentiment_system.application.use_cases.ingest_fixture_communication import IngestFixtureCommunication
 from sentiment_system.application.use_cases.manage_investment_theses import ManageInvestmentTheses
@@ -96,6 +97,7 @@ class ApplicationContainer:
     list_prediction_history: ListPredictionHistory | None = None
     ingest_fixture_communication: IngestFixtureCommunication | None = None
     run_batch: RunBatch | None = None
+    ingest_company_documents: IngestCompanyDocuments | None = None
 
 
 _POC_DOCUMENTS = (
@@ -129,6 +131,11 @@ def build_container() -> ApplicationContainer:
     evaluation_report_repository: EvaluationReportRepository = InMemoryEvaluationReportRepository()
     embedding_config = EmbeddingConfig.from_env()
     embedding_provider = build_embedding_provider(embedding_config)
+    embedding_configuration: dict[str, object] = {
+        "backend": embedding_config.backend,
+        "model": "deterministic-sha256-v1" if embedding_config.backend == "mock" else embedding_config.model_name,
+        "encoding_version": "embedding-v1",
+    }
     data_root = runtime.data_root
     document_source: DocumentSource
     document_source = (
@@ -162,6 +169,7 @@ def build_container() -> ApplicationContainer:
         vector_store,
         scores=chunk_score_repository,
         runs=experiment_run_repository,
+        embedding_configuration=embedding_configuration,
     )
     if qdrant_url:
         vector_store = QdrantVectorStore(
@@ -174,6 +182,7 @@ def build_container() -> ApplicationContainer:
             vector_store,
             scores=chunk_score_repository,
             runs=experiment_run_repository,
+            embedding_configuration=embedding_configuration,
         )
     ingest_documents = IngestDocuments(
         document_source,
@@ -239,6 +248,16 @@ def build_container() -> ApplicationContainer:
         ),
         list_prediction_history=ListPredictionHistory(account_repository, prediction_repository),
         ingest_fixture_communication=IngestFixtureCommunication(document_repository, chunk_repository),
+        ingest_company_documents=IngestCompanyDocuments(
+            ingest_documents,
+            index_chunks,
+            experiment_run_repository,
+            provenance=provenance_repository,
+            embedding_configuration=embedding_configuration,
+            frozen_ingestion=frozen_ingestion,
+            frozen_manifest=frozen_manifest,
+            input_source="cached_corpus" if data_root else "development_fixture",
+        ),
         run_batch=RunBatch(
             ingest_documents,
             index_chunks,
@@ -249,12 +268,7 @@ def build_container() -> ApplicationContainer:
             exclusion_sync=SynchronizeChunkExclusions(chunk_score_repository, vector_store),
             frozen_ingestion=frozen_ingestion,
             frozen_manifest=frozen_manifest,
-            embedding_configuration={
-                "backend": embedding_config.backend,
-                "model": (
-                    "deterministic-sha256-v1" if embedding_config.backend == "mock" else embedding_config.model_name
-                ),
-            },
+            embedding_configuration=embedding_configuration,
             input_source="cached_corpus" if data_root else "development_fixture",
             scoring_prompt=getattr(llm_scorer, "prompt", None),
             scoring_provider=llm_config.backend,

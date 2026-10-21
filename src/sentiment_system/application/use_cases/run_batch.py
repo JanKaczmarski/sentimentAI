@@ -3,14 +3,13 @@
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
-from hashlib import sha256
 from typing import Literal
 from uuid import uuid4
 
 from sentiment_system.application.ports.repositories import ExperimentProvenanceRepository, ExperimentRunRepository
 from sentiment_system.application.use_cases.aggregate_snapshots import RULE_VERSION, AggregateSnapshots
 from sentiment_system.application.use_cases.index_chunks import IndexChunks
-from sentiment_system.application.use_cases.ingest_documents import IngestDocuments, IngestionResult
+from sentiment_system.application.use_cases.ingest_documents import IngestDocuments, IngestionResult, source_lineage
 from sentiment_system.application.use_cases.score_chunks import ScoreChunks
 from sentiment_system.application.use_cases.synchronize_chunk_exclusions import SynchronizeChunkExclusions
 from sentiment_system.domain.predictions import ExperimentProvenance, ExperimentRun
@@ -104,8 +103,8 @@ class RunBatch:
             **(self._frozen_manifest if source_scope == "frozen" else {}),
         }
         stages: dict[str, dict[str, object]] = {}
-        source_lineage: list[dict[str, object]] = []
-        configuration["source_lineage"] = source_lineage
+        lineage: list[dict[str, object]] = []
+        configuration["source_lineage"] = lineage
         active_stage = "ingestion"
         counts = dict(document_count=0, chunk_count=0, indexed_chunk_count=0, scored_chunk_count=0, snapshot_count=0)
 
@@ -162,7 +161,7 @@ class RunBatch:
             counts["document_count"] += len(partial.documents)
             counts["chunk_count"] += len(partial.chunks)
             configuration["processing_config_version"] = partial.processing_config_version
-            source_lineage.extend(_source_lineage(partial))
+            lineage.extend(source_lineage(partial))
 
         try:
             result = stage("ingestion", ingest)
@@ -198,23 +197,3 @@ class RunBatch:
             counts["scored_chunk_count"] = len(partial.parsed_output) if partial else 0
             persist("failed")
             raise BatchExecutionError(run_id) from error
-
-
-def _source_lineage(result: IngestionResult) -> list[dict[str, object]]:
-    return [
-        {
-            "document_id": document.document_id,
-            "source_id": source.source_id,
-            "company": source.company,
-            "source": source.source,
-            "published_at": source.published_at.isoformat(),
-            "original_byte_sha256": source.original_byte_sha256,
-            "raw_text_sha256": sha256(source.raw_content.encode()).hexdigest(),
-            "cleaned_sha256": sha256(document.cleaned_content.encode()).hexdigest(),
-            "cleaning_version": document.cleaning_version,
-            "manifest_version": source.manifest_version,
-            "manifest_record_id": source.provenance.manifest_record_id if source.provenance else None,
-            "chunk_ids": [chunk.chunk_id for chunk in result.chunks if chunk.document_id == document.document_id],
-        }
-        for source, document in zip(result.source_documents, result.documents, strict=True)
-    ]

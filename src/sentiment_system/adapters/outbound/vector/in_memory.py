@@ -4,7 +4,7 @@ from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import replace
 from math import sqrt
 
-from sentiment_system.application.ports.vector_store import EmbeddedChunk, VectorMatch, VectorQuery
+from sentiment_system.application.ports.vector_store import EmbeddedChunk, IndexedChunk, VectorMatch, VectorQuery
 
 
 class InMemoryVectorStore:
@@ -58,6 +58,21 @@ class InMemoryVectorStore:
                 raise ValueError(f"indexed chunk unavailable: {chunk_id}")
         for chunk_id, excluded in exclusions.items():
             self._chunks[chunk_id] = replace(self._chunks[chunk_id], excluded=excluded)
+
+    def get_indexed(self, chunk_ids: Sequence[str]) -> Mapping[str, IndexedChunk]:
+        """Inspect point identity without generating a query embedding."""
+        return {
+            chunk_id: IndexedChunk(
+                chunk=embedded.chunk,
+                company=embedded.company,
+                published_at=embedded.published_at,
+                embedding_fingerprint=embedded.embedding_fingerprint,
+                dimension=len(embedded.embedding),
+                excluded=embedded.excluded,
+            )
+            for chunk_id in chunk_ids
+            if (embedded := self._chunks.get(chunk_id)) is not None
+        }
 
 
 def _cosine_similarity(left: tuple[float, ...], right: tuple[float, ...]) -> float:

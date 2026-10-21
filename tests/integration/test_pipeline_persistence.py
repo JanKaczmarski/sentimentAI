@@ -3,7 +3,7 @@
 import os
 from datetime import date, datetime, timezone
 from pathlib import Path
-from uuid import uuid4
+from uuid import NAMESPACE_URL, uuid4, uuid5
 
 import psycopg
 import pytest
@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 from psycopg import sql
 from psycopg.conninfo import make_conninfo
 from qdrant_client import QdrantClient
+from qdrant_client import models as qdrant_models
 
 from scripts.acquire_corpus import write_corpus
 from sentiment_system.adapters.outbound.persistence.postgres import PostgresDatabase, PostgresPredictionRepository
@@ -163,3 +164,58 @@ def test_prediction_upgrade_keeps_existing_values_and_evidence(isolated_database
     assert prediction.rule_version is None
     assert prediction.run_metadata == prediction.thesis_parameters == {}
     assert prediction.evidence[0].excerpt == "Original evidence"
+
+
+@pytest.mark.integration
+def test_durable_ingestion_reuses_vectors_after_restart_and_repairs_missing_points(
+    isolated_database, tmp_path, sector_bundle, monkeypatch
+):
+    qdrant_url = os.getenv("QDRANT_TEST_URL")
+    if not qdrant_url:
+        pytest.skip("QDRANT_TEST_URL is not configured")
+    review = tmp_path / sector_bundle(tmp_path)["sector_review_path"]
+    write_corpus(tmp_path, (_record(cleaned_content="Revenue grew. Costs fell."),), sector_review_path=review)
+    _development_env(monkeypatch, tmp_path)
+    monkeypatch.setenv("DATABASE_URL", isolated_database)
+    collection = "ingestion_" + uuid4().hex
+    monkeypatch.setenv("QDRANT_URL", qdrant_url)
+    monkeypatch.setenv("QDRANT_COLLECTION", collection)
+    vectors = QdrantClient(url=qdrant_url)
+    payload = {"as_of": "2025-01-31", "source_scope": "frozen"}
+    try:
+        container = build_container()
+        first = TestClient(create_app(container=container)).post("/companies/META/ingest", json=payload)
+        assert first.status_code == 200, first.text
+        assert first.json()["embedded_chunk_count"] == 1
+        audit = container.provenance_repository.get(first.json()["run_id"])
+        restarted = build_container()
+        original = restarted.embedding_provider.embed
+        monkeypatch.setattr(
+            restarted.embedding_provider, "embed", lambda text: pytest.fail("restart must reuse vectors")
+        )
+        client = TestClient(create_app(container=restarted))
+        second = client.post("/companies/META/ingest", json=payload)
+        assert second.status_code == 200, second.text
+        assert second.json()["embedded_chunk_count"] == 0 and second.json()["reused_chunk_count"] == 1
+        assert restarted.provenance_repository.get(first.json()["run_id"]) == audit
+        assert len(restarted.document_repository.list_documents()) == 1
+        assert vectors.count(collection_name=collection, exact=True).count == 1
+        chunk_id = audit.processing_config["source_lineage"][0]["chunk_ids"][0]
+        vectors.delete(
+            collection_name=collection,
+            points_selector=qdrant_models.PointIdsList(
+                points=[str(uuid5(NAMESPACE_URL, f"sentiment-system/chunk/{chunk_id}"))]
+            ),
+            wait=True,
+        )
+        monkeypatch.setattr(restarted.embedding_provider, "embed", original)
+        repaired = client.post("/companies/META/ingest", json=payload)
+        assert repaired.status_code == 200, repaired.text
+        assert repaired.json()["embedded_chunk_count"] == 1 and repaired.json()["reused_chunk_count"] == 0
+        assert vectors.count(collection_name=collection, exact=True).count == 1
+        assert restarted.snapshot_repository.list_for_company("META") == ()
+        assert restarted.chunk_score_repository.list_for_chunk(chunk_id) == ()
+    finally:
+        if vectors.collection_exists(collection):
+            vectors.delete_collection(collection)
+        vectors.close()
