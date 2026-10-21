@@ -1,6 +1,7 @@
 """Deterministic in-memory vector store for unit and contract tests."""
 
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
+from dataclasses import replace
 from math import sqrt
 
 from sentiment_system.application.ports.vector_store import EmbeddedChunk, VectorMatch, VectorQuery
@@ -49,6 +50,14 @@ class InMemoryVectorStore:
 
         matches.sort(key=lambda match: (-match.score, match.chunk.chunk_id))
         return tuple(matches[: query.limit])
+
+    def set_excluded(self, exclusions: Mapping[str, bool]) -> None:
+        """Change only exclusion state; unknown chunk identifiers are errors."""
+        for chunk_id in exclusions:
+            if chunk_id not in self._chunks:
+                raise ValueError(f"indexed chunk unavailable: {chunk_id}")
+        for chunk_id, excluded in exclusions.items():
+            self._chunks[chunk_id] = replace(self._chunks[chunk_id], excluded=excluded)
 
 
 def _cosine_similarity(left: tuple[float, ...], right: tuple[float, ...]) -> float:

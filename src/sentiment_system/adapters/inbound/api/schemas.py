@@ -108,6 +108,7 @@ class BatchRunRequest(ApiSchema):
 
     company: str | None = None
     as_of: date | None = None
+    source_scope: Literal["operational", "frozen"] = "operational"
 
     @field_validator("company")
     @classmethod
@@ -127,6 +128,7 @@ class BatchRunResponse(ApiSchema):
     scored_chunk_count: int
     snapshot_count: int
     companies: tuple[str, ...]
+    source_scope: Literal["operational", "frozen"]
 
 
 class SentimentResponse(ApiSchema):
@@ -161,6 +163,10 @@ class PredictionResponse(ApiSchema):
     evidence: tuple[PredictionEvidenceResponse, ...]
     run_id: str
     user_id: str | None
+    prediction_id: str
+    rule_version: str | None
+    run_metadata: dict[str, object]
+    thesis_parameters: dict[str, object]
 
 
 class PredictionHistoryResponse(ApiSchema):

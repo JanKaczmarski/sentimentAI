@@ -45,6 +45,7 @@ from sentiment_system.domain.investment_thesis import (
 )
 from sentiment_system.domain.predictions import (
     CompanySentimentSnapshot,
+    ExperimentProvenance,
     ExperimentRun,
     PredictionEvidence,
     SnapshotWindow,
@@ -280,3 +281,35 @@ def test_equal_start_times_use_stable_run_id_ties(repositories):
             prompt="Score.",
         )
     assert [score.run_id for score in scores.list_for_chunk(chunk.chunk_id)] == sorted(ids)
+
+
+def test_stage_provenance_updates_only_its_active_run_and_seals_final_artifacts(repositories):
+    _, _, runs, _, provenance, *_ = repositories
+    now = datetime.now(timezone.utc)
+    run_id = str(uuid4())
+    runs.save(ExperimentRun(run_id=run_id, run_type="batch", status="started", started_at=now))
+    started = ExperimentProvenance(
+        run_id=run_id,
+        input_source="cached",
+        input_version="v1",
+        processing_config={"status": "started"},
+        model_provider="deterministic",
+        model_name="test",
+        prompt="Score.",
+        raw_response="",
+        parsed_output={},
+        thesis_parameters={},
+        created_at=now,
+    )
+    provenance.save(started)
+    completed = replace(started, processing_config={"status": "completed"}, raw_response="Retained output")
+    provenance.save(completed)
+    assert provenance.get(run_id) == completed
+    provenance.save(replace(completed, raw_response="Attempted rewrite"))
+    assert provenance.get(run_id) == completed
+    legacy_id = str(uuid4())
+    runs.save(ExperimentRun(run_id=legacy_id, run_type="scoring", status="completed", started_at=now))
+    legacy = replace(started, run_id=legacy_id, processing_config={})
+    provenance.save(legacy)
+    provenance.save(replace(legacy, raw_response="Attempted legacy rewrite"))
+    assert provenance.get(legacy_id) == legacy

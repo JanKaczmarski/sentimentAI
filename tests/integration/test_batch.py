@@ -27,6 +27,7 @@ from sentiment_system.application.use_cases.ingest_documents import IngestDocume
 from sentiment_system.application.use_cases.manage_investment_theses import ManageInvestmentTheses
 from sentiment_system.application.use_cases.run_batch import RunBatch
 from sentiment_system.application.use_cases.score_chunks import ScoreChunks
+from sentiment_system.application.use_cases.synchronize_chunk_exclusions import SynchronizeChunkExclusions
 from sentiment_system.bootstrap.container import ApplicationContainer, build_container
 from sentiment_system.bootstrap.main import create_app
 from sentiment_system.domain.documents import DocumentChunk, SourceDocument
@@ -102,6 +103,9 @@ def test_manual_batch_serves_multiple_theses_from_one_scoring_run() -> None:
     assert second_prediction.status_code == 200
     assert first_prediction.json()["run_id"] == batch_response.json()["run_id"]
     assert second_prediction.json()["run_id"] == batch_response.json()["run_id"]
+    assert first_prediction.json()["rule_version"] == "aggregation-personalization-v1"
+    assert first_prediction.json()["run_metadata"]["configuration"]["pipeline_version"] == "source-to-prediction-v2"
+    assert first_prediction.json()["thesis_parameters"]["investment_style"] == "passive"
     assert scorer.calls == 1
 
     historical_predictions = predictions.list_for_company("AAPL")
@@ -143,12 +147,15 @@ def _batch(*, scorer, document_repository, chunk_repository, score_repository, r
         processing_config_version="processing-v1",
         token_counter=lambda value: len(value.split()),
     )
+    vectors = InMemoryVectorStore()
     return RunBatch(
         ingestion,
-        IndexChunks(document_repository, DeterministicEmbeddings(), InMemoryVectorStore()),
+        IndexChunks(document_repository, DeterministicEmbeddings(), vectors),
         ScoreChunks(scorer, score_repository, provenance, runs),
         AggregateSnapshots(document_repository, chunk_repository, score_repository, snapshots),
         runs,
+        provenance=provenance,
+        exclusion_sync=SynchronizeChunkExclusions(score_repository, vectors),
     )
 
 

@@ -40,7 +40,7 @@ def test_build_container_uses_cached_source_when_legacy_demo_setting_exists(tmp_
     monkeypatch.delenv("DATABASE_URL", raising=False)
     monkeypatch.delenv("QDRANT_URL", raising=False)
 
-    result = build_container().run_batch.execute(as_of=date(2025, 1, 1), company="AAPL")
+    result = build_container().run_batch.execute(as_of=date(2025, 1, 2), company="AAPL")
 
     assert result.document_count == 1
     assert result.scored_chunk_count > 0

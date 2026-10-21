@@ -1,6 +1,6 @@
 """Port for indexing and retrieving embedded document chunks."""
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date
 from math import isfinite
@@ -74,6 +74,9 @@ class VectorStore(Protocol):
 
     def search(self, query: VectorQuery) -> tuple[VectorMatch, ...]:
         """Return the highest-scoring matching chunks first."""
+
+    def set_excluded(self, exclusions: Mapping[str, bool]) -> None:
+        """Update exclusion payloads by chunk ID without replacing embeddings."""
 
 
 def _validate_embedding(embedding: Embedding) -> None:

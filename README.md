@@ -83,6 +83,12 @@ The exact data Git revision is pinned in `research-data.lock.json`. See
 [`docs/FEAT_015_DELIVERY.md`](docs/FEAT_015_DELIVERY.md) for artifact identities,
 verification results, infrastructure checks, and publication status.
 
+The manual pipeline accepts `source_scope=operational` (the default broad cache)
+or `source_scope=frozen` (the approved immutable corpus). Both use documents
+published strictly before the requested `as_of`. See the
+[cached-corpus runbook](docs/LOCAL_CACHED_CORPUS_RUNBOOK.md#explicit-frozen-corpus-batch)
+for requests, research startup requirements, run/failure evidence, and verification.
+
 The data repository contains raw source snapshots, market-price inputs, CIK
 metadata, and acquisition manifests. Do not commit credentials or private
 documents there.

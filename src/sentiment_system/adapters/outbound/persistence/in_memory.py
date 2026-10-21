@@ -92,15 +92,15 @@ class InMemoryChunkScoreRepository:
 
     def __init__(self, scores: Iterable[ChunkScoreRecord] = (), *, runs: ExperimentRunRepository | None = None) -> None:
         self._runs = runs
-        self._scores: dict[tuple[str, str], ChunkScoreRecord] = {}
+        self._by_chunk: dict[str, dict[str, ChunkScoreRecord]] = {}
         for score in scores:
             self.save(score)
 
     def save(self, score: ChunkScoreRecord) -> None:
-        self._scores.setdefault((score.chunk_id, score.run_id), score)
+        self._by_chunk.setdefault(score.chunk_id, {}).setdefault(score.run_id, score)
 
     def list_for_chunk(self, chunk_id: str) -> tuple[ChunkScoreRecord, ...]:
-        scores = (score for score in self._scores.values() if score.chunk_id == chunk_id)
+        scores = self._by_chunk.get(chunk_id, {}).values()
 
         def chronology(score: ChunkScoreRecord) -> tuple[datetime, str]:
             run = self._runs.get(score.run_id) if self._runs is not None else None
@@ -187,20 +187,12 @@ class InMemoryPredictionRepository:
     """Store predictions by their deterministic prediction key."""
 
     def __init__(self, predictions: Iterable[Prediction] = ()) -> None:
-        self._predictions: dict[tuple[str, date, int, int, str, str | None], Prediction] = {}
+        self._predictions: dict[str, Prediction] = {}
         for prediction in predictions:
             self.save(prediction)
 
     def save(self, prediction: Prediction) -> None:
-        key = (
-            prediction.company,
-            prediction.as_of,
-            int(prediction.lookback_days),
-            prediction.forecast_horizon_days,
-            prediction.run_id,
-            prediction.user_id,
-        )
-        self._predictions[key] = prediction
+        self._predictions[prediction.prediction_id] = prediction
 
     def list_for_company(
         self,
@@ -221,6 +213,7 @@ class InMemoryPredictionRepository:
                     int(item.lookback_days),
                     item.forecast_horizon_days,
                     item.run_id,
+                    item.prediction_id,
                 ),
             )
         )
@@ -230,7 +223,14 @@ class InMemoryPredictionRepository:
         return tuple(
             sorted(
                 predictions,
-                key=lambda item: (item.as_of, item.company, int(item.lookback_days), item.forecast_horizon_days),
+                key=lambda item: (
+                    item.as_of,
+                    item.company,
+                    int(item.lookback_days),
+                    item.forecast_horizon_days,
+                    item.run_id,
+                    item.prediction_id,
+                ),
             )
         )
 
@@ -259,6 +259,9 @@ class InMemoryProvenanceRepository:
             self.save(item)
 
     def save(self, provenance: ExperimentProvenance) -> None:
+        existing = self._provenance.get(provenance.run_id)
+        if existing is not None and existing.processing_config.get("status") != "started":
+            return
         self._provenance[provenance.run_id] = provenance
 
     def get(self, run_id: str) -> ExperimentProvenance | None:
