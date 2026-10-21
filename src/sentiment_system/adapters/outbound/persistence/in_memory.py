@@ -1,9 +1,10 @@
 """Deterministic in-memory repositories for local development and tests."""
 
 from collections.abc import Iterable
-from datetime import date
+from datetime import date, datetime, timezone
 from uuid import UUID
 
+from sentiment_system.application.ports.repositories import ExperimentRunRepository
 from sentiment_system.domain.accounts import UserAccount
 from sentiment_system.domain.documents import DocumentChunk, SourceDocument
 from sentiment_system.domain.evaluation import EvaluationReport
@@ -89,7 +90,8 @@ class InMemoryChunkRepository:
 class InMemoryChunkScoreRepository:
     """Store append-only chunk scores by chunk and run identity."""
 
-    def __init__(self, scores: Iterable[ChunkScoreRecord] = ()) -> None:
+    def __init__(self, scores: Iterable[ChunkScoreRecord] = (), *, runs: ExperimentRunRepository | None = None) -> None:
+        self._runs = runs
         self._scores: dict[tuple[str, str], ChunkScoreRecord] = {}
         for score in scores:
             self.save(score)
@@ -99,7 +101,12 @@ class InMemoryChunkScoreRepository:
 
     def list_for_chunk(self, chunk_id: str) -> tuple[ChunkScoreRecord, ...]:
         scores = (score for score in self._scores.values() if score.chunk_id == chunk_id)
-        return tuple(sorted(scores, key=lambda item: item.run_id))
+
+        def chronology(score: ChunkScoreRecord) -> tuple[datetime, str]:
+            run = self._runs.get(score.run_id) if self._runs is not None else None
+            return (run.started_at if run else datetime.min.replace(tzinfo=timezone.utc), score.run_id)
+
+        return tuple(sorted(scores, key=chronology))
 
 
 class InMemoryInvestmentThesisRepository:
@@ -271,3 +278,6 @@ class InMemoryExperimentRunRepository:
 
     def get(self, run_id: str) -> ExperimentRun | None:
         return self._runs.get(run_id)
+
+    def list_runs(self) -> tuple[ExperimentRun, ...]:
+        return tuple(sorted(self._runs.values(), key=lambda run: (run.started_at, run.run_id)))

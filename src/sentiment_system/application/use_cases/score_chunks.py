@@ -42,8 +42,10 @@ class ScoreChunks:
 
     def execute(self, chunks: Sequence[DocumentChunk], *, run_id: str, prompt: str) -> int:
         """Persist one score per chunk and return the number processed."""
-        started_at = self._now()
+        parent = self._runs.get(run_id)
+        started_at = parent.started_at if parent is not None else self._now()
         configuration = {
+            **(parent.configuration if parent is not None else {}),
             "provider": self._provider,
             "model": self._model_name,
             "input_source": self._input_source,
@@ -52,15 +54,55 @@ class ScoreChunks:
             "soft_exclusion_threshold": 0.05,
             "soft_exclusion_consecutive_runs": 3,
         }
-        self._runs.save(
-            ExperimentRun(
-                run_id=run_id,
-                run_type="scoring",
-                status="started",
-                started_at=started_at,
-                configuration=configuration,
+        # A batch owns its lifecycle until aggregation has also succeeded.
+        owns_run = parent is None or parent.run_type != "batch"
+        if owns_run:
+            self._runs.save(
+                ExperimentRun(
+                    run_id=run_id,
+                    run_type="scoring",
+                    status="started",
+                    started_at=started_at,
+                    configuration=configuration,
+                )
             )
-        )
+        try:
+            count = self._score_chunks(chunks, run_id=run_id, prompt=prompt, started_at=started_at)
+        except Exception as error:
+            if owns_run:
+                self._runs.save(
+                    ExperimentRun(
+                        run_id=run_id,
+                        run_type="scoring",
+                        status="failed",
+                        started_at=started_at,
+                        completed_at=self._now(),
+                        configuration={**configuration, "error_type": type(error).__name__},
+                    )
+                )
+            raise
+        if owns_run:
+            self._runs.save(
+                ExperimentRun(
+                    run_id=run_id,
+                    run_type="scoring",
+                    status="completed",
+                    started_at=started_at,
+                    completed_at=self._now(),
+                    configuration={**configuration, "chunk_count": count},
+                )
+            )
+        return count
+
+    def _score_chunks(self, chunks: Sequence[DocumentChunk], *, run_id: str, prompt: str, started_at: datetime) -> int:
+        prior_runs = {
+            run.run_id: run
+            for run in self._runs.list_runs()
+            if run.status == "completed"
+            and run.run_type in {"scoring", "batch"}
+            and (run.started_at, run.run_id) < (started_at, run_id)
+            and run.run_id != run_id
+        }
 
         raw_responses: list[str] = []
         parsed_outputs: dict[str, object] = {}
@@ -68,7 +110,10 @@ class ScoreChunks:
             result = self._scorer.score_chunk(chunk)
             raw_responses.append(result.raw_response)
             parsed_outputs[chunk.chunk_id] = dict(result.parsed_output)
-            previous = self._scores.list_for_chunk(chunk.chunk_id)
+            previous = sorted(
+                (score for score in self._scores.list_for_chunk(chunk.chunk_id) if score.run_id in prior_runs),
+                key=lambda score: (prior_runs[score.run_id].started_at, score.run_id),
+            )
             low_scores = sum(1 for item in previous[-2:] if item.importance_score < 0.05)
             self._scores.save(
                 ChunkScoreRecord(
@@ -106,16 +151,6 @@ class ScoreChunks:
                 parsed_output=parsed_outputs,
                 thesis_parameters={},
                 created_at=completed_at,
-            )
-        )
-        self._runs.save(
-            ExperimentRun(
-                run_id=run_id,
-                run_type="scoring",
-                status="completed",
-                started_at=started_at,
-                completed_at=completed_at,
-                configuration={**configuration, "chunk_count": len(chunks)},
             )
         )
         return len(chunks)

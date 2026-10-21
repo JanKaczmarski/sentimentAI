@@ -1,10 +1,10 @@
 """Use cases for assembling predictions and reading user-scoped history."""
 
-from collections.abc import Iterable
 from datetime import date
 from hashlib import sha256
 
 from sentiment_system.application.ports.repositories import (
+    ExperimentRunRepository,
     InvestmentThesisRepository,
     PredictionRepository,
     SnapshotRepository,
@@ -15,7 +15,7 @@ from sentiment_system.application.use_cases.personalize_snapshots import (
     PersonalizeSnapshots,
 )
 from sentiment_system.domain.accounts import UserAccount
-from sentiment_system.domain.predictions import CompanySentimentSnapshot, Prediction, SnapshotWindow
+from sentiment_system.domain.predictions import Prediction, SnapshotWindow
 
 
 class PredictionAccountNotFoundError(ValueError):
@@ -45,11 +45,13 @@ class GeneratePrediction:
         theses: InvestmentThesisRepository,
         snapshots: SnapshotRepository,
         predictions: PredictionRepository,
+        runs: ExperimentRunRepository,
     ) -> None:
         self._accounts = accounts
         self._theses = theses
         self._snapshots = snapshots
         self._predictions = predictions
+        self._runs = runs
         self._personalize = PersonalizeSnapshots(snapshots)
 
     def execute(
@@ -71,20 +73,30 @@ class GeneratePrediction:
         if thesis is None:
             raise PredictionThesisNotFoundError("thesis not found")
 
-        result = None
-        for run_id in reversed(_run_ids(self._snapshots.list_for_company(ticker, as_of=as_of))):
-            try:
-                result = self._personalize.execute(
-                    company=ticker,
-                    as_of=as_of,
-                    thesis=thesis,
-                    run_id=run_id,
+        snapshot_run_ids = {
+            snapshot.run_id
+            for snapshot in self._snapshots.list_for_company(ticker, as_of=as_of)
+            if snapshot.as_of == as_of
+        }
+        relevant = [
+            run
+            for run in self._runs.list_runs()
+            if run.run_type in {"batch", "scoring"}
+            and (
+                run.run_id in snapshot_run_ids
+                or (
+                    run.configuration.get("as_of") == as_of.isoformat()
+                    and run.configuration.get("company") in {None, ticker}
                 )
-                break
-            except MissingSnapshotError:
-                continue
-        if result is None:
+            )
+        ]
+        latest = max(relevant, key=lambda run: (run.started_at, run.run_id), default=None)
+        if latest is None or latest.status != "completed":
             raise PredictionUnavailableError("prediction snapshots unavailable")
+        try:
+            result = self._personalize.execute(company=ticker, as_of=as_of, thesis=thesis, run_id=latest.run_id)
+        except MissingSnapshotError as error:
+            raise PredictionUnavailableError("prediction snapshots unavailable") from error
 
         prediction = Prediction(
             company=ticker,
@@ -124,7 +136,3 @@ class ListPredictionHistory:
         if account is None or str(account.user_id) != user_id:
             raise PredictionAccountNotFoundError("account not found")
         return self._predictions.list_for_user(str(account.user_id))
-
-
-def _run_ids(predictions: Iterable[CompanySentimentSnapshot]) -> tuple[str, ...]:
-    return tuple(dict.fromkeys(item.run_id for item in predictions))

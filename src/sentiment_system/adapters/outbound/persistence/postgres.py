@@ -359,6 +359,11 @@ class PostgresExperimentRunRepository(_PostgresRepository, ExperimentRunReposito
             row = connection.execute("SELECT * FROM experiment_runs WHERE run_id = %s", (run_id,)).fetchone()
         return None if row is None else _run_from_row(row)
 
+    def list_runs(self) -> tuple[ExperimentRun, ...]:
+        with self._database.connect() as connection:
+            rows = connection.execute("SELECT * FROM experiment_runs ORDER BY started_at, run_id").fetchall()
+        return tuple(_run_from_row(row) for row in rows)
+
 
 class PostgresProvenanceRepository(_PostgresRepository, ExperimentProvenanceRepository):
     """Persist secret-free provider and processing artifacts by run."""
@@ -427,7 +432,13 @@ class PostgresChunkScoreRepository(_PostgresRepository, ChunkScoreRepository):
     def list_for_chunk(self, chunk_id: str) -> tuple[ChunkScoreRecord, ...]:
         with self._database.connect() as connection:
             rows = connection.execute(
-                "SELECT * FROM chunk_scores WHERE chunk_id = %s ORDER BY run_id", (chunk_id,)
+                """
+                SELECT scores.* FROM chunk_scores AS scores
+                LEFT JOIN experiment_runs AS runs ON runs.run_id = scores.run_id
+                WHERE scores.chunk_id = %s
+                ORDER BY runs.started_at NULLS FIRST, scores.run_id
+                """,
+                (chunk_id,),
             ).fetchall()
         return tuple(_score_from_row(row) for row in rows)
 

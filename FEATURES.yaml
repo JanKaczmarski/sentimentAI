@@ -2068,6 +2068,7 @@ features:
     implementation_notes:
       - "Default concurrency should be conservative (e.g. 1) given a single local Ollama instance; make it configurable rather than hard-coded so it can be raised against a multi-replica or hosted provider later."
       - "2026-10-19 audit: /batch/run is a synchronous request; there is no enqueue/status endpoint, worker, persisted per-chunk checkpoint, lease, or process-restart resume path. Existing SDK retries do not provide durable job execution."
+      - "Author follow-up from FEAT-038: decide the concrete policy for retrying failed scoring (retryable failures, limits and resume behavior) before implementing recovery. FEAT-038 returns prediction unavailable and adds no retries."
 
   - id: FEAT-033
     title: "Rank and de-duplicate prediction evidence with vector similarity"
@@ -2339,7 +2340,7 @@ features:
 
   - id: FEAT-038
     title: "Use chronological scoring history and latest completed snapshot runs"
-    status: proposed
+    status: implemented
     priority: high
     depends_on:
       - FEAT-008
@@ -2348,7 +2349,7 @@ features:
       - FEAT-014
     scope:
       - "Order chunk-score history by explicit execution chronology rather than lexicographic run identifiers before applying the approved three-consecutive-low-importance rule."
-      - "Select the latest eligible completed snapshot run for a prediction by run chronology, preserving as-of/window constraints and stable deterministic tie-breaking."
+      - "Order runs by started_at with run_id only as a deterministic tie-breaker. Select the latest relevant run for the exact requested as-of date; return prediction unavailable if it is not completed or lacks required snapshots, without falling back to older runs."
       - "Keep in-memory and PostgreSQL repository contracts consistent and preserve all historical source, score, snapshot and prediction records."
     non_goals:
       - "Changing the 0.05 threshold, required three-run streak, aggregation weights, personalization rules or frozen experiment inputs."
@@ -2358,19 +2359,21 @@ features:
       - id: AC-1
         description: "A low/low/high/low execution history never excludes the final score, regardless of deliberately shuffled run-ID sort order; three consecutive eligible low scores do exclude it."
       - id: AC-2
-        description: "When two completed runs have snapshots at the same as-of date, prediction selection uses the later executed eligible run regardless of its identifier, with deterministic ties and explicit treatment of unknown legacy chronology."
+        description: "Prediction selection uses the latest relevant run by started_at regardless of identifier or completion-time order, with deterministic ties and exact company/as-of/window constraints. A failed, unfinished or missing-snapshot latest run returns prediction unavailable without older-run fallback."
       - id: AC-3
         description: "Fake and real PostgreSQL tests prove chronological ordering and run eligibility, and prior scores, snapshots and evidence remain addressable and unchanged."
     architecture:
       layers:
         - application
         - adapters
+        - bootstrap
       ports:
         - repositories
     research_decisions:
       - "docs/THESIS_DECISIONS.md#rag-and-scoring"
       - "decisions/0005-aggregation-and-personalization-rules.md"
       - "decisions/0006-reproducible-research-and-runtime-contract.md"
+      - "decisions/0019-run-chronology-and-prediction-availability.md"
     verification:
       required_test_levels:
         - unit
@@ -2378,7 +2381,57 @@ features:
         - integration
       required_checks: *code_checks
     blocked_reason: null
-    completion_evidence: []
+    completion_evidence:
+      - acceptance_criterion: AC-1
+        evidence:
+          - "tests/unit/application/test_score_chunks.py::test_exclusion_follows_execution_order_and_can_recover covers shuffled run IDs, low/low/high/low, consecutive lows, and recovery at the 0.05 boundary."
+          - "tests/contract/ports/test_run_chronology.py::test_scores_are_chronological_and_history_is_preserved passes with both in-memory and real PostgreSQL repositories."
+      - acceptance_criterion: AC-2
+        evidence:
+          - "tests/unit/application/test_generate_prediction.py covers start-time rather than ID/completion ordering, deterministic ties, company/date constraints, missing windows and no fallback for failed/started/completed-but-incomplete latest runs."
+          - "tests/integration/test_batch.py::test_manual_batch_serves_multiple_theses_from_one_scoring_run confirms HTTP 404 after a later failed scoring batch and preservation of earlier predictions and snapshots."
+      - acceptance_criterion: AC-3
+        evidence:
+          - "All 20 shared memory/PostgreSQL chronology contract cases pass, covering score ordering, completed-run eligibility, equal-time ties, latest-run prediction selection and preserved sources, scores, provenance, snapshots, predictions and evidence."
+          - "2026-10-21 full uv run pytest with POSTGRES_TEST_DSN pointed at an isolated local PostgreSQL cluster: 347 passed, 15 unrelated cache/Qdrant tests skipped. PostgreSQL migration, populated-upgrade and API tests also pass."
     implementation_notes:
       - "2026-10-19 audit reproduced incorrect exclusion for execution order run-x low, run-y low, run-a high, run-z low: repositories sort by run_id and the final score is wrongly excluded. Existing monotonic run-1/run-2/run-3 tests miss this defect."
       - "PostgresChunkScoreRepository.list_for_chunk and its in-memory counterpart sort run IDs. Snapshot repositories sort as_of/window/run_id, and GeneratePrediction reverses that derived run order without consulting run timestamps/status. This is corrective work beyond the completed basic scoring/prediction feature evidence."
+      - "Author-approved readiness decisions: non-overlapping executions use started_at; no legacy-data migration is needed; only completed prior scoring/batch runs contribute to the streak; a later high score restores eligibility. Preserve batch start time and completion ownership across its scoring stage."
+      - "Author-approved unavailable behavior: no automatic fallback or retry. FEAT-032 owns the later scoring retry decision; FEAT-039 records the separate TBD response to prediction unavailability."
+      - "TDD: observed the shuffled-history false exclusion and missed exclusion before implementation, plus scoring-stage lifecycle failures; then implemented the corrected behavior and added shared real-adapter coverage."
+      - "Verification passed: black/isort checks, ruff, mypy, pytest, compileall, uv build, pip-audit, required docs, feature validation, uv lock --check and git diff --check. SQL remains parameterized and database test access uses environment configuration, with no credential changes."
+      - "Required pip-audit initially found PYSEC-2026-4320 in transitive certifi 2026.7.22. Updated only certifi to 2026.10.19 in uv.lock using the approved public-index lock command, synced, and reran verification successfully."
+      - "No schema migration or research artifact changes. Implemented on feat/038-chronological-runs; pull request review and remote CI remain pending."
+
+  - id: FEAT-039
+    title: "Decide how to handle prediction unavailability"
+    status: proposed
+    priority: medium
+    depends_on:
+      - FEAT-038
+    scope:
+      - "Define the desired response when prediction generation is unavailable because the required scoring run or snapshots are missing, unfinished or failed. Behavior is TBD pending author decision."
+    non_goals:
+      - "Implementing recovery, older-run fallback or automatic scoring as part of FEAT-038."
+      - "Duplicating FEAT-032's provider retry/backoff implementation."
+    acceptance_criteria:
+      - id: AC-1
+        description: "Before readiness, the author approves concrete unavailable-prediction behavior and its acceptance tests; recovery and user-facing behavior remain TBD until then."
+    architecture:
+      layers:
+        - application
+        - adapters
+      ports:
+        - repositories
+    research_decisions:
+      - "docs/THESIS_DECISIONS.md#runtime-and-architecture"
+    verification:
+      required_test_levels:
+        - unit
+        - integration
+      required_checks: *code_checks
+    blocked_reason: null
+    completion_evidence: []
+    implementation_notes:
+      - "Requested by the author during FEAT-038 planning. Backlog placeholder only; do not autonomously promote or implement before deciding the behavior."

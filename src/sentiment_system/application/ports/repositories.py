@@ -52,7 +52,7 @@ class ChunkScoreRepository(Protocol):
         """Insert one score for a chunk and experiment run."""
 
     def list_for_chunk(self, chunk_id: str) -> tuple[ChunkScoreRecord, ...]:
-        """Return all historical scores for a chunk in run order."""
+        """Return scores by (run started_at, run_id); unlinked records sort first."""
 
 
 @runtime_checkable
@@ -152,3 +152,6 @@ class ExperimentRunRepository(Protocol):
 
     def get(self, run_id: str) -> ExperimentRun | None:
         """Return one run by identifier."""
+
+    def list_runs(self) -> tuple[ExperimentRun, ...]:
+        """Return runs by (started_at, run_id), including failed/unfinished runs."""
