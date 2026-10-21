@@ -202,6 +202,7 @@ non-production and unauthenticated.
 | GET | `/companies/{companyID}/prediction` | Get personalized prediction and evidence |
 | GET | `/user/history/{userID}` | Get stored prediction history |
 | POST | `/companies/{companyID}` | Accept fixture-based company communication data |
+| POST | `/companies/{companyID}/ingest` | Prepare one company's cached documents and reuse compatible embeddings |
 | POST | `/batch/run` | Trigger an experiment or refresh batch |
 
 LLM and storage operations are internal component interfaces, not public user

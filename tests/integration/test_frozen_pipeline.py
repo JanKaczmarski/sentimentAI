@@ -121,6 +121,14 @@ def test_frozen_cache_through_composed_api_preserves_scope_lineage_and_shared_sc
     )
     assert container.run_batch.execute(company="AMAT", as_of=date(2025, 1, 30)).document_count == 1
     assert client.post("/batch/run", json={"source_scope": "all-cache"}).status_code == 422
+    calls_before_preparation = calls
+    preparation = client.post("/companies/META/ingest", json={"as_of": "2025-01-30", "source_scope": "frozen"})
+    assert preparation.status_code == 200
+    assert preparation.json()["embedded_chunk_count"] == 0
+    assert preparation.json()["reused_chunk_count"] == 1
+    # A newer preparation attempt is not a scoring run and cannot displace predictions.
+    _assert_predictions(client, container, run, "2025-01-30", investors, ("META",))
+    assert calls == calls_before_preparation
 
 
 def test_frozen_request_without_a_manifest_records_failure_instead_of_using_fixtures(monkeypatch):

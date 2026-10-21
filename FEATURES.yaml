@@ -1019,7 +1019,7 @@ features:
 
   - id: FEAT-016
     title: "Evaluate predictions against leakage-safe market outcomes"
-    status: queued
+    status: ready
     priority: high
     depends_on:
       - FEAT-002
@@ -1335,7 +1335,7 @@ features:
 
   - id: FEAT-022
     title: "Run the complete source-to-prediction pipeline"
-    status: in_review
+    status: complete
     priority: critical
     depends_on:
       - FEAT-007
@@ -1427,6 +1427,7 @@ features:
       - "Verification: black/isort checks, ruff, mypy, compileall, uv build, pip-audit, required-doc/feature validation, uv lock --check and git diff --check passed. Standard full suite with isolated PostgreSQL and Qdrant: 379 passed, 15 external-cache cases skipped; all 15 passed separately (14 source/history/market/artifact checks plus full 363-record pipeline replay). Every one of the 394 tests was exercised across successful runs."
       - "The combined external-cache/full-suite invocation exceeded its 600-second tool limit; split explicit cache runs succeeded, including the final full-corpus replay in 227 seconds. PostgreSQL and Qdrant 1.19.0 used temporary isolated local services because Docker was unavailable; application databases and external research inputs were not changed."
       - "FEAT-038's stale implemented status was reconciled against merged PR #56 and successful exact-head CI. FEAT-022 is published in PR #57 targeting develop: https://github.com/JanKaczmarski/sentimentAI/pull/57. Exact-head remote CI and human review govern integration. See docs/LOCAL_CACHED_CORPUS_RUNBOOK.md for the API/configuration/migration contract."
+      - "Lifecycle reconciled before FEAT-030: PR #57 merged into develop at b5e9788c218e26e67cfba22094e69262e89d7160; exact-head Project checks succeeded in CI run 39598235606."
 
   - id: FEAT-023
     title: "Implement production LLM scoring and contextual RAG"
@@ -1951,7 +1952,7 @@ features:
 
   - id: FEAT-030
     title: "Ingest and index one company's documents on demand"
-    status: ready
+    status: in_review
     priority: high
     depends_on:
       - FEAT-007
@@ -1992,15 +1993,44 @@ features:
       - "docs/THESIS_DECISIONS.md#runtime-and-architecture"
       - "decisions/0003-processing-and-scoring-configuration.md"
       - "decisions/0012-normal-cached-corpus-company-workflow.md"
+      - "decisions/0020-on-demand-company-ingestion-and-embedding-reuse.md"
     verification:
       required_test_levels:
         - unit
+        - contract
         - integration
       required_checks: *code_checks
     blocked_reason: null
-    completion_evidence: []
+    completion_evidence:
+      - acceptance_criterion: AC-1
+        evidence:
+          - "tests/integration/test_company_ingestion.py::test_cached_company_ingestion_reuses_vectors_and_batch_contract_remains_compatible"
+          - "tests/unit/application/test_ingest_company_documents.py covers strict company/publication scope, frozen manifest identity, empty results, quality/vector/provider failures and retained partial lineage/index counts."
+          - "SENTIMENT_DATA_ROOT=../sentimentAI-data uv run pytest tests/integration/test_company_ingestion.py::test_real_frozen_company_preparation_reuses_all_vectors_offline -q: passed against the actual frozen WHR corpus with offline development embeddings."
+      - acceptance_criterion: AC-2
+        evidence:
+          - "tests/unit/application/test_ingest_company_documents.py::test_expanded_cached_selection_only_embeds_additional_chunks"
+          - "tests/contract/ports/test_embedding_reuse.py: six memory/Qdrant contract cases verify reuse, legacy/model/content invalidation, completed-run exclusions and non-destructive dimension errors."
+          - "tests/integration/test_pipeline_persistence.py::test_durable_ingestion_reuses_vectors_after_restart_and_repairs_missing_points passed against isolated real PostgreSQL and Qdrant."
+          - "tests/integration/test_company_ingestion.py::test_real_frozen_company_preparation_reuses_all_vectors_offline rejects any second-request embedding call."
+      - acceptance_criterion: AC-3
+        evidence:
+          - "tests/integration/test_company_ingestion.py::test_ingestion_validation_empty_results_and_missing_frozen_failure verifies the same 422 validation message as /batch/run, with no run created for an unsupported ticker."
+      - acceptance_criterion: AC-4
+        evidence:
+          - "tests/integration/test_company_ingestion.py::test_cached_company_ingestion_reuses_vectors_and_batch_contract_remains_compatible asserts the full unchanged batch response and continued scoring/aggregation after standalone preparation."
+          - "tests/integration/test_frozen_pipeline.py::test_frozen_cache_through_composed_api_preserves_scope_lineage_and_shared_scoring verifies a newer ingestion run does not displace existing investor predictions or invoke scoring."
+          - "Full suite with POSTGRES_TEST_DSN and QDRANT_TEST_URL: 399 passed, 16 optional external-cache cases skipped; the feature-specific real WHR case passed separately."
     implementation_notes:
       - "2026-10-19 audit: raw/cleaned persistence, sentence-aware chunking and embedding/indexing already exist through IngestDocuments, IndexChunks and the combined batch. Missing are the dedicated cached-company ingestion endpoint/use case and avoiding repeat embedding work. The current /companies/{company} endpoint is fixture-communication ingestion, not this workflow."
+      - "Author-approved contract: POST /companies/{company}/ingest accepts as_of and operational/frozen source_scope (default operational); totals include reused items, with embedded_chunk_count/reused_chunk_count diagnostics. Every attempt receives a fresh ingestion run. Approved empty selections succeed with zero counts; unsupported companies return 422."
+      - "Author-approved reuse policy: verify chunk identity/content and embedding configuration; re-index legacy/unverified or incompatible vectors once with the configured model, preserving authoritative exclusion state. Subsequent compatible requests avoid embedding calls."
+      - "Implemented on feat/030-company-ingestion from latest develop b5e9788c218e26e67cfba22094e69262e89d7160. Reconciled merged FEAT-022; readiness reconciliation promoted only FEAT-016, while the author explicitly selected FEAT-030."
+      - "The shared indexer inspects/upserts bounded 128-chunk batches and returns optional embedding/reuse diagnostics while execute() retains its total-count batch contract. Compatibility metadata lives in Qdrant payloads; no SQL migration or research-data changes. Source lineage is shared with RunBatch."
+      - "TDD observed missing embedding-reuse constructor behavior, absent ingestion use case and HTTP 404 for the new route before implementation. Added meaningful unit, adapter, API, frozen-scope and durable-restart regressions."
+      - "Verification passed: black/isort, ruff, mypy, pytest (399 passed with isolated real PostgreSQL and Qdrant), compileall, build, pip-audit (no known vulnerabilities), required-doc/feature validation, uv lock --check and git diff --check. The external WHR replay exceeded an initial 120-second limit; a longer explicit run passed in 313.55 seconds. Other optional external-cache tests were not repeated."
+      - "Dimension-changing models fail explicitly against incompatible collections; use a separately configured collection. Mutable model aliases must remain stable for the declared identity. Per-batch counts are collected in memory and persisted at stage boundaries/failure; background checkpoint/resume and browser controls remain with FEAT-032/034."
+      - "Published for human review in PR #58 targeting develop: https://github.com/JanKaczmarski/sentimentAI/pull/58. Exact-head remote CI and explicit human approval govern integration."
 
   - id: FEAT-031
     title: "Score chunks with document-level contextual RAG"

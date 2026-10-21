@@ -89,6 +89,12 @@ published strictly before the requested `as_of`. See the
 [cached-corpus runbook](docs/LOCAL_CACHED_CORPUS_RUNBOOK.md#explicit-frozen-corpus-batch)
 for requests, research startup requirements, run/failure evidence, and verification.
 
+Use `POST /companies/{company}/ingest` to prepare one company's cached documents
+without scoring. It supports operational/frozen scope, returns total and
+embedded/reused chunk counts with a fresh audit run, and avoids repeat embedding
+calls for compatible points. See the
+[standalone ingestion workflow](docs/LOCAL_CACHED_CORPUS_RUNBOOK.md#prepare-one-company-without-scoring).
+
 The data repository contains raw source snapshots, market-price inputs, CIK
 metadata, and acquisition manifests. Do not commit credentials or private
 documents there.
