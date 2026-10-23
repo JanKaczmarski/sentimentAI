@@ -16,6 +16,32 @@ legacy POC is preserved for comparison and sample data during the rebuild.
 
 ## Development Setup
 
+### Quick Online Demo (demo branch)
+
+Run the current browser workflow with Groq's free API tier, mock embeddings,
+built-in AAPL sample data, and in-memory storage:
+
+```bash
+uv sync
+cp .env.demo.example .env.demo
+# Set GROQ_API_KEY in .env.demo using https://console.groq.com/keys
+make demo
+```
+
+Open <http://localhost:8000/ui/>, create an account and an AAPL Investment Thesis,
+then run an AAPL batch with as-of date **2025-01-16**. The fixture was published
+on 2025-01-15. Accounts and results reset on restart. No Ollama, Docker, model
+download, or external data repository is needed. Scoring uses the real online
+model; mock vectors are only for this workflow demo, not research results.
+Groq free-tier limits apply; this tiny fixture keeps the demo small.
+`DEMO_MODEL` optionally selects another compatible Groq model. To use real local
+embeddings, set `DEMO_EMBEDDING_BACKEND=local` in `.env.demo`; this downloads
+`BAAI/bge-small-en-v1.5` on first use.
+
+`make demo` reads the ignored `.env.demo` and overrides infrastructure/provider
+settings for this process. Keep the key in that local file. The launcher uses
+the existing OpenAI-compatible adapter (`LLM_BACKEND=ollama`) with Groq's URL.
+
 ```bash
 uv sync
 cp .env.example .env

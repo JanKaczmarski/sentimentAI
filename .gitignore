@@ -20,6 +20,7 @@ build/
 .env
 .env.*
 !.env.example
+!.env.demo.example
 *.pem
 credentials.json
 

@@ -4,11 +4,12 @@ UV ?= uv
 COMPOSE ?= docker compose
 PROJECT_PATHS := src tests scripts
 
-.PHONY: help sync install format format-check lint test test-unit test-integration compile build audit governance compose-config lock-check diff-check check deploy up down logs status run
+.PHONY: help sync install format format-check lint test test-unit test-integration compile build audit governance compose-config lock-check diff-check check deploy up down logs status run demo
 
 help:
 	@printf '%s\n' \
 		"make sync             Install locked project dependencies" \
+		"make demo             Run the isolated Groq demo using .env.demo" \
 		"make test             Run the local test suite without Docker" \
 		"make check            Run fast checks without Docker" \
 		"make format           Format source, tests, and scripts" \
@@ -87,3 +88,6 @@ status:
 
 run:
 	$(UV) run uvicorn sentiment_system.bootstrap.main:app --reload
+
+demo:
+	$(UV) run python -m scripts.run_demo
